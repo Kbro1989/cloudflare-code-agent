@@ -221,8 +221,9 @@ export const html = `<!DOCTYPE html>
 
         // --- Editor & UI ---
         function initEditor() {
+            if (editor) editor.dispose();
+            
             const container = document.getElementById('editor-container');
-            if(!container) return;
             container.innerHTML = '';
             
             const file = files[activeFile];

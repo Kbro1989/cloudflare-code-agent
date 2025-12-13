@@ -55,7 +55,7 @@ export function validateFull(
 
 function normalizeFile(f?: string): string | null {
     if (!f || f === "/dev/null") return null;
-    return f.replace(/^a\/|^b\//, "");
+    return f.replace(/^a\/|^b\//, "").trim();
 }
 
 function verifyContext(

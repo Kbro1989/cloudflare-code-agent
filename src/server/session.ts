@@ -128,7 +128,8 @@ export class Session extends DurableObject {
 
     updateFiles(files: Record<string, any>) {
         const sql = this.state.storage.sql;
-        for (const [path, file] of Object.entries(files)) {
+        for (const [rawPath, file] of Object.entries(files)) {
+            const path = rawPath.trim();
             sql.exec(`
                 INSERT INTO files (path, content, language) 
                 VALUES (?, ?, ?) 
