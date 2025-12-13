@@ -174,7 +174,7 @@ export const html = `<!DOCTYPE html>
         // --- WebSocket ---
         function connectWebSocket() {
             const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = \`\${proto}://\${window.location.host}/api/workspace/ws?sessionId=\${sessionId}\`;
+            const wsUrl = "\${proto}://" + window.location.host + "/api/workspace/ws?sessionId=" + sessionId;
             
             socket = new WebSocket(wsUrl);
             const statusEl = document.getElementById('connStatus');
@@ -265,13 +265,13 @@ export const html = `<!DOCTYPE html>
             
             Object.keys(files).forEach(f => {
                 const item = document.createElement('div');
-                item.className = \`file-item \${f === activeFile ? 'active' : ''}\`;
+                item.className = "file-item " + (f === activeFile ? 'active' : '');
                 item.textContent = f;
                 item.onclick = () => switchFile(f);
                 list.appendChild(item);
                 
                 const tab = document.createElement('div');
-                tab.className = \`tab \${f === activeFile ? 'active' : ''}\`;
+                tab.className = "tab " + (f === activeFile ? 'active' : '');
                 tab.textContent = f;
                 tab.onclick = () => switchFile(f);
                 tabs.appendChild(tab);
@@ -367,16 +367,15 @@ export const html = `<!DOCTYPE html>
             steps.forEach(step => {
                 if(map[step.name]) {
                     const el = document.getElementById(map[step.name]);
-                    el.className = \`pipeline-step \${step.status}\`;
+                    el.className = "pipeline-step " + step.status;
                     el.querySelector('.step-icon').textContent = step.status === 'success' ? '✓' : (step.status === 'failure' ? '✗' : '◎');
                 }
             });
         }
         function updateTelemetry(metrics) {
-            document.getElementById('telemetry').innerHTML = \`
-                <div class="badge">Latency: \${Math.round(metrics.durationMs)}ms</div>
-                <div class="badge">Tokens: \${metrics.inputTokens || '-'}</div>
-            \`;
+            document.getElementById('telemetry').innerHTML = 
+                '<div class="badge">Latency: ' + Math.round(metrics.durationMs) + 'ms</div>' +
+                '<div class="badge">Tokens: ' + (metrics.inputTokens || '-') + '</div>';
         }
         
         window.acceptDiff = function() {
