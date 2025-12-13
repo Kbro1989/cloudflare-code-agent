@@ -60,6 +60,8 @@ export async function executeTask(params: ExecuteParams): Promise<ExecuteResult>
         systemMessages.push(
             { role: "system", content: "You must output a unified diff to apply changes." },
             { role: "system", content: "Format: `diff --git a/path/to/file b/path/to/file`" },
+            { role: "system", content: "Example - Modifying a file:\n```diff\ndiff --git a/main.ts b/main.ts\n--- a/main.ts\n+++ b/main.ts\n@@ -1,1 +1,1 @@\n-console.log('old');\n+console.log('new');\n```" },
+            { role: "system", content: "Example - Creating a new file:\n```diff\ndiff --git a/new.ts b/new.ts\nnew file mode 100644\n--- /dev/null\n+++ b/new.ts\n@@ -0,0 +1,1 @@\n+console.log('new file');\n```" },
             { role: "system", content: "Do not include markdown code blocks around the diff." }
         );
     } else {
@@ -103,8 +105,32 @@ export async function executeTask(params: ExecuteParams): Promise<ExecuteResult>
     // Check basic diff structure
     if (!response.includes("diff --git")) {
         updateStep(steps, "Structure", "failure", "Missing diff header");
-        // Retry logic is here in V1, but for V2 Speed/UI visualization, we might just fail fast or do the retry loop. 
-        // Let's keep the retry but update steps.
+
+        // RETRY Logic for Structure
+        console.warn("Validation failed (structure), retrying...");
+        updateStep(steps, "Generation", "running", "Retrying structure fix...");
+        messages.push(
+            { role: "assistant", content: response },
+            { role: "system", content: `CRITICAL ERROR: You failed to provide a valid 'diff --git' patch. You MUST provide a unified diff. Please try again.` }
+        );
+        try {
+            response = await callModel(ai, model, messages);
+            if (response.includes("diff --git")) {
+                updateStep(steps, "Generation", "success", "Corrected");
+                updateStep(steps, "Structure", "success");
+                // Continue to Parse...
+                // Note: We need to refactor control flow to flow into Parse.
+                // For simplicity, we recursively call or just verify here.
+                const vRe = validateFull(response, allowedFiles, files);
+                if (vRe.valid) {
+                    updateStep(steps, "Parse", "success");
+                    updateStep(steps, "Context", "success");
+                    return { intent, artifact: response, steps, metrics: { durationMs: performance.now() - start } };
+                }
+            } else {
+                return { intent, error: { type: "Structure", message: "Failed to generate valid diff header after retry" }, steps, metrics: { durationMs: performance.now() - start } };
+            }
+        } catch (e) { /* ignore */ }
     } else {
         updateStep(steps, "Structure", "success");
         updateStep(steps, "Parse", "running");
