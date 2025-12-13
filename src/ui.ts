@@ -170,6 +170,7 @@ export const html = `<!DOCTYPE html>
             debouncedSave();
         };
         window.rejectDiff = (() => { mode='edit'; initEditor(); renderUI(); });
+        window.createNewFile = createNewFile;
 
         // --- WebSocket ---
         function connectWebSocket() {
