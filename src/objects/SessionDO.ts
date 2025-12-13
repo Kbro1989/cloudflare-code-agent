@@ -100,9 +100,10 @@ export class SessionDO extends DurableObject {
         });
     }
 
+    async save() {
         await this.state.storage.put("data", this.data);
-// Async R2 backup (fire and forget)
-const key = `snapshot-${Date.now()}.json`;
-this.env.WORKSPACE_BUCKET.put(key, JSON.stringify(this.data)).catch(console.error);
+        // Async R2 backup (fire and forget)
+        const key = `snapshot-${Date.now()}.json`;
+        this.env.WORKSPACE_BUCKET.put(key, JSON.stringify(this.data)).catch(console.error);
     }
 }
