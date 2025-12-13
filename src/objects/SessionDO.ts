@@ -1,3 +1,4 @@
+import { DurableObject } from "cloudflare:workers";
 import { Env } from "../index";
 
 interface SessionState {
