@@ -71,8 +71,9 @@ export const html = `<!DOCTYPE html>
             
             <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
                 <select id="modelSelect">
+                    <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">Llama 3.3 70B (Top)</option>
                     <option value="@cf/meta/llama-3.1-8b-instruct">Llama 3.1 8B (Fast)</option>
-                    <option value="@cf/meta/llama-3.1-70b-instruct">Llama 3.1 70B (Smart)</option>
+                    <option value="@cf/meta/llama-3.1-70b-instruct">Llama 3.1 70B (Legacy)</option>
                      <option value="@cf/qwen/qwen2.5-7b-instruct">Qwen 2.5 7B</option>
                 </select>
             </div>

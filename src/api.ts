@@ -1,5 +1,5 @@
-import { Env } from "./index.ts";
-import { executeTask } from "./agent/execute.ts";
+import { Env } from "./index";
+import { executeTask } from "./agent/execute";
 
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
     const body = await request.json().catch(() => null);
@@ -23,7 +23,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     // We pass the history to the agent so it has context
     const result = await executeTask({
         ai: env.AI,
-        model: (body as any).model || "@cf/meta/llama-3.1-8b-instruct",
+        model: (body as any).model || "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         input,
         files,
         intent,
