@@ -112,10 +112,37 @@ export const html = `<!DOCTYPE html>
     <script type="module">
         import * as monaco from 'https://esm.sh/monaco-editor@0.45.0';
         
-        // Environment for workers (using blob/data uri fallback or simple generic worker)
-        // For simplicity in this agent, we can rely on main thread if workers fail, 
-        // but esm.sh usually handles it or we define getWorkerUrl properly.
-        // We'll try basic init first.
+        // Environment for workers (using blob/data uri fallback for cross-origin ESM)
+        window.MonacoEnvironment = {
+            getWorker: function (moduleId, label) {
+                const getWorkerModule = (moduleUrl, label) => {
+                    const code = `import * as worker from '${moduleUrl}'; self.MonacoEnvironment = { baseUrl: 'https://esm.sh/monaco-editor@0.45.0' }; `;
+                    const blob = new Blob([code], { type: 'application/javascript' });
+                    return new Worker(URL.createObjectURL(blob), { type: 'module' });
+                };
+
+                let url = 'https://esm.sh/monaco-editor@0.45.0/esm/vs/editor/editor.worker?worker';
+                if (label === 'json') url = 'https://esm.sh/monaco-editor@0.45.0/esm/vs/language/json/json.worker?worker';
+                if (label === 'css' || label === 'scss' || label === 'less') url = 'https://esm.sh/monaco-editor@0.45.0/esm/vs/language/css/css.worker?worker';
+                if (label === 'html' || label === 'handlebars' || label === 'razor') url = 'https://esm.sh/monaco-editor@0.45.0/esm/vs/language/html/html.worker?worker';
+                if (label === 'typescript' || label === 'javascript') url = 'https://esm.sh/monaco-editor@0.45.0/esm/vs/language/typescript/ts.worker?worker';
+                
+                // Use the raw file if ?worker fails, but let's try the esm.sh ?worker module first?
+                // Actually, if we use Blob, we should import the module.
+                // esm.sh `? worker` exports a default that IS the worker constructor usually, or the worker code itself?
+                // Standard usage with esm is: import Worker from '...?worker'; new Worker()
+                // But Monaco wants us to return the instance.
+                
+                // Let's try importing the direct JS file for the worker logic.
+                // NOTE: esm.sh structure for workers is specific. 
+                // Let's try the direct import of the worker entry point.
+                if (label === 'typescript' || label === 'javascript') {
+                     // The worker mainline
+                     return getWorkerModule('https://esm.sh/monaco-editor@0.45.0/esm/vs/language/typescript/ts.worker.js', label);
+                }
+                return getWorkerModule('https://esm.sh/monaco-editor@0.45.0/esm/vs/editor/editor.worker.js', label);
+            }
+        };
 
         // --- State ---
         let sessionId = localStorage.getItem('agentSessionId');
