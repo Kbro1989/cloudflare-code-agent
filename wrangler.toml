@@ -9,3 +9,16 @@ id = "19ed43640eb04f69b98289b998ef971f" # Run: npm run kv:create
 
 [ai]
 binding = "AI"
+
+[durable_objects]
+bindings = [
+  { name = "SESSION_DO", class_name = "SessionDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SessionDO"]
+
+[[r2_buckets]]
+binding = "WORKSPACE_BUCKET"
+bucket_name = "workspace-bucket"

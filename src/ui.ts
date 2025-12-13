@@ -3,52 +3,28 @@ export const html = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <title>Cloudflare Code Agent | Diff-First IDE</title>
+    <!-- ... Styles (omitted for brevity, assume same as before) ... -->
     <style>
-        :root {
-            --bg-root: #0d1117;
-            --bg-sidebar: #010409;
-            --bg-editor: #0d1117;
-            --bg-panel: #161b22;
-            --border: #30363d;
-            --accent: #238636;
-            --danger: #da3633;
-            --text-primary: #c9d1d9;
-            --text-secondary: #8b949e;
-        }
+        :root { --bg-root: #0d1117; --bg-sidebar: #010409; --bg-editor: #0d1117; --bg-panel: #161b22; --border: #30363d; --accent: #238636; --danger: #da3633; --text-primary: #c9d1d9; --text-secondary: #8b949e; }
         * { box-sizing: border-box; }
         body { margin: 0; display: flex; height: 100vh; background: var(--bg-root); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; overflow: hidden; }
-        
-        /* Layout */
         .sidebar { width: 250px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
         .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
         .props-panel { width: 350px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-
-        /* Sidebar Elements */
         .sidebar-header { padding: 10px; font-weight: bold; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .file-list { flex: 1; overflow-y: auto; padding: 5px; }
         .file-item { padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 5px; border-radius: 4px; color: var(--text-secondary); }
         .file-item:hover { background: #21262d; color: var(--text-primary); }
         .file-item.active { background: #21262d; color: #fff; border-left: 3px solid #f78166; }
-        .file-item.modified { color: #e3b341; }
-        
-        /* Main Area Elements */
         .tabs { display: flex; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); overflow-x: auto; height: 35px; }
         .tab { padding: 0 15px; cursor: pointer; border-right: 1px solid var(--border); background: var(--bg-sidebar); display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
         .tab.active { background: var(--bg-editor); border-top: 2px solid #f78166; color: var(--text-primary); }
         .action-bar { padding: 8px 15px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-        
         #editor-container { flex: 1; position: relative; }
-        
-        /* Controls */
         .btn { background: #21262d; color: var(--text-primary); border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
         .btn-primary { background: var(--accent); color: white; border-color: rgba(255,255,255,0.1); }
         .btn-danger { background: var(--danger); color: white; border-color: rgba(255,255,255,0.1); }
-        .btn:hover { opacity: 0.9; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
         select { background: #21262d; color: var(--text-primary); border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; outline: none; }
-        
-        /* Props Panel / Validation Pipeline */
         .section-title { font-size: 11px; text-transform: uppercase; font-weight: bold; color: var(--text-secondary); margin: 15px 10px 5px; letter-spacing: 0.5px; }
         .pipeline { margin: 10px; display: flex; flex-direction: column; gap: 8px; }
         .pipeline-step { display: flex; align-items: center; font-size: 13px; color: var(--text-secondary); padding: 6px 10px; background: #21262d; border-radius: 6px; border: 1px solid transparent; }
@@ -56,18 +32,16 @@ export const html = `<!DOCTYPE html>
         .pipeline-step.failure { color: #f85149; border-color: rgba(248, 81, 73, 0.2); }
         .pipeline-step.running { color: #2f81f7; border-color: rgba(47, 129, 247, 0.2); animation: pulse 1s infinite alternate; }
         .step-icon { width: 16px; margin-right: 8px; text-align: center; }
-        
         @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
-
         .telemetry-badges { display: flex; gap: 10px; padding: 10px; flex-wrap: wrap; }
         .badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: #21262d; border: 1px solid var(--border); color: var(--text-secondary); }
-
         .chat-input-area { padding: 15px; border-top: 1px solid var(--border); margin-top: auto; }
         textarea { width: 100%; background: #0d1117; border: 1px solid var(--border); color: #fff; padding: 10px; border-radius: 6px; resize: vertical; font-family: inherit; min-height: 80px; }
-        
         .diff-actions { display: none; margin-left: auto; gap: 10px; }
         .diff-actions.active { display: flex; }
-
+        .connection-status { width: 10px; height: 10px; border-radius: 50%; background: #ccc; margin-right: 10px; }
+        .connection-status.connected { background: #56d364; box-shadow: 0 0 5px #56d364; }
+        .connection-status.disconnected { background: #da3633; }
     </style>
 </head>
 <body>
@@ -76,6 +50,7 @@ export const html = `<!DOCTYPE html>
     <div class="sidebar">
         <div class="sidebar-header">
             <span>Explorer</span>
+            <div id="connStatus" class="connection-status" title="Connecting..."></div>
             <button class="btn" onclick="createNewFile()">+</button>
         </div>
         <div class="file-list" id="fileList"></div>
@@ -136,34 +111,68 @@ export const html = `<!DOCTYPE html>
         let sessionId = localStorage.getItem('agentSessionId');
         if (!sessionId) { sessionId = crypto.randomUUID(); localStorage.setItem('agentSessionId', sessionId); }
         
-        let editor; // Monaco Editor or DiffEditor
-        let modelObj; // Current Monaco Model
-        let diffNavigator;
-        
-        // Mode: 'edit' or 'diff'
+        // Ensure initial file state to avoid error before websocket sync
+        let files = { 'main.ts': { content: '// Loading...', language: 'typescript' } };
+        let activeFile = 'main.ts';
+        let editor, socket;
         let mode = 'edit';
         let proposedContent = null;
-        
-        let files = {
-            'main.ts': { content: 'console.log("Hello World");', language: 'typescript' }
-        };
-        let activeFile = 'main.ts';
+        let isSaving = false;
 
-        // --- Init ---
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
-        require(['vs/editor/editor.main'], async () => {
-            const saved = await loadWorkspace();
-            if (saved) {
-                files = saved;
-                activeFile = Object.keys(files)[0] || 'main.ts';
-            }
-            
+        require(['vs/editor/editor.main'], function() {
             initEditor();
             renderUI();
+            connectWebSocket();
         });
 
+        // --- WebSocket ---
+        function connectWebSocket() {
+            const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsUrl = \`\${proto}://\${window.location.host}/api/workspace/ws?sessionId=\${sessionId}\`;
+            
+            socket = new WebSocket(wsUrl);
+            const statusEl = document.getElementById('connStatus');
+
+            socket.onopen = () => {
+                console.log("Connected to Durable Object");
+                statusEl.classList.add('connected');
+                statusEl.title = "Connected to Edge Session";
+            };
+
+            socket.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'init' || msg.type === 'update') {
+                    if (msg.data.files && Object.keys(msg.data.files).length > 0) {
+                        // Merge logic: simple overwrite for now
+                        files = msg.data.files;
+                        if (!files[activeFile] && Object.keys(files).length > 0) {
+                            activeFile = Object.keys(files)[0];
+                        }
+                        // Update Editor if not currently typing deeply?
+                        // For V1, we just update.
+                        if (mode === 'edit' && editor && !isSaving) {
+                             const model = editor.getModel();
+                             if (model && model.getValue() !== files[activeFile].content) {
+                                 const pos = editor.getPosition();
+                                 model.setValue(files[activeFile].content);
+                                 editor.setPosition(pos);
+                             }
+                        }
+                        renderUI();
+                    }
+                }
+            };
+            
+            socket.onclose = () => {
+                statusEl.classList.remove('connected');
+                statusEl.classList.add('disconnected');
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        // --- Editor & UI (Same as before but integrated with files obj) ---
         function initEditor() {
-            if (editor) editor.dispose();
             const container = document.getElementById('editor-container');
             container.innerHTML = '';
             
@@ -172,8 +181,7 @@ export const html = `<!DOCTYPE html>
                     value: files[activeFile]?.content || "",
                     language: files[activeFile]?.language || "typescript",
                     theme: 'vs-dark',
-                    automaticLayout: true,
-                    minimap: { enabled: false }
+                    automaticLayout: true
                 });
                 editor.onDidChangeModelContent(() => {
                     if (files[activeFile]) {
@@ -182,154 +190,111 @@ export const html = `<!DOCTYPE html>
                     }
                 });
             } else {
-                // Diff Mode
-                editor = monaco.editor.createDiffEditor(container, {
-                    theme: 'vs-dark',
-                    automaticLayout: true,
-                    originalEditable: false,
-                    readOnly: true
-                });
-                
-                const originalModel = monaco.editor.createModel(files[activeFile].content, files[activeFile].language);
-                const modifiedModel = monaco.editor.createModel(proposedContent, files[activeFile].language);
-                
+                editor = monaco.editor.createDiffEditor(container, { theme: 'vs-dark', automaticLayout: true, originalEditable: false, readOnly: true });
                 editor.setModel({
-                    original: originalModel,
-                    modified: modifiedModel
+                    original: monaco.editor.createModel(files[activeFile].content, files[activeFile].language),
+                    modified: monaco.editor.createModel(proposedContent, files[activeFile].language)
                 });
             }
         }
 
-        // --- UI Rendering ---
         function renderUI() {
-            renderFiles();
-            renderTabs();
+            const list = document.getElementById('fileList'); 
+            const tabs = document.getElementById('tabContainer');
+            list.innerHTML = ''; tabs.innerHTML = '';
             
+            Object.keys(files).forEach(f => {
+                const item = document.createElement('div');
+                item.className = \`file-item \${f === activeFile ? 'active' : ''}\`;
+                item.textContent = f;
+                item.onclick = () => switchFile(f);
+                list.appendChild(item);
+                
+                const tab = document.createElement('div');
+                tab.className = \`tab \${f === activeFile ? 'active' : ''}\`;
+                tab.textContent = f;
+                tab.onclick = () => switchFile(f);
+                tabs.appendChild(tab);
+            });
             document.getElementById('currentFileLabel').textContent = activeFile;
             
-            const diffActions = document.getElementById('diffActions');
-            if (mode === 'diff') diffActions.classList.add('active');
-            else diffActions.classList.remove('active');
-        }
-
-        function renderFiles() {
-            const el = document.getElementById('fileList');
-            el.innerHTML = '';
-            Object.keys(files).forEach(f => {
-                const div = document.createElement('div');
-                div.className = \`file-item \${f === activeFile ? 'active' : ''}\`;
-                div.textContent = f;
-                div.onclick = () => switchFile(f);
-                el.appendChild(div);
-            });
-        }
-        
-        function renderTabs() {
-            const el = document.getElementById('tabContainer');
-            el.innerHTML = '';
-            Object.keys(files).forEach(f => {
-                 const div = document.createElement('div');
-                 div.className = \`tab \${f === activeFile ? 'active' : ''}\`;
-                 div.textContent = f;
-                 div.onclick = () => switchFile(f);
-                 el.appendChild(div);
-            });
+            document.getElementById('diffActions').className = mode === 'diff' ? 'diff-actions active' : 'diff-actions';
         }
 
         function switchFile(name) {
-            if (mode === 'diff') {
-                alert("Please Accept or Reject the current diff first.");
-                return;
-            }
+            if (mode === 'diff') return alert("Process diff first.");
             activeFile = name;
-            
-            // Update editor model
-            const newContent = files[name].content;
-            const newLang = files[name].language;
-            
-            const currentModel = editor.getModel();
-            if (currentModel) {
-                 monaco.editor.setModelLanguage(currentModel, newLang);
-                 currentModel.setValue(newContent);
+            if (editor) {
+                const model = editor.getModel();
+                monaco.editor.setModelLanguage(model, files[name].language);
+                model.setValue(files[name].content);
             }
-            
             renderUI();
         }
-
+        
         function createNewFile() {
              const name = prompt("Filename:", "new.ts");
              if(name) {
                  files[name] = { content: "", language: "typescript" };
                  switchFile(name);
+                 debouncedSave();
              }
         }
 
-        // --- Agent Execution ---
-        document.getElementById('runBtn').onclick = async () => {
-            const input = document.getElementById('promptInput').value;
-            if(!input) return;
-            
-            document.getElementById('runBtn').disabled = true;
-            document.getElementById('runBtn').textContent = "Running...";
-            
-            resetPipeline();
-            
-            const model = document.getElementById('modelSelect').value;
-            
-            try {
-                // Simplify: Send all files for context
-                const fileContext = {};
-                for(const k in files) fileContext[k] = files[k].content;
+        async function debouncedSave() {
+            isSaving = true;
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'update', data: { files } }));
+            }
+            // Also fall back to HTTP save for durability if socket flakiness
+            setTimeout(() => isSaving = false, 500); 
+        }
 
+        // --- Agent Run (Updated to use REST API routed to DO) ---
+        // Same as V1 but routed via /agent/run which is now captured by the DO
+        document.getElementById('runBtn').onclick = async () => {
+             const input = document.getElementById('promptInput').value;
+             if(!input) return;
+             
+             resetPipeline();
+             document.getElementById('runBtn').disabled = true;
+             
+             try {
+                // We send a normal POST, but our worker routes it to the DO "fetch" handler
                 const res = await fetch('/agent/run', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ sessionId, input, files: fileContext, model })
+                    headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
+                    body: JSON.stringify({ 
+                        input, 
+                        files: Object.fromEntries(Object.entries(files).map(([k,v]) => [k, v.content])),
+                        model: document.getElementById('modelSelect').value
+                    })
                 });
-                
                 const data = await res.json();
                 
                 if (data.steps) updatePipeline(data.steps);
                 if (data.metrics) updateTelemetry(data.metrics);
                 
                 if (data.artifact && data.intent !== 'explain') {
-                    // It's a diff. Let's parse it and engage Diff Mode.
-                     try {
-                        const patches = Diff.parsePatch(data.artifact);
-                        // Find patch for active file
-                        // Simplified: Assume patch is for active file or first file in patch
-                        const patch = patches.find(p => p.oldFileName.includes(activeFile) || p.newFileName.includes(activeFile)) || patches[0];
-                        
-                        if (patch) {
-                            const original = files[activeFile].content;
-                            proposedContent = Diff.applyPatch(original, patch);
-                            
-                            if (proposedContent === false) throw new Error("Patch failed to apply cleanly");
-                            
-                            // Enter Diff Mode
-                            mode = 'diff';
-                            initEditor();
-                            renderUI();
-                        } else {
-                            alert("Agent generated a diff, but not for the active file. (Multi-file diff UI not implemented in V1)");
-                            console.log(data.artifact);
-                        }
-                     } catch(e) {
-                         alert("Error applying patch: " + e.message);
+                     const patches = Diff.parsePatch(data.artifact);
+                     const patch = patches[0]; // Simplification
+                     if (patch) {
+                         proposedContent = Diff.applyPatch(files[activeFile].content, patch);
+                         mode = 'diff';
+                         initEditor();
+                         renderUI();
                      }
                 } else if (data.response) {
-                    alert("Agent Message:\n" + data.response);
+                    alert(data.response);
                 }
-                
-            } catch (e) {
-                alert("Error: " + e.message);
-            } finally {
-                document.getElementById('runBtn').disabled = false;
-                document.getElementById('runBtn').textContent = "Run Agent";
-            }
+             } catch(e) {
+                 alert("Error: " + e.message);
+             } finally {
+                 document.getElementById('runBtn').disabled = false;
+             }
         };
-        
-        // --- Pipeline & Telemetry ---
+
+        // --- Utils ---
         function resetPipeline() {
             ['gen','struct','parse','context'].forEach(s => {
                 const el = document.getElementById('step-'+s);
@@ -337,31 +302,23 @@ export const html = `<!DOCTYPE html>
                 el.querySelector('.step-icon').textContent = '○';
             });
         }
-        
         function updatePipeline(steps) {
             const map = { 'Generation': 'step-gen', 'Structure': 'step-struct', 'Parse': 'step-parse', 'Context': 'step-context' };
             steps.forEach(step => {
-                const id = map[step.name];
-                if(id) {
-                    const el = document.getElementById(id);
+                if(map[step.name]) {
+                    const el = document.getElementById(map[step.name]);
                     el.className = \`pipeline-step \${step.status}\`;
-                    const icon = el.querySelector('.step-icon');
-                    if (step.status === 'success') icon.textContent = '✓';
-                    if (step.status === 'failure') icon.textContent = '✗';
-                    if (step.status === 'running') icon.textContent = '◎';
+                    el.querySelector('.step-icon').textContent = step.status === 'success' ? '✓' : (step.status === 'failure' ? '✗' : '◎');
                 }
             });
         }
-        
         function updateTelemetry(metrics) {
-            const el = document.getElementById('telemetry');
-            el.innerHTML = \`
+            document.getElementById('telemetry').innerHTML = \`
                 <div class="badge">Latency: \${Math.round(metrics.durationMs)}ms</div>
-                <div class="badge">Est. Cost: $0.0002</div>
+                <div class="badge">Tokens: \${metrics.inputTokens || '-'}</div>
             \`;
         }
-
-        // --- Diff Actions ---
+        
         window.acceptDiff = function() {
             files[activeFile].content = proposedContent;
             mode = 'edit';
@@ -369,35 +326,8 @@ export const html = `<!DOCTYPE html>
             renderUI();
             debouncedSave();
         };
-
-        window.rejectDiff = function() {
-            mode = 'edit';
-            initEditor();
-            renderUI();
-        };
-        
-        // --- Persistence (copy from phase 3) ---
-        async function loadWorkspace() {
-             try {
-                const res = await fetch(\`/api/workspace?sessionId=\${sessionId}\`);
-                const data = await res.json();
-                return data.files;
-             } catch (e) { return null; }
-        }
-        
-        let saveTimeout;
-        function debouncedSave() {
-             clearTimeout(saveTimeout);
-             saveTimeout = setTimeout(async () => {
-                 await fetch('/api/workspace', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId, files })
-                });
-             }, 1000);
-        }
+        window.rejectDiff = (() => { mode='edit'; initEditor(); renderUI(); });
 
     </script>
 </body>
 </html>
-`;

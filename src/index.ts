@@ -1,6 +1,10 @@
+export { SessionDO } from "./objects/SessionDO.ts";
+
 export interface Env {
     MY_KV: KVNamespace;
     AI: any;
+    SESSION_DO: DurableObjectNamespace;
+    WORKSPACE_BUCKET: R2Bucket;
 }
 
 export default {
@@ -19,14 +23,13 @@ export default {
             return new Response(null, { status: 204 });
         }
 
-        const api = await import("./api.ts");
+        const sessionId = request.headers.get("X-Session-ID") || url.searchParams.get("sessionId");
 
-        if (url.pathname === "/api/workspace") {
-            return api.handleWorkspaceRequest(request, env);
-        }
-
-        if (request.method === "POST" && url.pathname === "/agent/run") {
-            return api.handleRequest(request, env);
+        if (sessionId && (url.pathname.startsWith("/api") || url.pathname.startsWith("/agent"))) {
+            // For WebSocket upgrades or API calls, forward to the SessionDO
+            const id = env.SESSION_DO.idFromName(sessionId);
+            const stub = env.SESSION_DO.get(id);
+            return stub.fetch(request);
         }
 
         return new Response("Not Found", { status: 404 });
