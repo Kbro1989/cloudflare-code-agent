@@ -12,12 +12,12 @@ binding = "AI"
 
 [durable_objects]
 bindings = [
-  { name = "SESSION_DO", class_name = "SessionDO" }
+  { name = "SESSION_DO", class_name = "Session" }
 ]
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["SessionDO"]
+new_sqlite_classes = ["Session"]
 
 [[r2_buckets]]
 binding = "WORKSPACE_BUCKET"

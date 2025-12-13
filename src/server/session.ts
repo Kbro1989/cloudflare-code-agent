@@ -6,7 +6,7 @@ interface SessionState {
     history: any[];
 }
 
-export class SessionDO extends DurableObject {
+export class Session extends DurableObject {
     state: DurableObjectState;
     env: Env;
     sessions: Set<WebSocket>;
@@ -51,7 +51,7 @@ export class SessionDO extends DurableObject {
             return new Response(null, { status: 101, webSocket: client });
         }
 
-        // Direct HTTP API (for initial load or restore)
+        // Direct HTTP API
         if (request.method === "GET") {
             const data = this.loadState();
             return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
@@ -60,7 +60,6 @@ export class SessionDO extends DurableObject {
         if (request.method === "POST") {
             const body = await request.json() as any;
             if (body.files) this.updateFiles(body.files);
-            // Handling history explicitly if needed, but usually history is appended
 
             const data = this.loadState();
             this.broadcast({ type: "update", data });
@@ -72,15 +71,12 @@ export class SessionDO extends DurableObject {
 
     loadState(): SessionState {
         const sql = this.state.storage.sql;
-
         const filesRows = sql.exec("SELECT path, content, language FROM files").toArray();
         const files: Record<string, any> = {};
         for (const row of filesRows as any[]) {
             files[row.path] = { content: row.content, language: row.language };
         }
-
         const history = sql.exec("SELECT role, content FROM history ORDER BY timestamp ASC").toArray();
-
         return { files, history };
     }
 
@@ -98,26 +94,13 @@ export class SessionDO extends DurableObject {
     handleSession(webSocket: WebSocket) {
         this.sessions.add(webSocket);
         webSocket.accept();
-
-        // Send initial state
         webSocket.send(JSON.stringify({ type: "init", data: this.loadState() }));
 
         webSocket.addEventListener("message", async (msg) => {
             try {
                 const event = JSON.parse(msg.data as string);
                 if (event.type === "update") {
-                    if (event.data.files) {
-                        this.updateFiles(event.data.files);
-                    }
-                    if (event.data.history) {
-                        // Simplify history append?
-                        // For now, we assume frontend manages history state for simplicity 
-                        // or we would insert new items. 
-                        // To match V1 logic: we might overwrite history or append. 
-                        // Implementing strict append for now.
-                    }
-
-                    // Broadcast updated state
+                    if (event.data.files) this.updateFiles(event.data.files);
                     const newState = this.loadState();
                     this.broadcast({ type: "update", data: newState }, webSocket);
                 }
