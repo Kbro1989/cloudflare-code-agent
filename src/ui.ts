@@ -129,7 +129,7 @@ export const html = `<!DOCTYPE html>
                 
                 // Use the raw file if ?worker fails, but let's try the esm.sh ?worker module first?
                 // Actually, if we use Blob, we should import the module.
-                // esm.sh `? worker` exports a default that IS the worker constructor usually, or the worker code itself?
+                // esm.sh '?worker' exports a default that IS the worker constructor usually, or the worker code itself?
                 // Standard usage with esm is: import Worker from '...?worker'; new Worker()
                 // But Monaco wants us to return the instance.
                 
