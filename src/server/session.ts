@@ -41,6 +41,16 @@ export class Session extends DurableObject {
                 timestamp INTEGER
             );
         `);
+
+        // Seed default file if empty
+        const existing = sql.exec("SELECT path FROM files LIMIT 1").toArray();
+        if (existing.length === 0) {
+            sql.exec("INSERT INTO files (path, content, language) VALUES (?, ?, ?)",
+                "main.ts",
+                "// Welcome to your Cloudflare Code Agent\n// Start building your worker or logic here.\n\nconsole.log('Hello World');",
+                "typescript"
+            );
+        }
     }
 
     async fetch(request: Request): Promise<Response> {
