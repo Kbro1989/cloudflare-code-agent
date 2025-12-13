@@ -105,14 +105,22 @@ export const html = `<!DOCTYPE html>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <!-- Diff is UMD, so load it normally -->
     <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
-    <script>
+    
+    <!-- ES Module for Monaco -->
+    <script type="module">
+        import * as monaco from 'https://esm.sh/monaco-editor@0.45.0';
+        
+        // Environment for workers (using blob/data uri fallback or simple generic worker)
+        // For simplicity in this agent, we can rely on main thread if workers fail, 
+        // but esm.sh usually handles it or we define getWorkerUrl properly.
+        // We'll try basic init first.
+
         // --- State ---
         let sessionId = localStorage.getItem('agentSessionId');
         if (!sessionId) { sessionId = crypto.randomUUID(); localStorage.setItem('agentSessionId', sessionId); }
         
-        // Ensure initial file state to avoid error before websocket sync
         let files = { 'main.ts': { content: '// Loading...', language: 'typescript' } };
         let activeFile = 'main.ts';
         let editor, socket;
@@ -120,12 +128,21 @@ export const html = `<!DOCTYPE html>
         let proposedContent = null;
         let isSaving = false;
 
-        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
+        // Initialize immediately as we are module
+        initEditor();
+        renderUI();
+        connectWebSocket();
+        
+        // Expose to window for UI buttons
+        window.acceptDiff = function() {
+            if (!files[activeFile]) return;
+            files[activeFile].content = proposedContent;
+            mode = 'edit';
             initEditor();
             renderUI();
-            connectWebSocket();
-        });
+            debouncedSave();
+        };
+        window.rejectDiff = (() => { mode='edit'; initEditor(); renderUI(); });
 
         // --- WebSocket ---
         function connectWebSocket() {
@@ -142,27 +159,29 @@ export const html = `<!DOCTYPE html>
             };
 
             socket.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'init' || msg.type === 'update') {
-                    if (msg.data.files && Object.keys(msg.data.files).length > 0) {
-                        // Merge logic: simple overwrite for now
-                        files = msg.data.files;
-                        if (!files[activeFile] && Object.keys(files).length > 0) {
-                            activeFile = Object.keys(files)[0];
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'init' || msg.type === 'update') {
+                        if (msg.data.files && Object.keys(msg.data.files).length > 0) {
+                            files = msg.data.files;
+                            if (!files[activeFile] && Object.keys(files).length > 0) {
+                                activeFile = Object.keys(files)[0];
+                            }
+                            
+                            // Safe Update
+                            if (mode === 'edit' && editor && !isSaving) {
+                                 const model = editor.getModel();
+                                 const newContent = files[activeFile]?.content || "";
+                                 if (model && model.getValue() !== newContent) {
+                                     const pos = editor.getPosition();
+                                     model.setValue(newContent);
+                                     if(pos) editor.setPosition(pos);
+                                 }
+                            }
+                            renderUI();
                         }
-                        // Update Editor if not currently typing deeply?
-                        // For V1, we just update.
-                        if (mode === 'edit' && editor && !isSaving) {
-                             const model = editor.getModel();
-                             if (model && model.getValue() !== files[activeFile].content) {
-                                 const pos = editor.getPosition();
-                                 model.setValue(files[activeFile].content);
-                                 editor.setPosition(pos);
-                             }
-                        }
-                        renderUI();
                     }
-                }
+                } catch (e) { console.error("WS Error", e); }
             };
             
             socket.onclose = () => {
@@ -172,17 +191,23 @@ export const html = `<!DOCTYPE html>
             };
         }
 
-        // --- Editor & UI (Same as before but integrated with files obj) ---
+        // --- Editor & UI ---
         function initEditor() {
             const container = document.getElementById('editor-container');
+            if(!container) return;
             container.innerHTML = '';
             
+            const file = files[activeFile];
+            const content = file?.content || "";
+            const language = file?.language || "typescript";
+
             if (mode === 'edit') {
                 editor = monaco.editor.create(container, {
-                    value: files[activeFile]?.content || "",
-                    language: files[activeFile]?.language || "typescript",
+                    value: content,
+                    language: language,
                     theme: 'vs-dark',
-                    automaticLayout: true
+                    automaticLayout: true,
+                    minimap: { enabled: false }
                 });
                 editor.onDidChangeModelContent(() => {
                     if (files[activeFile]) {
@@ -191,13 +216,20 @@ export const html = `<!DOCTYPE html>
                     }
                 });
             } else {
-                editor = monaco.editor.createDiffEditor(container, { theme: 'vs-dark', automaticLayout: true, originalEditable: false, readOnly: true });
+                editor = monaco.editor.createDiffEditor(container, { 
+                    theme: 'vs-dark', 
+                    automaticLayout: true, 
+                    originalEditable: false, 
+                    readOnly: true 
+                });
                 editor.setModel({
-                    original: monaco.editor.createModel(files[activeFile].content, files[activeFile].language),
-                    modified: monaco.editor.createModel(proposedContent, files[activeFile].language)
+                    original: monaco.editor.createModel(content, language),
+                    modified: monaco.editor.createModel(proposedContent || "", language)
                 });
             }
         }
+
+
 
         function renderUI() {
             const list = document.getElementById('fileList'); 
