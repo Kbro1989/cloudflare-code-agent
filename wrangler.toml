@@ -17,7 +17,7 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["SessionDO"]
+new_sqlite_classes = ["SessionDO"]
 
 [[r2_buckets]]
 binding = "WORKSPACE_BUCKET"
