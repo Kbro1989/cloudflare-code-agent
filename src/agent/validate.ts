@@ -40,8 +40,9 @@ export function validateFull(
     ) as Set<string>;
 
     for (const file of modifiedFiles) {
-        // Allow all file modifications in the sandbox
-        // if (!allowedFiles.has(file)) { ... } 
+        if (!allowedFiles.has(file)) {
+            return { valid: false, stage: "parse", error: "Unauthorized file modification", details: file };
+        }
     }
 
     // Stage 3: Context verification
@@ -55,7 +56,7 @@ export function validateFull(
 
 function normalizeFile(f?: string): string | null {
     if (!f || f === "/dev/null") return null;
-    return f.replace(/^a\/|^b\//, "").trim();
+    return f.replace(/^a\/|^b\//, "");
 }
 
 function verifyContext(
