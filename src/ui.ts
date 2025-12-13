@@ -116,7 +116,7 @@ export const html = `<!DOCTYPE html>
         window.MonacoEnvironment = {
             getWorker: function (moduleId, label) {
                 const getWorkerModule = (moduleUrl, label) => {
-                    const code = `import * as worker from '${moduleUrl}'; self.MonacoEnvironment = { baseUrl: 'https://esm.sh/monaco-editor@0.45.0' }; `;
+                    const code = "import * as worker from '" + moduleUrl + "'; self.MonacoEnvironment = { baseUrl: 'https://esm.sh/monaco-editor@0.45.0' };";
                     const blob = new Blob([code], { type: 'application/javascript' });
                     return new Worker(URL.createObjectURL(blob), { type: 'module' });
                 };
