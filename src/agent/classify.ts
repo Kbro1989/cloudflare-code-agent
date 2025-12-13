@@ -3,7 +3,7 @@
 
 export type Intent = "design" | "implement" | "debug" | "review" | "optimize" | "explain";
 
-export function inferIntent(input: string): Intent {
+export function classifyIntent(input: string): Intent {
     if (input.match(/error|exception|stack|ts\d+/i)) return "debug";
     if (input.match(/refactor|improve|optimi/i)) return "optimize";
     if (input.match(/review|critique/i)) return "review";

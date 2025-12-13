@@ -6,5 +6,16 @@ compatibility_date = "2024-12-13"
 binding = "MY_KV"
 id = "19ed43640eb04f69b98289b998ef971f" # Run: npm run kv:create
 
+[vars]
+Top-Secret = "Make It Work"
+GITHUB_CLIENT_ID = "Ov23liizVSWaYyh9TESV"
+
+# Secrets (Add via `wrangler secret put GITHUB_CLIENT_SECRET`)
+# GITHUB_CLIENT_SECRET
+
 [ai]
 binding = "AI"
+
+[[r2_buckets]]
+bucket_name = "hello-ai-assets"
+binding = "ASSETS"

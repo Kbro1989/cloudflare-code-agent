@@ -8,9 +8,16 @@ export interface Plan {
 }
 
 export function generatePlan(intent: string): Plan {
+    // In a real implementation, we would use the LLM here to generate this structure.
+    // For now, we return a template that encourages the Agent to use file operations.
+
     return {
         intent,
-        steps: ["Apply requested change"],
+        steps: [
+            "Analyze the request",
+            "CREATE: src/components/NewFeature.ts",
+            "Update index.ts to export it"
+        ],
         outputFormat: "diff"
     };
 }
