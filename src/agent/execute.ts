@@ -11,27 +11,45 @@ interface ExecuteParams {
     sessionId: string;
 }
 
+export interface ValidationStep {
+    name: string;
+    status: "pending" | "running" | "success" | "failure";
+    message?: string;
+}
+
 export interface ExecuteResult {
     intent: string;
-    artifact?: string; // For diffs
-    response?: string; // For text (explain/review)
+    artifact?: string;
+    response?: string;
     error?: { type: string; message: string; details?: string };
+    steps?: ValidationStep[];
+    metrics?: {
+        durationMs: number;
+        inputTokens?: number;
+        outputTokens?: number;
+    };
 }
 
 export async function executeTask(params: ExecuteParams): Promise<ExecuteResult> {
+    const start = performance.now();
     const { ai, model, input, files, intent, history, sessionId } = params;
 
-    // Decide mode: Coding (Diff) vs Chat (Text)
+    const steps: ValidationStep[] = [
+        { name: "Generation", status: "pending" },
+        { name: "Structure", status: "pending" },
+        { name: "Parse", status: "pending" },
+        { name: "Context", status: "pending" }
+    ];
+
+    // Decide mode
     const isCodingTask = ["implement", "debug", "optimize"].includes(intent);
 
-    // Construct System Prompt
+    // System Prompt
     const systemMessages = [
         { role: "system", content: "You are an expert AI software engineer." },
         { role: "system", content: `Current Intent: ${intent}` }
     ];
 
-    // Add File Context
-    // Truncate large files if necessary (basic protection)
     let fileContext = "Project Files:\n";
     for (const [name, content] of Object.entries(files)) {
         fileContext += `\n--- ${name} ---\n${content}\n`;
@@ -51,53 +69,107 @@ export async function executeTask(params: ExecuteParams): Promise<ExecuteResult>
         );
     }
 
-    // Combine History + New Input
     const messages = [
         ...systemMessages,
         ...history,
         { role: "user", content: input }
     ];
 
-    // Attempt 1
-    /* console.log("Calling model with messages:", JSON.stringify(messages).slice(0, 500)); */
-    let response = await callModel(ai, model, messages);
+    // --- Step 1: Generation ---
+    updateStep(steps, "Generation", "running");
 
-    // If chat task, return text immediately
+    let response = "";
+    try {
+        response = await callModel(ai, model, messages);
+        updateStep(steps, "Generation", "success");
+    } catch (e: any) {
+        updateStep(steps, "Generation", "failure", e.message);
+        return { intent, error: { type: "Generation", message: e.message }, steps, metrics: { durationMs: performance.now() - start } };
+    }
+
     if (!isCodingTask) {
-        return { intent, response };
+        // Skip complex validation for text tasks
+        return { intent, response, steps, metrics: { durationMs: performance.now() - start } };
     }
 
-    // If coding task, validate diff
+    // --- Validation Pipeline ---
     const allowedFiles = new Set(Object.keys(files));
-    let validation = validateFull(response, allowedFiles, files);
 
-    if (validation.valid) {
-        return { intent, artifact: response };
+    // We manually simulate the stages for the UI since validateFull is monolithic currently
+    // In a real optimized version, validateFull would return granular stages too.
+    // For now, if validateFull passes, all pass. If it fails, we assume it failed at the specific stage mentioned in error.
+
+    updateStep(steps, "Structure", "running");
+    // Check basic diff structure
+    if (!response.includes("diff --git")) {
+        updateStep(steps, "Structure", "failure", "Missing diff header");
+        // Retry logic is here in V1, but for V2 Speed/UI visualization, we might just fail fast or do the retry loop. 
+        // Let's keep the retry but update steps.
+    } else {
+        updateStep(steps, "Structure", "success");
+        updateStep(steps, "Parse", "running");
+
+        const validation = validateFull(response, allowedFiles, files);
+
+        if (validation.valid) {
+            updateStep(steps, "Parse", "success");
+            updateStep(steps, "Context", "success"); // Context checked in validateFull
+            return { intent, artifact: response, steps, metrics: { durationMs: performance.now() - start } };
+        } else {
+            // If valid structure but invalid logic
+            updateStep(steps, "Parse", validation.stage === "parse" ? "failure" : "success");
+            if (validation.stage !== "parse") {
+                updateStep(steps, "Context", "failure", validation.error);
+            } else {
+                updateStep(steps, "Parse", "failure", validation.error);
+            }
+
+            // RETRY LOOP (Simplified for V2)
+            console.warn("Validation failed, retrying...");
+            updateStep(steps, "Generation", "running", "Retrying correction...");
+
+            messages.push(
+                { role: "assistant", content: response },
+                { role: "system", content: `CRITICAL ERROR: ${validation.error}. Fix the diff.` }
+            );
+
+            try {
+                response = await callModel(ai, model, messages);
+                // Re-validate
+                const v2 = validateFull(response, allowedFiles, files);
+                if (v2.valid) {
+                    updateStep(steps, "Generation", "success", "Corrected");
+                    updateStep(steps, "Structure", "success");
+                    updateStep(steps, "Parse", "success");
+                    updateStep(steps, "Context", "success");
+                    return { intent, artifact: response, steps, metrics: { durationMs: performance.now() - start } };
+                } else {
+                    updateStep(steps, "Context", "failure", "Retry failed: " + v2.error);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
     }
 
-    // Attempt 2: Corrective Feedback
-    console.warn("Validation failed, retrying", { intent, error: validation.error });
-    messages.push(
-        { role: "assistant", content: response },
-        { role: "system", content: `CRITICAL ERROR: ${validation.error}. ${validation.details || ""}\nFix the diff format immediately.` }
-    );
-
-    response = await callModel(ai, model, messages);
-    validation = validateFull(response, allowedFiles, files);
-
-    if (validation.valid) {
-        return { intent, artifact: response };
-    }
-
-    // Fallback: If still invalid, return as text error (or raw response if useful)
     return {
         intent,
         error: {
-            type: validation.stage,
+            type: "Validation",
             message: "Failed to generate valid patch",
-            details: response // Return the raw output so user can see it in dashboard
-        }
+            details: response
+        },
+        steps,
+        metrics: { durationMs: performance.now() - start }
     };
+}
+
+function updateStep(steps: ValidationStep[], name: string, status: any, message?: string) {
+    const step = steps.find(s => s.name === name);
+    if (step) {
+        step.status = status;
+        if (message) step.message = message;
+    }
 }
 
 async function callModel(ai: Ai, model: string, messages: any[]): Promise<string> {
