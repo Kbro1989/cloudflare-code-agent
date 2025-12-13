@@ -2,309 +2,293 @@ export const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare Code Agent | Playground</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <title>Cloudflare Code Agent | IDE</title>
     <style>
         :root {
-            --bg-dark: #0f1117;
-            --bg-card: #161b22;
+            --bg-root: #0d1117;
+            --bg-sidebar: #010409;
+            --bg-editor: #0d1117;
+            --bg-panel: #161b22;
             --border: #30363d;
-            --accent: #f48120;
-            --text-primary: #e6edf3;
+            --accent: #238636;
+            --text-primary: #c9d1d9;
             --text-secondary: #8b949e;
-            --font-main: 'Inter', system-ui, -apple-system, sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
         }
+        * { box-sizing: border-box; }
+        body { margin: 0; display: flex; height: 100vh; background: var(--bg-root); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; overflow: hidden; }
+        
+        .sidebar { width: 250px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 10px; font-weight: bold; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .file-list { flex: 1; overflow-y: auto; padding: 5px; }
+        .file-item { padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 5px; border-radius: 4px; color: var(--text-secondary); }
+        .file-item:hover { background: #21262d; color: var(--text-primary); }
+        .file-item.active { background: #21262d; color: #fff; border-left: 3px solid #f78166; }
+        
+        .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .tabs { display: flex; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .tab { padding: 10px 15px; cursor: pointer; border-right: 1px solid var(--border); background: var(--bg-sidebar); display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .tab.active { background: var(--bg-editor); border-top: 2px solid #f78166; }
+        .tab-close { opacity: 0.6; font-size: 16px; margin-left: 5px; }
+        .tab-close:hover { opacity: 1; }
+        
+        #editor-container { flex: 1; position: relative; }
+        
+        .chat-panel { width: 400px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        .chat-header { padding: 10px; font-weight: bold; border-bottom: 1px solid var(--border); }
+        .chat-history { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        .message { font-size: 14px; line-height: 1.5; padding: 10px; border-radius: 6px; max-width: 90%; }
+        .message.user { align-self: flex-end; background: #1f6feb; color: white; }
+        .message.assistant { align-self: flex-start; background: #21262d; border: 1px solid var(--border); }
+        .chat-input-area { padding: 15px; border-top: 1px solid var(--border); background: var(--bg-sidebar); }
+        textarea { width: 100%; background: #0d1117; border: 1px solid var(--border); color: #fff; padding: 10px; border-radius: 6px; resize: none; font-family: inherit; }
+        
+        .btn { background: var(--accent); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+        .btn:disabled { opacity: 0.5; }
+        .btn:hover:not(:disabled) { opacity: 0.9; }
+        
+        .markdown-body pre { background: #161b22; padding: 10px; border-radius: 6px; overflow-x: auto; }
+        .markdown-body code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background-color: var(--bg-dark);
-            color: var(--text-primary);
-            font-family: var(--font-main);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        header {
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(15, 17, 23, 0.8);
-            backdrop-filter: blur(10px);
-        }
-
-        .brand {
-            font-weight: 600;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .brand svg { width: 24px; height: 24px; color: var(--accent); }
-
-        .container {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            overflow: hidden;
-        }
-
-        .panel {
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--border);
-            min-height: 0;
-            background: var(--bg-card);
-        }
-
-        .panel:last-child { border-right: none; background: var(--bg-dark); }
-
-        .panel-header {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .editor-container {
-            flex: 1;
-            padding: 1rem;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        label { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); }
-
-        input, textarea, select {
-            background: #0d1117;
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: 0.75rem;
-            border-radius: 6px;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            resize: vertical;
-            transition: border-color 0.2s;
-        }
-
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .file-entry {
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            overflow: hidden;
-            margin-bottom: 0.5rem;
-        }
-
-        .file-header {
-            background: #21262d;
-            padding: 0.5rem;
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .file-header input {
-            padding: 0.25rem 0.5rem;
-            flex: 1;
-        }
-
-        .file-body textarea {
-            width: 100%;
-            border: none;
-            min-height: 120px;
-            border-radius: 0;
-        }
-
-        button.primary {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 0.75rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        button.primary:hover { opacity: 0.9; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        #result {
-            flex: 1;
-            padding: 1rem;
-            white-space: pre-wrap;
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            color: #d2a8ff; /* Diff additions in purple/pinkish */
-            overflow-y: auto;
-        }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: var(--text-secondary);
-            gap: 0.5rem;
-            display: none;
-        }
-
-        .loading.active { display: flex; }
-
-        /* Diff styling simple approximations */
-        .diff-added { color: #56d364; }
-        .diff-removed { color: #f85149; }
-        .diff-header { color: #79c0ff; font-weight: bold; }
-
+        /* Loading Spinner */
+        .spinner { animation: spin 1s linear infinite; width: 16px; height: 16px; border: 2px solid var(--text-secondary); border-top: 2px solid transparent; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 5px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
+    <!-- Marked for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Diff Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="brand">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.4 4.6l-5-4.3a2 2 0 00-2.8 0l-5 4.3a2 2 0 00-.7 1.5v3.3h-3a2 2 0 00-2 2v9a2 2 0 002 2h18a2 2 0 002-2v-9a2 2 0 00-2-2h-3V6.1a2 2 0 00-.7-1.5zM8 7v2h8V7l-4-3.4L8 7zm-5 13v-7h18v7H3z"/>
-            </svg>
-            Cloudflare Code Agent
-        </div>
-        <div>
-            <span style="font-size: 0.8rem; color: var(--text-secondary);">v1.0.0</span>
-        </div>
-    </header>
 
-    <div class="container">
-        <div class="panel">
-            <div class="panel-header">Task Definition</div>
-            <div class="editor-container">
-                <div class="input-group">
-                    <label>Instruction</label>
-                    <textarea id="input" rows="3" placeholder="e.g. Rename foo to bar"></textarea>
-                </div>
-                
-                <div class="input-group">
-                    <label>Files</label>
-                    <div id="file-list">
-                        <div class="file-entry">
-                            <div class="file-header">
-                                <input type="text" value="main.ts" class="file-name">
-                            </div>
-                            <div class="file-body">
-                                <textarea class="file-content">function foo() {
-  console.log("hello world");
-}</textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-top: auto;">
-                    <button class="primary" id="run-btn" style="width: 100%">Run Agent</button>
-                    <div id="status" style="margin-top: 0.5rem; font-size: 0.8rem; text-align: center; color: var(--text-secondary);"></div>
-                </div>
-            </div>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <span>Explorer</span>
+            <button class="btn" style="background: transparent; border: 1px solid var(--border);" onclick="createNewFile()">+</button>
         </div>
-
-        <div class="panel">
-            <div class="panel-header">Agent Output (Diff)</div>
-            <div class="loading" id="loader">Processing...</div>
-            <div id="result"></div>
+        <div class="file-list" id="fileList">
+            <!-- Files injected here -->
         </div>
     </div>
 
+    <!-- Main Editor -->
+    <div class="main">
+        <div class="tabs" id="tabContainer">
+            <!-- Tabs injected here -->
+        </div>
+        <div id="editor-container"></div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+        <div class="chat-header">Code Agent</div>
+        <div class="chat-history" id="chatHistory">
+            <div class="message assistant">Hello! I'm your AI coding assistant. Edit files on the left, then ask me to explain, review, or modify them.</div>
+        </div>
+        <div class="chat-input-area">
+            <textarea id="chatInput" rows="3" placeholder="Instruction (e.g., 'Add validation to login.ts')..."></textarea>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; align-items: center;">
+                <span id="statusText" style="font-size: 12px; color: var(--text-secondary);"></span>
+                <button class="btn" id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.js"></script>
     <script>
-        const runBtn = document.getElementById('run-btn');
-        const inputField = document.getElementById('input');
-        const statusDiv = document.getElementById('status');
-        const resultDiv = document.getElementById('result');
-        const loader = document.getElementById('loader');
+        // --- State ---
+        const sessionId = crypto.randomUUID();
+        let editor;
+        let files = {
+            'main.ts': { content: 'console.log("Hello World");', language: 'typescript' },
+            'utils.ts': { content: 'export function add(a, b) { return a + b; }', language: 'typescript' }
+        };
+        let activeFile = 'main.ts';
 
-        runBtn.addEventListener('click', async () => {
-            const input = inputField.value.trim();
-            if (!input) return alert("Please enter an instruction");
-
-            // Collect files
-            const files = {};
-            document.querySelectorAll('.file-entry').forEach(entry => {
-                const name = entry.querySelector('.file-name').value;
-                const content = entry.querySelector('.file-content').value;
-                if (name && content) files[name] = content;
+        // --- Initialization ---
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: files[activeFile].content,
+                language: files[activeFile].language,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14
             });
 
-            // UI State
-            runBtn.disabled = true;
-            loader.classList.add('active');
-            resultDiv.innerHTML = '';
-            statusDiv.textContent = "Agent is thinking...";
+            editor.onDidChangeModelContent(() => {
+                files[activeFile].content = editor.getValue();
+            });
+
+            renderFiles();
+            renderTabs();
+        });
+
+        // --- DOM Elements ---
+        const fileListEl = document.getElementById('fileList');
+        const tabContainerEl = document.getElementById('tabContainer');
+        const chatHistoryEl = document.getElementById('chatHistory');
+        const chatInputEl = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusText = document.getElementById('statusText');
+
+        // --- Render Logic ---
+        function renderFiles() {
+            fileListEl.innerHTML = '';
+            Object.keys(files).forEach(filename => {
+                const div = document.createElement('div');
+                div.className = \`file-item \${filename === activeFile ? 'active' : ''}\`;
+                div.textContent = filename;
+                div.onclick = () => switchFile(filename);
+                fileListEl.appendChild(div);
+            });
+        }
+
+        function renderTabs() {
+            tabContainerEl.innerHTML = '';
+            Object.keys(files).forEach(filename => {
+                const div = document.createElement('div');
+                div.className = \`tab \${filename === activeFile ? 'active' : ''}\`;
+                div.innerHTML = \`\${filename} <span class="tab-close" onclick="closeFile('\${filename}', event)">×</span>\`;
+                div.onclick = () => switchFile(filename);
+                tabContainerEl.appendChild(div);
+            });
+        }
+
+        // --- Actions ---
+        function switchFile(filename) {
+            activeFile = filename;
+            if (editor) {
+                const model = editor.getModel(); // In a real app we'd swap models, here we just set value for simplicity in v1
+                monaco.editor.setModelLanguage(model, getLang(filename));
+                editor.setValue(files[filename].content);
+            }
+            renderFiles();
+            renderTabs();
+        }
+
+        function createNewFile() {
+            const name = prompt("File name:", "new.ts");
+            if (name && !files[name]) {
+                files[name] = { content: "", language: getLang(name) };
+                switchFile(name);
+            }
+        }
+
+        function closeFile(filename, e) {
+            e.stopPropagation();
+            if (Object.keys(files).length <= 1) return; // Keep at least one
+            delete files[filename];
+            if (activeFile === filename) {
+                switchFile(Object.keys(files)[0]);
+            } else {
+                renderFiles();
+                renderTabs();
+            }
+        }
+
+        function getLang(name) {
+            if (name.endsWith('.json')) return 'json';
+            if (name.endsWith('.html')) return 'html';
+            return 'typescript';
+        }
+
+        // --- Chat Interaction ---
+        sendBtn.onclick = async () => {
+            const input = chatInputEl.value.trim();
+            if (!input) return;
+
+            // Add User Message
+            appendMessage('user', input);
+            chatInputEl.value = '';
+            sendBtn.disabled = true;
+            statusText.innerHTML = '<span class="spinner"></span> Thinking...';
 
             try {
+                // Prepare context
+                const fileContext = {};
+                for (const [name, file] of Object.entries(files)) {
+                    fileContext[name] = file.content;
+                }
+
                 const res = await fetch('/agent/run', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        sessionId: crypto.randomUUID(),
+                        sessionId,
                         input,
-                        files
+                        files: fileContext
                     })
                 });
-
-                const data = await res.json();
                 
+                const data = await res.json();
+
                 if (data.error) {
-                    resultDiv.textContent = JSON.stringify(data.error, null, 2);
-                    statusDiv.textContent = "Error occurred";
+                    appendMessage('assistant', \`**Error:** \${data.error.message}\n\n\`\`\`\n\${data.error.details || ''}\n\`\`\`\`);
+                } else if (data.artifact) {
+                    // It's a diff
+                    appendMessage('assistant', \`I have generated changes based on your request. Applying patches...\n\n\`\`\`diff\n\${data.artifact}\n\`\`\`\`);
+                    applyDiff(data.artifact);
                 } else {
-                    const artifact = data.artifact || "No changes proposed.";
-                    resultDiv.innerHTML = formatDiff(artifact);
-                    statusDiv.textContent = \`Success (Intent: \${data.intent})\`;
+                    // It's text
+                    appendMessage('assistant', data.response);
+                }
+                
+                statusText.innerText = \`Ready (Last intent: \${data.intent})\`;
+
+            } catch (e) {
+                appendMessage('assistant', \`**Network Error:** \${e.message}\`);
+                statusText.innerText = 'Error';
+            } finally {
+                sendBtn.disabled = false;
+            }
+        };
+
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = \`message \${role}\`;
+            div.innerHTML = marked.parse(text);
+            chatHistoryEl.appendChild(div);
+            chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+        }
+
+        function applyDiff(diffData) {
+            // Primitive diff application using npm 'diff' package loaded from CDN
+            // We need to parse the unified diff and patch the strings.
+            try {
+                const patches = Diff.parsePatch(diffData);
+                let patchesApplied = 0;
+
+                patches.forEach(patch => {
+                    const filename = patch.newFileName.replace(/^b\//, '').replace(/^a\//, ''); // Git diffs usually have a/ b/ prefix
+                    if (files[filename]) {
+                        const original = files[filename].content;
+                        const patched = Diff.applyPatch(original, patch);
+                        if (patched) {
+                            files[filename].content = patched;
+                            patchesApplied++;
+                        } else {
+                            console.error('Failed to apply patch for', filename);
+                        }
+                    }
+                });
+
+                if (patchesApplied > 0) {
+                     // Refresh editor
+                    if (files[activeFile]) editor.setValue(files[activeFile].content);
+                    statusText.innerText = \`Applied changes to \${patchesApplied} files.\`;
+                } else {
+                     statusText.innerText = 'Warning: No files were updated by the diff.';
                 }
 
             } catch (e) {
-                resultDiv.textContent = e.message;
-                statusDiv.textContent = "Network error";
-            } finally {
-                runBtn.disabled = false;
-                loader.classList.remove('active');
+                console.error("Diff apply error", e);
+                appendMessage('assistant', \`**System Error:** Failed to apply diff automatically. \${e.message}\`);
             }
-        });
-
-        function formatDiff(diff) {
-            // Basic syntax highlighting for diffs
-            return diff.split('\\n').map(line => {
-                if (line.startsWith('+')) return \`<div class="diff-added">\${escape(line)}</div>\`;
-                if (line.startsWith('-')) return \`<div class="diff-removed">\${escape(line)}</div>\`;
-                if (line.startsWith('diff')) return \`<div class="diff-header">\${escape(line)}</div>\`;
-                return \`<div>\${escape(line)}</div>\`;
-            }).join('');
         }
 
-        function escape(str) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
     </script>
 </body>
 </html>

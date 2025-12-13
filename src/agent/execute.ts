@@ -6,81 +6,101 @@ interface ExecuteParams {
     model: string;
     input: string;
     files: Record<string, string>;
-    plan: string[];
+    intent: string;
+    history: any[];
     sessionId: string;
 }
 
 export interface ExecuteResult {
-    intent: "implement";
-    plan: string[];
-    artifact?: string;
+    intent: string;
+    artifact?: string; // For diffs
+    response?: string; // For text (explain/review)
     error?: { type: string; message: string; details?: string };
 }
 
-export async function executeImplement(params: ExecuteParams): Promise<ExecuteResult> {
-    const { ai, model, input, files, plan, sessionId } = params;
-    const allowedFiles = new Set(Object.keys(files));
+export async function executeTask(params: ExecuteParams): Promise<ExecuteResult> {
+    const { ai, model, input, files, intent, history, sessionId } = params;
+
+    // Decide mode: Coding (Diff) vs Chat (Text)
+    const isCodingTask = ["implement", "debug", "optimize"].includes(intent);
+
+    // Construct System Prompt
+    const systemMessages = [
+        { role: "system", content: "You are an expert AI software engineer." },
+        { role: "system", content: `Current Intent: ${intent}` }
+    ];
+
+    // Add File Context
+    // Truncate large files if necessary (basic protection)
+    let fileContext = "Project Files:\n";
+    for (const [name, content] of Object.entries(files)) {
+        fileContext += `\n--- ${name} ---\n${content}\n`;
+    }
+    systemMessages.push({ role: "system", content: fileContext });
+
+    if (isCodingTask) {
+        systemMessages.push(
+            { role: "system", content: "You must output a unified diff to apply changes." },
+            { role: "system", content: "Format: `diff --git a/path/to/file b/path/to/file`" },
+            { role: "system", content: "Do not include markdown code blocks around the diff." }
+        );
+    } else {
+        systemMessages.push(
+            { role: "system", content: "Provide a detailed markdown response." },
+            { role: "system", content: "Use code blocks for examples." }
+        );
+    }
+
+    // Combine History + New Input
+    const messages = [
+        ...systemMessages,
+        ...history,
+        { role: "user", content: input }
+    ];
 
     // Attempt 1
-    let modelOutput = await callModel(ai, model, input, plan, null);
-    let validation = validateFull(modelOutput, allowedFiles, files);
+    /* console.log("Calling model with messages:", JSON.stringify(messages).slice(0, 500)); */
+    let response = await callModel(ai, model, messages);
 
-    if (validation.valid) {
-        return { intent: "implement", plan, artifact: modelOutput };
+    // If chat task, return text immediately
+    if (!isCodingTask) {
+        return { intent, response };
     }
 
-    // Attempt 2: corrective feedback
-    console.warn("Agent validation failed", {
-        sessionId,
-        stage: validation.stage,
-        error: validation.error,
-        model,
-        retryCount: 1
-    });
-
-    const correctiveMessage = `${validation.stage}: ${validation.error}. ${validation.details ?? ""}`;
-    modelOutput = await callModel(ai, model, input, plan, correctiveMessage);
-    validation = validateFull(modelOutput, allowedFiles, files);
+    // If coding task, validate diff
+    const allowedFiles = new Set(Object.keys(files));
+    let validation = validateFull(response, allowedFiles, files);
 
     if (validation.valid) {
-        return { intent: "implement", plan, artifact: modelOutput };
+        return { intent, artifact: response };
     }
 
-    // Hard failure
+    // Attempt 2: Corrective Feedback
+    console.warn("Validation failed, retrying", { intent, error: validation.error });
+    messages.push(
+        { role: "assistant", content: response },
+        { role: "system", content: `CRITICAL ERROR: ${validation.error}. ${validation.details || ""}\nFix the diff format immediately.` }
+    );
+
+    response = await callModel(ai, model, messages);
+    validation = validateFull(response, allowedFiles, files);
+
+    if (validation.valid) {
+        return { intent, artifact: response };
+    }
+
+    // Fallback: If still invalid, return as text error (or raw response if useful)
     return {
-        intent: "implement",
-        plan,
+        intent,
         error: {
             type: validation.stage,
-            message: validation.details || validation.error,
-            details: modelOutput
+            message: "Failed to generate valid patch",
+            details: response // Return the raw output so user can see it in dashboard
         }
     };
 }
 
-async function callModel(
-    ai: Ai,
-    model: string,
-    input: string,
-    plan: string[],
-    correctiveContext: string | null
-): Promise<string> {
-    const messages: any[] = [
-        { role: "system", content: "You are a senior software engineer." },
-        { role: "system", content: `Execution plan:\n${plan.join("\n")}` },
-        { role: "system", content: "Output format: unified diff" },
-        { role: "system", content: "Rules: Only modify provided files. Use valid unified diff format." }
-    ];
-
-    if (correctiveContext) {
-        messages.push(
-            { role: "system", content: `CORRECTIVE FEEDBACK:\n${correctiveContext}` },
-            { role: "system", content: "Do not explain. Do not apologize. Output ONLY the corrected diff." }
-        );
-    }
-
-    messages.push({ role: "user", content: input });
-
+async function callModel(ai: Ai, model: string, messages: any[]): Promise<string> {
     const response = await ai.run(model, { messages });
     return typeof response === "string" ? response : response.response || "";
 }
