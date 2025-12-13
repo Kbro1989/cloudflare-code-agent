@@ -98,7 +98,12 @@ export const html = `<!DOCTYPE html>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.js"></script>
     <script>
         // --- State ---
-        const sessionId = crypto.randomUUID();
+        let sessionId = localStorage.getItem('agentSessionId');
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            localStorage.setItem('agentSessionId', sessionId);
+        }
+        
         let editor;
         let files = {
             'main.ts': { content: 'console.log("Hello World");', language: 'typescript' },
@@ -109,22 +114,63 @@ export const html = `<!DOCTYPE html>
         // --- Initialization ---
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
         require(['vs/editor/editor.main'], function() {
-            editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: files[activeFile].content,
-                language: files[activeFile].language,
-                theme: 'vs-dark',
-                automaticLayout: true,
-                minimap: { enabled: false },
-                fontSize: 14
-            });
+            // Load from Cloud if available
+            loadWorkspace().then(savedFiles => {
+                if (savedFiles) {
+                    files = savedFiles;
+                    if (!files[activeFile]) activeFile = Object.keys(files)[0];
+                }
+                
+                editor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: files[activeFile]?.content || "",
+                    language: files[activeFile]?.language || 'typescript',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    fontSize: 14
+                });
 
-            editor.onDidChangeModelContent(() => {
-                files[activeFile].content = editor.getValue();
-            });
+                // Auto-save debouncer
+                let saveTimeout;
+                editor.onDidChangeModelContent(() => {
+                    files[activeFile].content = editor.getValue();
+                    statusText.innerText = "Unsaved changes...";
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        saveWorkspace();
+                    }, 2000);
+                });
 
-            renderFiles();
-            renderTabs();
+                renderFiles();
+                renderTabs();
+            });
         });
+
+        // --- Persistence ---
+        async function loadWorkspace() {
+             try {
+                const res = await fetch(\`/api/workspace?sessionId=\${sessionId}\`);
+                const data = await res.json();
+                return data.files;
+             } catch (e) {
+                 console.warn("Retrying load...", e);
+                 return null;
+             }
+        }
+
+        async function saveWorkspace() {
+             statusText.innerText = "Saving to cloud...";
+             try {
+                await fetch('/api/workspace', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, files })
+                });
+                statusText.innerText = "Saved to Cloud.";
+             } catch (e) {
+                 statusText.innerText = "Save failed!";
+             }
+        }
 
         // --- DOM Elements ---
         const fileListEl = document.getElementById('fileList');

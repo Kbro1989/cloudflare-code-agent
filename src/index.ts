@@ -19,11 +19,16 @@ export default {
             return new Response(null, { status: 204 });
         }
 
-        if (request.method !== "POST" || url.pathname !== "/agent/run") {
-            return new Response("Not Found", { status: 404 });
+        const api = await import("./api.ts");
+
+        if (url.pathname === "/api/workspace") {
+            return api.handleWorkspaceRequest(request, env);
         }
 
-        const api = await import("./api.ts");
-        return api.handleRequest(request, env);
+        if (request.method === "POST" && url.pathname === "/agent/run") {
+            return api.handleRequest(request, env);
+        }
+
+        return new Response("Not Found", { status: 404 });
     }
 };

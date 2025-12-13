@@ -50,6 +50,39 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     });
 }
 
+// Handler for /api/workspace
+export async function handleWorkspaceRequest(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const sessionId = url.searchParams.get("sessionId");
+
+    if (!sessionId) {
+        return new Response(JSON.stringify({ error: "Missing sessionId" }), { status: 400 });
+    }
+
+    const key = `workspace:${sessionId}`;
+
+    if (request.method === "GET") {
+        const files = await env.MY_KV.get(key, { type: "json" });
+        return new Response(JSON.stringify({ files: files || null }), {
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+
+    if (request.method === "POST") {
+        const body = await request.json().catch(() => null) as any;
+        if (!body || !body.files) {
+            return new Response(JSON.stringify({ error: "Missing files" }), { status: 400 });
+        }
+        await env.MY_KV.put(key, JSON.stringify(body.files));
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+
 function inferIntent(input: string): string {
     if (input.match(/explain|what does|how does|analysis/i)) return "explain";
     if (input.match(/review|critique|audit/i)) return "review";
