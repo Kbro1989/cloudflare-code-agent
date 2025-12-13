@@ -104,7 +104,7 @@ export const html = `<!DOCTYPE html>
         </div>
     </div>
 
-    <script src="https://cdntest.cloudflare.com/monaco-editor/0.45.0/min/vs/loader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
     <script>
         // --- State ---
