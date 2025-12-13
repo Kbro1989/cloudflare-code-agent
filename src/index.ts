@@ -8,9 +8,10 @@ export default {
         const url = new URL(request.url);
 
         if (request.method === "GET" && url.pathname === "/") {
-            return new Response("Cloudflare Code Agent is active.\n\nPOST JSON to /agent/run to use.\nSee README for details.", {
+            const { html } = await import("./ui.ts");
+            return new Response(html, {
                 status: 200,
-                headers: { "Content-Type": "text/plain" }
+                headers: { "Content-Type": "text/html" }
             });
         }
 
