@@ -174,7 +174,7 @@ export const html = `<!DOCTYPE html>
         // --- WebSocket ---
         function connectWebSocket() {
             const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = "\${proto}://" + window.location.host + "/api/workspace/ws?sessionId=" + sessionId;
+            const wsUrl = proto + "://" + window.location.host + "/api/workspace/ws?sessionId=" + sessionId;
             
             socket = new WebSocket(wsUrl);
             const statusEl = document.getElementById('connStatus');
