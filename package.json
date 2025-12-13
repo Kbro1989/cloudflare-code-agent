@@ -1,0 +1,20 @@
+{
+    "name": "cloudflare-code-agent",
+    "version": "1.0.0",
+    "description": "A serverless reasoning engine that produces verifiable code artifacts",
+    "scripts": {
+        "dev": "wrangler dev",
+        "deploy": "wrangler deploy",
+        "test": "./scripts/test.sh",
+        "test:unit": "deno test src/agent/validate.ts",
+        "kv:create": "wrangler kv:namespace create MY_KV"
+    },
+    "dependencies": {
+        "diff": "^5.2.0"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20241205.0",
+        "@types/diff": "^7.0.2",
+        "wrangler": "^3.94.0"
+    }
+}

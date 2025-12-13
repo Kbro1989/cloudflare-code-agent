@@ -1,0 +1,10 @@
+name = "cloudflare-code-agent"
+main = "src/index.ts"
+compatibility_date = "2024-12-13"
+
+[[kv_namespaces]]
+binding = "MY_KV"
+id = "19ed43640eb04f69b98289b998ef971f" # Run: npm run kv:create
+
+[ai]
+binding = "AI"
