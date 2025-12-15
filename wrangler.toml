@@ -1,6 +1,7 @@
 name = "cloudflare-code-agent"
 main = "src/index.ts"
 compatibility_date = "2024-12-13"
+account_id = "6872653edcee9c791787c1b783173793"
 
 [[kv_namespaces]]
 binding = "MY_KV"
