@@ -1,7 +1,7 @@
 name = "hybrid-ide-production"
 main = "src/index.ts"
 compatibility_date = "2024-12-16"
-account_id = "6872653edcee9c791787c1b783173793"
+# account_id = "6872653edcee9c787c1b783173793"
 
 # Durable Objects (rate limiting only - NO session state)
 [[durable_objects.bindings]]
@@ -9,18 +9,18 @@ name = "RATE_LIMITER"
 class_name = "RateLimiter"
 script_name = "hybrid-ide-production"
 
-[migrations]
+[[migrations]]
 tag = "v1"
 new_classes = ["RateLimiter"]
 
 # KV Namespaces (Free: 1000 writes/day per namespace - HARD CAP)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_CACHE_KV_ID"
+id = "53e7b59de4764464bed75a677bf9805c"
 
 [[kv_namespaces]]
 binding = "MEMORY"
-id = "REPLACE_WITH_MEMORY_KV_ID"
+id = "f13368114b6a4d8e9ca2919481f33fdd"
 
 # R2 Bucket (Free: 10GB storage, 1M operations/month)
 [[r2_buckets]]
