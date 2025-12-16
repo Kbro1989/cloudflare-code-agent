@@ -1,0 +1,24 @@
+{
+    "name": "@hybrid-ide/cli",
+    "version": "1.0.0",
+    "description": "Production Hybrid IDE CLI - $0/month",
+    "bin": {
+        "ide": "./dist/index.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "ts-node src/index.ts"
+    },
+    "dependencies": {
+        "commander": "^11.1.0",
+        "chalk": "^4.1.2",
+        "ora": "^5.4.1",
+        "inquirer": "^8.2.6"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.5",
+        "@types/inquirer": "^8.2.10",
+        "typescript": "^5.3.3",
+        "ts-node": "^10.9.2"
+    }
+}
