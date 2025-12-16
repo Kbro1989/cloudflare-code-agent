@@ -11,7 +11,7 @@ script_name = "hybrid-ide-production"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["RateLimiter"]
+new_sqlite_classes = ["RateLimiter"]
 
 # KV Namespaces (Free: 1000 writes/day per namespace - HARD CAP)
 [[kv_namespaces]]
@@ -55,9 +55,9 @@ enabled = true
 [placement]
 mode = "smart"  # Auto-route to optimal Cloudflare edge
 
-# Limits (Free tier: 30s CPU, 128MB memory)
-[limits]
-cpu_ms = 30000  # 30 seconds max per request
+# # Limits (Free tier: 30s CPU, 128MB memory)
+# [limits]
+# cpu_ms = 30000  # 30 seconds max per request
 
 # Secrets (MUST be set via: wrangler secret put <NAME>)
 # NEVER commit secrets to git or include in this file
