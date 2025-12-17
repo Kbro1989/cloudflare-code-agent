@@ -1,8 +1,8 @@
-// Helper function to escape strings for JavaScript literal insertion
+export const UI_JS = `// Helper function to escape strings for JavaScript literal insertion
 function escapeJsString(str) {
     // Escapes single quotes and backslashes for insertion into a JavaScript string literal within HTML attributes.
     // Note: The '$' character does not need special escaping when injecting into a plain JS string literal.
-    return str.replace(/\\/g, '\\\\').replace(/'/g, '\'');
+    return str.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, '\\\'');
 }
 
 // Global variables for the IDE state
@@ -212,7 +212,7 @@ background-color="#1e293b"
          const data = await res.json();
          let src = data.content;
          if (!src.startsWith('data:') && !src.startsWith('http')) {
-             src = `data:image/png;base64,${data.content}`;
+             src = \`data:image/png;base64,\${data.content}\`;
          }
 
          container.innerHTML = `<div class="h-full flex items-center justify-center bg-slate-900">
@@ -296,7 +296,7 @@ window.sendMessage = async function() {
 const { done, value } = await reader.read();
 if (done) break;
 const chunk = decoder.decode(value);
-const lines = chunk.split('\n\n'); // Split by actual newline characters
+const lines = chunk.split('\\n\\n'); // Split by actual newline characters
 for (const line of lines) {
     if (line.startsWith('data: ')) {
         try {
@@ -323,10 +323,10 @@ window.handleImageGeneration = async function(prompt) {
         const data = await res.json();
 
         const id = 'img-' + Date.now();
-        aiDiv.innerHTML = `<div class="flex flex-col gap-2">
-                <img src="${data.image}" class="rounded border border-slate-600" id="${id}">
-                <button onclick="window.saveImage('${id}', '${escapeJsString(prompt)}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
-            </div>`;
+        aiDiv.innerHTML = \`<div class="flex flex-col gap-2">
+                <img src="\${data.image}" class="rounded border border-slate-600" id="\${id}">
+                <button onclick="window.saveImage('\${id}', '\${escapeJsString(prompt)}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
+            </div>\`;
     } catch(e) {
         aiDiv.innerText = 'Generation Failed: ' + escapeJsString(e.message);
     }
@@ -336,7 +336,7 @@ window.saveImage = async function(id, prompt) {
     const img = document.getElementById(id);
     if (!img) return;
     const base64 = img.src.split(',')[1];
-    const name = `assets/${prompt.substring(0,10).replace(/\s/g, '_')}_${Date.now()}.png`;
+    const name = \`assets/\${prompt.substring(0,10).replace(/\\s/g, '_')}_\${Date.now()}.png\`;
     await fetch('/api/fs/file', {
         method: 'POST',
         body: JSON.stringify({ name, content: base64 })
@@ -355,7 +355,7 @@ window.createNewFile = async function() {
 
 window.addMessage = function(role, text, loading) {
     const div = document.createElement('div');
-    div.className = `chat-message p-3 rounded-lg border ${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}`;
+    div.className = \`chat-message p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}\`;
     if(loading) div.innerHTML = 'Thinking...';
     else div.innerHTML = window.formatToken(text);
     if (chatMessages) {
@@ -364,7 +364,7 @@ window.addMessage = function(role, text, loading) {
     return div;
 };
 
-window.formatToken = function(t) { return t.replace(/\n/g, '<br>'); };
+window.formatToken = function(t) { return t.replace(/\\n/g, '<br>'); };
 
 window.getLanguage = function(n) {
     if(n.endsWith('ts')) return 'typescript';
@@ -399,7 +399,7 @@ window.uploadFile = async function(input) {
 
             if (res.ok) {
                 activeImage = file.name;
-                aiDiv.innerHTML = `✅ Uploaded <b>${escapeJsString(file.name)}</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>`;
+                aiDiv.innerHTML = \`✅ Uploaded <b>\${escapeJsString(file.name)}</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>\`;
                 window.refreshFiles();
 
                 if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
@@ -415,3 +415,4 @@ window.uploadFile = async function(input) {
         aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
     }
 };
+`;

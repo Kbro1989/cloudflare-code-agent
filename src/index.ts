@@ -71,8 +71,8 @@ export default {
     // Serve ui.js
     if (url.pathname === '/ui.js') {
       // Correctly import and serve the JavaScript file as a string
-      const { UI_JS } = await import('./ui.js');
-      return new Response(UI_JS, {
+      const uiJsContent = await import('./ui.js');
+      return new Response(uiJsContent.UI_JS, {
         headers: { 'Content-Type': 'application/javascript; charset=utf-8' }
       });
     }
