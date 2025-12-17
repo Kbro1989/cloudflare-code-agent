@@ -421,8 +421,36 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
   }
 }
 
+// ... (previous code)
+
+const SYSTEM_PROMPT = `
+You are an advanced AI coding agent integrated into a CLI and Web IDE.
+You have access to the user's local filesystem via the CLI.
+To execute actions, you must output a JSON object wrapped in a code block with the language 'json'.
+Do NOT simply describe what you want to do. Output the tool call.
+
+Available Tools:
+1. readFile(path: string) - Read file content
+   Usage: { "tool": "readFile", "args": { "path": "src/index.ts" } }
+
+2. writeFile(path: string, content: string) - Write/Over file
+   Usage: { "tool": "writeFile", "args": { "path": "test.ts", "content": "console.log('hi')" } }
+
+3. listFiles(path: string) - List directory contents
+   Usage: { "tool": "listFiles", "args": { "path": "." } }
+
+4. runCommand(command: string) - Execute shell command
+   Usage: { "tool": "runCommand", "args": { "command": "npm install" } }
+
+Rules:
+- Only one tool call per response.
+- Wait for the user to return the tool result before proceeding.
+- If you need to read a file before editing, call readFile first.
+- Be concise.
+`;
+
 function buildChatPrompt(message: string, history: any[] = []): string {
-  let prompt = '';
+  let prompt = SYSTEM_PROMPT + '\n\n';
 
   if (history.length > 0) {
     prompt += 'Previous conversation:\n';
@@ -432,9 +460,11 @@ function buildChatPrompt(message: string, history: any[] = []): string {
     prompt += '\n';
   }
 
-  prompt += `Question: ${message}\n\nAnswer:`;
+  prompt += `User: ${message}\n\nAssistant:`;
   return prompt;
 }
+
+// Explain code ...
 
 // Explain code
 async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
