@@ -459,7 +459,7 @@ export const IDE_HTML = `<!DOCTYPE html>
 
             // Tool Execution Logic (Web Version)
             // Tool Execution Logic (Web Version)
-            const toolRegex = new RegExp('```json\\\\s* (\\\\{ [\\\\s\\\\S] *? "tool"[\\\\s\\\\S]*?\\\\ }) \\\\s * ```');
+            const toolRegex = new RegExp('\\`\\`\\`json\\\\s * (\\\\{ [\\\\s\\\\S] *? "tool"[\\\\s\\\\S]*?\\\\ }) \\\\s *\\`\\`\\`');
             const match = fullReply.match(toolRegex);
 
             if (match) {
