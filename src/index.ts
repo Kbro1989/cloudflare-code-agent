@@ -19,8 +19,14 @@ const MODELS = {
   DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
 
-  // Image
-  IMAGE: '@cf/black-forest-labs/flux-1-schnell'
+  // Image Gen
+  FLUX: '@cf/black-forest-labs/flux-1-schnell',
+  SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
+  DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
+
+  // Vision
+  LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
+  RESNET: '@cf/microsoft/resnet-50'
 };
 
 const SYSTEM_PROMPT = `
@@ -84,29 +90,40 @@ export default {
 };
 
 // ----------------------------------------------------------------------------
-// Image Generation (Flux 1 Schnell)
+// Image Generation Router
 // ----------------------------------------------------------------------------
 async function handleImage(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (!env.AI) return new Response('Workers AI binding missing', { status: 500, headers: corsHeaders });
 
-  const { prompt } = await request.json() as any;
+  const { prompt, style } = await request.json() as any;
   if (!prompt) return new Response('Missing prompt', { status: 400, headers: corsHeaders });
 
   try {
-    // @ts-ignore
-    const inputs = { prompt: prompt, num_steps: 4 }; // Schnell is fast
+    // Select Model based on Style
+    let modelId = MODELS.FLUX; // Default
+    let steps = 4; // Flux default
+
+    if (style === 'realism') {
+      modelId = MODELS.SDXL;
+      steps = 8; // SDXL Lightning good around 4-8
+    } else if (style === 'artistic') {
+      modelId = MODELS.DREAMSHAPER;
+      steps = 6; // Dreamshaper LCM is fast
+    }
 
     // @ts-ignore
-    const response = await env.AI.run(MODELS.IMAGE, inputs);
+    const inputs = { prompt: prompt, num_steps: steps };
 
-    // Convert binary stream to base64 for immediate UI display
-    // Flux output from Workers AI is usually a ReadableStream of the PNG
+    // @ts-ignore
+    const response = await env.AI.run(modelId, inputs);
+
+    // Convert binary stream to base64
     // @ts-ignore
     const arrayBuffer = await new Response(response as any).arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     const dataUrl = `data:image/png;base64,${base64}`;
 
-    return json({ image: dataUrl, provider: 'flux-1-schnell' }, 200, corsHeaders);
+    return json({ image: dataUrl, provider: modelId, style: style || 'speed' }, 200, corsHeaders);
   } catch (e: any) {
     return new Response(`Image Gen Failed: ${e.message}`, { status: 500, headers: corsHeaders });
   }
