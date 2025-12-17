@@ -7,7 +7,7 @@ account_id = "6872653edcee9c791787c1b783173793"
 [[durable_objects.bindings]]
 name = "RATE_LIMITER"
 class_name = "RateLimiter"
-script_name = "cloudflare-code-agent"
+
 
 [[migrations]]
 tag = "v1"
