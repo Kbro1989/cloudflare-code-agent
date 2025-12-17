@@ -112,10 +112,17 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
 
             <!-- Chat Input -->
+            <!-- Chat Input -->
             <div class="p-3 bg-slate-800/80 border-t border-slate-700/50 backdrop-blur">
-                <div class="relative">
-                    <textarea id="chatInput" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none scroll-smooth transition-all" placeholder="Ask AI or type /image..."></textarea>
-                    <button onclick="sendMessage()" class="absolute right-2 bottom-2 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>
+                <input type="file" id="visionInput" class="hidden" onchange="uploadFile(this)">
+                <div class="relative flex items-center gap-2">
+                    <button onclick="document.getElementById('visionInput').click()" class="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-700/50" title="Upload Image/File">
+                        <i class="fa-solid fa-paperclip"></i>
+                    </button>
+                    <div class="relative flex-1">
+                        <textarea id="chatInput" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none scroll-smooth transition-all" placeholder="Ask AI or type /image..."></textarea>
+                        <button onclick="sendMessage()" class="absolute right-2 top-1.5 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
                 </div>
                 <div class="text-[10px] text-slate-500 mt-1.5 flex justify-between px-1">
                     <span>Ctrl+Enter to send</span>
@@ -447,6 +454,44 @@ export const IDE_HTML = `<!DOCTYPE html>
             if(n.endsWith('ts')) return 'typescript';
             if(n.endsWith('html')) return 'html';
             return 'plaintext';
+        }
+        async function uploadFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const aiDiv = addMessage('ai', `Uploading ${ file.name }...`, true);
+
+            try {
+                // Convert to Base64
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64 = e.target.result.split(',')[1];
+
+                    const res = await fetch('/api/fs/file', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: file.name,
+                            content: base64,
+                            encoding: 'base64'
+                        })
+                    });
+
+                    if (res.ok) {
+                        aiDiv.innerHTML = `✅ Uploaded < b > ${ file.name } </b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span > `;
+                        refreshFiles();
+
+                        // Auto-load if 3D
+                        if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
+                           openFile(file.name);
+                        }
+                    } else {
+                        aiDiv.innerText = 'Upload Failed';
+                    }
+                };
+                reader.readAsDataURL(file);
+            } catch (e) {
+                aiDiv.innerText = 'Error: ' + e.message;
+            }
         }
     </script>
 </body>
