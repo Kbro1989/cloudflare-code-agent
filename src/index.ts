@@ -583,7 +583,7 @@ const IDE_HTML = `<!DOCTYPE html>
 function example() {
   // Type here and press Ctrl+Space for AI completion
 
-} \`,
+} `,
         language: 'typescript',
         theme: 'vs-dark',
         fontSize: 14,
