@@ -3,6 +3,10 @@
         "target": "esnext",
         "module": "esnext",
         "moduleResolution": "bundler",
+        "lib": [
+            "esnext",
+            "dom"
+        ],
         "types": [
             "@cloudflare/workers-types"
         ],
