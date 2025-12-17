@@ -202,12 +202,10 @@ window.loadFile = async function(name) {
          const data = await res.json();
          let src = data.content;
          if (!src.startsWith('data:') && !src.startsWith('http')) {
-             src = \`data:image/png;base64,\${data.content}\`;
+             src = 'data:image/png;base64,' + data.content;
          }
 
-         container.innerHTML = `<div class="h-full flex items-center justify-center bg-slate-900">
-                        <img src="${src}" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">
-                    </div>`;
+         container.innerHTML = "<div class=\"h-full flex items-center justify-center bg-slate-900\">\n                        <img src=\"" + src + "\" class=\"max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded\">\n                    </div>";
          return;
     }
 
