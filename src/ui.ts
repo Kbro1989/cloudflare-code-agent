@@ -1,102 +1,100 @@
+
 export const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hybrid IDE - Production ($0/month)</title>
-  <!-- VS Code Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css" />
+  <title>Hybrid IDE</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codicon/0.0.32/codicon.min.css" />
   <style>
     :root {
       --bg-color: #1e1e1e;
       --sidebar-bg: #252526;
-      --activity-bar-bg: #333333;
-      --status-bar-bg: #007acc;
       --border-color: #3e3e42;
-      --text-color: #cccccc;
       --accent-color: #007acc;
-      --hover-bg: #2a2d2e;
-      --input-bg: #3c3c3c;
+      --text-color: #cccccc;
+      --activity-bar-bg: #333333;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; overflow: hidden; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; }
+    body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-color); color: var(--text-color); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-    .main-layout { display: flex; flex-grow: 1; overflow: hidden; }
-
-    /* Activity Bar */
-    .activity-bar { width: 48px; background: var(--activity-bar-bg); display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
-    .activity-icon { color: #858585; font-size: 24px; margin-bottom: 25px; cursor: pointer; position: relative; }
-    .activity-icon.active { color: white; border-left: 2px solid white; }
+    /* Layout */
+    .header { height: 35px; background: #3c3c3c; display: flex; align-items: center; padding: 0 10px; font-size: 13px; font-weight: 500; -webkit-app-region: drag; }
+    .main-container { display: flex; flex: 1; overflow: hidden; }
+    .activity-bar { width: 48px; background: var(--activity-bar-bg); display: flex; flex-direction: column; align-items: center; padding-top: 10px; z-index: 10; }
+    .activity-icon { width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #858585; font-size: 24px; position: relative; }
     .activity-icon:hover { color: white; }
+    .activity-icon.active { color: white; border-left: 2px solid white; }
 
-    /* Sidebar */
     .sidebar { width: 250px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
-    .sidebar-header { padding: 10px 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
-    .file-tree { flex-grow: 1; padding-top: 5px; }
-    .file-item { padding: 3px 20px; cursor: pointer; display: flex; align-items: center; font-size: 13px; color: #cccccc; }
-    .file-item:hover { background: var(--hover-bg); }
-    .file-item.active { background: #37373d; color: white; }
-    .file-icon { margin-right: 6px; font-size: 14px; }
+    .sidebar-header { padding: 10px 20px; font-size: 11px; text-transform: uppercase; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
 
-    /* Editor Area */
-    .editor-area { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-color); }
-    .tabs-container { display: flex; background: var(--sidebar-bg); height: 35px; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
-    .tab { padding: 8px 15px; font-size: 13px; color: #969696; background: #2d2d2d; border-right: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; min-width: 120px; }
-    .tab.active { background: var(--bg-color); color: white; border-top: 1px solid var(--accent-color); }
-    .tab-close { margin-left: auto; font-size: 12px; margin-left: 10px; opacity: 0; }
+    .editor-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-color); }
+    .tabs-container { display: flex; background: var(--sidebar-bg); height: 35px; align-items: center; overflow-x: auto; }
+    .tab { padding: 8px 15px; color: #969696; background: #2d2d2d; border-right: 1px solid #1e1e1e; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
+    .tab.active { background: #1e1e1e; color: white; border-top: 1px solid var(--accent-color); }
+    .tab:hover { background: #1e1e1e; }
+    .tab-close { opacity: 0; margin-left: 5px; font-size: 12px; }
     .tab:hover .tab-close { opacity: 1; }
 
-    #editor { flex-grow: 1; }
+    #editor { flex: 1; width: 100%; }
+
+    /* File Tree */
+    .file-tree { padding: 5px 0; overflow-y: auto; flex: 1; }
+    .file-item { padding: 3px 20px; cursor: pointer; font-size: 13px; color: #cccccc; display: flex; align-items: center; gap: 6px; }
+    .file-item:hover { background: #2a2d2e; }
+    .file-item.active { background: #37373d; color: white; }
+    .folder-item { padding: 3px 10px; font-weight: bold; font-size: 12px; color: #bbbbbb; margin-top: 5px; }
 
     /* Status Bar */
-    .status-bar { height: 22px; background: var(--status-bar-bg); color: white; display: flex; align-items: center; padding: 0 10px; font-size: 12px; justify-content: space-between; }
-    .status-item { margin-right: 15px; display: flex; align-items: center; cursor: pointer; }
-    .status-item i { margin-right: 5px; }
-    .quota-warning { background: #c72e0f !important; }
+    .status-bar { height: 22px; background: #007acc; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 12px; color: white; z-index: 20; }
+    .status-item { display: flex; align-items: center; gap: 5px; margin-right: 15px; cursor: pointer; }
+    .status-bar.quota-warning { background: #e51400; }
 
-    /* Toast Notifications */
-    .toast-container { position: fixed; bottom: 30px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
-    .toast { background: #333; color: white; padding: 12px 20px; border-radius: 4px; border-left: 4px solid #007acc; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 13px; animation: slideIn 0.3s ease; display: flex; align-items: center; min-width: 250px; }
-    .toast.success { border-left-color: #4caf50; }
+    /* Toast */
+    .toast-container { position: fixed; bottom: 40px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+    .toast { background: #252526; color: white; padding: 12px 20px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 10px; font-size: 13px; animation: slideIn 0.3s ease-out; border-left: 3px solid var(--accent-color); min-width: 200px; }
     .toast.error { border-left-color: #f44336; }
-    .toast.info { border-left-color: #007acc; }
-    .toast.loading { border-left-color: #e8c65f; }
-    .toast i { margin-right: 10px; font-size: 16px; }
+    .toast.success { border-left-color: #4caf50; }
+    .toast.loading { border-left-color: #2196f3; }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes fadeOut { to { transform: translateY(10px); opacity: 0; } }
 
-    /* Modal */
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; }
-    .modal { background: #252526; width: 600px; max-width: 90%; max-height: 80vh; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; border: 1px solid var(--border-color); }
-    .modal-header { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
-    .modal-body { padding: 20px; overflow-y: auto; font-family: 'Consolas', monospace; white-space: pre-wrap; line-height: 1.5; font-size: 13px; color: #d4d4d4; }
-    .modal-close { cursor: pointer; font-size: 16px; }
-    .modal-close:hover { color: white; }
-
+    /* Modals */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .modal { background: #252526; width: 600px; max-width: 90%; max-height: 80vh; display: flex; flex-direction: column; border-radius: 6px; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 1px solid var(--border-color); }
+    .modal-header { padding: 10px 20px; background: #333333; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+    .modal-body { padding: 20px; overflow-y: auto; font-family: 'Consolas', monospace; white-space: pre-wrap; line-height: 1.5; font-size: 13px; }
+    .modal-close { cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="main-layout">
+
+  <!-- Header -->
+  <div class="header">
+    <div style="margin-right: 15px;">Hybrid IDE</div>
+    <div style="color: #999; font-size: 12px;">File Edit Selection View Go Run Terminal Help</div>
+  </div>
+
+  <div class="main-container">
     <!-- Activity Bar -->
     <div class="activity-bar">
-      <div class="activity-icon active" title="Explorer" id="act-explorer" onclick="switchView('explorer')"><i class="codicon codicon-files"></i></div>
-      <div class="activity-icon" title="Search" id="act-search" onclick="switchView('search')"><i class="codicon codicon-search"></i></div>
-      <div class="activity-icon" title="Source Control" id="act-scm" onclick="switchView('scm')"><i class="codicon codicon-source-control"></i></div>
-      <div class="activity-icon" title="Run and Debug" id="act-debug" onclick="switchView('debug')"><i class="codicon codicon-debug-alt"></i></div>
-      <div class="activity-icon" title="Extensions" id="act-extensions" onclick="switchView('extensions')"><i class="codicon codicon-extensions"></i></div>
-      <div style="flex-grow: 1;"></div>
-      <div class="activity-icon" title="Accounts"><i class="codicon codicon-account"></i></div>
-      <div class="activity-icon" title="Settings"><i class="codicon codicon-settings-gear"></i></div>
+      <div class="activity-icon active" id="act-explorer" onclick="switchView('explorer')"><i class="codicon codicon-files"></i></div>
+      <div class="activity-icon" id="act-search" onclick="switchView('search')"><i class="codicon codicon-search"></i></div>
+      <div class="activity-icon" id="act-scm" onclick="switchView('scm')"><i class="codicon codicon-source-control"></i></div>
+      <div class="activity-icon" id="act-debug" onclick="switchView('debug')"><i class="codicon codicon-debug-alt"></i></div>
+      <div class="activity-icon" id="act-extensions" onclick="switchView('extensions')"><i class="codicon codicon-extensions"></i></div>
+      <div class="activity-icon" style="margin-top: auto; margin-bottom: 10px;"><i class="codicon codicon-account"></i></div>
+      <div class="activity-icon" style="margin-bottom: 10px;"><i class="codicon codicon-settings-gear"></i></div>
     </div>
 
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="sidebar-header">
-        <span id="sidebar-title">Explorer</span>
-        <i class="codicon codicon-ellipsis"></i>
-      </div>
-      <div style="padding: 10px 20px; font-weight: bold; font-size: 11px; display: flex; align-items: center;">
-        <i class="codicon codicon-chevron-down" style="margin-right: 5px;"></i> HYBRID-IDE-PROJECT
+        <span id="sidebar-title">EXPLORER</span>
+        <div style="display: flex; gap: 10px;">
+          <i class="codicon codicon-new-file" style="cursor: pointer;" title="New File" onclick="createNewFile()"></i>
+          <i class="codicon codicon-collapse-all"></i>
+        </div>
       </div>
 
       <!-- Explorer View -->
@@ -265,104 +263,109 @@ export const IDE_HTML = `<!DOCTYPE html>
 
       try {
         const res = await fetch(\`/api/fs/file?name=\${filename}\`);
+        if (!res.ok) throw new Error('Failed to load');
         const data = await res.json();
         files[filename].content = data.content;
 
-        if (activeFile === filename && editor) {
-          editor.setValue(data.content);
-          monaco.editor.setModelLanguage(editor.getModel(), files[filename].language);
+        if (activeFile === filename) {
+          if (editor) {
+             editor.setValue(data.content);
+             monaco.editor.setModelLanguage(editor.getModel(), files[filename].language);
+          }
         }
       } catch (e) {
-        showToast('Failed to load content', 'error');
+        showToast(\`Error loading \${filename}\`, 'error');
       }
     }
 
-    async function saveCurrentFile() {
-       if (!activeFile) return;
-       const content = editor.getValue();
-       files[activeFile].content = content;
+    async function saveFile() {
+      if (!activeFile || !editor) return;
 
-       const statusDiv = document.getElementById('provider');
-       statusDiv.textContent = 'Saving...';
+      const content = editor.getValue();
+      files[activeFile].content = content; // Update local cache
 
-       try {
-         const res = await fetch('/api/fs/file', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ name: activeFile, content })
-         });
+      showToast('Saving...', 'loading');
 
-         if (res.ok) {
-           statusDiv.textContent = 'Ready';
-           showToast('File saved to Cloud!', 'success');
-         } else {
-           throw new Error('Save failed');
-         }
-       } catch (e) {
-         statusDiv.textContent = 'Save Error';
-         showToast('Failed to save file', 'error');
-       }
+      try {
+        const res = await fetch('/api/fs/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: activeFile, content })
+        });
+
+        if (res.ok) {
+           showToast('File saved!', 'success');
+        } else {
+           showToast('Failed to save', 'error');
+        }
+      } catch (e) {
+         showToast('Error saving file', 'error');
+      }
     }
 
-    function renderUI() {
-      const tree = document.getElementById('file-tree');
-      const tabs = document.getElementById('tabs-container');
+    async function createNewFile() {
+      const name = prompt("Enter file name (e.g. test.ts):");
+      if (!name) return;
 
-      tree.innerHTML = '';
-      tabs.innerHTML = '';
+      files[name] = { content: '', language: 'plaintext', icon: 'codicon-file', color: '#ccc' };
+      activeFile = name;
+      renderUI();
 
-      Object.keys(files).forEach(filename => {
-        const file = files[filename];
-        const isActive = filename === activeFile;
+      if (editor) {
+          editor.setValue('');
+          monaco.editor.setModelLanguage(editor.getModel(), 'plaintext');
+      }
 
-        // Sidebar Item
-        const item = document.createElement('div');
-        item.className = \`file-item \${isActive ? 'active' : ''}\`;
-        item.onclick = () => switchFile(filename);
-        item.innerHTML = \`<i class="codicon \${file.icon} file-icon" style="color: \${file.color};"></i> \${filename}\`;
-        tree.appendChild(item);
-
-        // Tab Item
-        if (isActive) {
-             const tab = document.createElement('div');
-             tab.className = \`tab \${isActive ? 'active' : ''}\`;
-             tab.onclick = () => switchFile(filename);
-             tab.innerHTML = \`
-               <i class="codicon \${file.icon}" style="color: \${file.color}; margin-right: 6px; font-size: 14px;"></i>
-               \${filename}
-               <span class="tab-close"><i class="codicon codicon-close"></i></span>
-             \`;
-             tabs.appendChild(tab);
-
-             document.getElementById('lang-status').textContent = file.language;
-        }
+      // Save empty file to persist it to R2
+      await fetch('/api/fs/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, content: '' })
       });
     }
 
-    function switchFile(filename) {
-      if (activeFile === filename) return;
+    function renderUI() {
+      // Render File Tree
+      const tree = document.getElementById('file-tree');
+      tree.innerHTML = '';
 
-      // Save current editor state to local cache before switching
-      if (editor && activeFile && files[activeFile] && files[activeFile].content !== null) {
-        files[activeFile].content = editor.getValue();
+      Object.keys(files).forEach(name => {
+         const f = files[name];
+         const el = document.createElement('div');
+         el.className = \`file-item \${name === activeFile ? 'active' : ''}\`;
+         el.innerHTML = \`<i class="codicon \${f.icon}" style="color: \${f.color}"></i> \${name}\`;
+         el.onclick = () => {
+           activeFile = name;
+           renderUI();
+           loadFileContent(name);
+         };
+         tree.appendChild(el);
+      });
+
+      // Render Tabs
+      const tabs = document.getElementById('tabs-container');
+      tabs.innerHTML = '';
+
+      // For now just show active file as a tab
+      if (activeFile) {
+        const tab = document.createElement('div');
+        tab.className = 'tab active';
+        tab.innerHTML = \`
+          <i class="codicon \${files[activeFile].icon}" style="color: \${files[activeFile].color}"></i>
+          \${activeFile}
+          <i class="codicon codicon-close tab-close"></i>
+        \`;
+        tabs.appendChild(tab);
       }
-
-      activeFile = filename;
-      const file = files[activeFile];
-
-      // If content is missing, load it
-      if (file.content === null) {
-         if (editor) editor.setValue('Loading...');
-         loadFileContent(filename);
-      } else {
-         if (editor) {
-            editor.setValue(file.content);
-            monaco.editor.setModelLanguage(editor.getModel(), file.language);
-         }
-      }
-
-      renderUI();
     }
+
+    // Keybindings
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+    });
 
     // Activity Bar Switching
     function switchView(viewName) {
@@ -435,7 +438,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
+                const lines = chunk.split('\\\\n'); // Double escape for template literal inner string!
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -540,93 +543,81 @@ export const IDE_HTML = `<!DOCTYPE html>
        const toast = showToast("AI is thinking...", "loading");
 
        try {
-         const response = await fetch('/api/complete', {
+         const fileId = activeFile;
+         const prompt = null; // Auto
+
+         const res = await fetch('/api/complete', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({
-             code: content,
-             cursor,
-             language: files[activeFile]?.language || 'plaintext',
-             fileId: activeFile
-           })
+           body: JSON.stringify({ fileId, code: content, cursor, language: 'typescript', prompt })
          });
 
-         if (!response.ok) throw new Error('API Failed');
+         toast.remove();
 
-         const reader = response.body.getReader();
-         const decoder = new TextDecoder();
-         let result = '', provider = '';
+         if (res.ok) {
+           const reader = res.body.getReader();
+           const decoder = new TextDecoder();
+           let fullCompletion = '';
 
-         while (true) {
-           const { done, value } = await reader.read();
-           if (done) break;
-           const chunk = decoder.decode(value);
-           const lines = chunk.split('\\n');
-           for (const line of lines) {
-             if (line.startsWith('data: ')) {
-               const data = JSON.parse(line.slice(6));
-               result = data.token; // Update result
-               provider = data.provider;
+           while(true) {
+             const { done, value } = await reader.read();
+             if (done) break;
+             const chunk = decoder.decode(value, { stream: true });
+             const lines = chunk.split('\\\\n'); // Handle streaming lines
+
+             for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+                    if (data.token) fullCompletion += data.token;
+                    // Provide real-time provider status
+                    document.getElementById('provider').textContent = data.provider || 'AI';
+                  } catch(e) {}
+                }
              }
            }
+
+           // Insert at cursor
+           if (fullCompletion) {
+             const op = { range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column), text: fullCompletion };
+             editor.executeEdits("ai-completion", [op]);
+           }
+
+         } else {
+           showToast("AI failed to complete", "error");
          }
 
-         if (result) {
-            editor.executeEdits('ai', [{
-                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-                text: result,
-                forceMoveMarkers: true
-            }]);
-
-            toast.remove(); // Remove loading toast
-            showToast(\`AI Completed (\${provider})\`, "success");
-            updateQuota();
-         }
        } catch (e) {
          toast.remove();
-         showToast('AI Completion Failed', 'error');
+         showToast("Network error", "error");
        }
     }
 
     async function explainCode() {
-        if (!editor) return;
-        const selection = editor.getModel().getValueInRange(editor.getSelection());
+      if (!editor) return;
+      const selection = editor.getSelection();
+      const code = editor.getModel().getValueInRange(selection);
+      if (!code) { showToast("Select code to explain", "error"); return; }
 
-        if(!selection) {
-            showToast('Please select code to explain', 'info');
-            return;
-        }
+      const toast = showToast("Analyzing...", "loading");
 
-        const toast = showToast("AI is analyzing...", "loading");
+      try {
+        const res = await fetch('/api/explain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, language: 'typescript' })
+        });
 
-        try {
-            const response = await fetch('/api/explain', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code: selection, language: files[activeFile]?.language || 'plaintext' })
-            });
+        toast.remove();
+        const data = await res.json();
 
-            const data = await response.json();
-            toast.remove();
+        openModal("AI Explanation", data.explanation);
 
-            if (data.explanation) {
-                openModal(\`AI Explanation (\${data.provider})\`, data.explanation);
-            } else {
-                showToast('No explanation returned', 'error');
-            }
-        } catch(e) {
-            toast.remove();
-            showToast('AI Explanation Failed', 'error');
-        }
+      } catch (e) {
+        toast.remove();
+        showToast("Failed to explain", "error");
+      }
     }
-
-    // Ctrl+S prevention and SAVE to R2
-    document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            saveCurrentFile();
-        }
-    });
   </script>
 </body>
 </html>`;
