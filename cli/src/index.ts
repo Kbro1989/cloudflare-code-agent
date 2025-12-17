@@ -318,6 +318,86 @@ program
           console.log();
 
           history.push({ role: 'assistant', content: result });
+
+          // Tool Execution Logic
+          const toolRegex = /```json\s*(\{[\s\S]*?"tool"[\s\S]*?\})\s*```/;
+          const match = result.match(toolRegex);
+
+          if (match) {
+            try {
+              const toolCall = JSON.parse(match[1]);
+              const { tool, args } = toolCall;
+              console.log(chalk.yellow(`\n🛠️  Tool Request: ${tool}`));
+              console.log(chalk.gray(JSON.stringify(args, null, 2)));
+
+              const { confirm } = await inquirer.prompt([
+                {
+                  type: 'confirm',
+                  name: 'confirm',
+                  message: 'Execute this tool?',
+                  default: false
+                }
+              ]);
+
+              if (confirm) {
+                const spinner = ora(`Executing ${tool}...`).start();
+                let toolOutput = '';
+
+                try {
+                  if (tool === 'readFile') {
+                    toolOutput = await fs.readFile(args.path, 'utf-8');
+                  } else if (tool === 'writeFile') {
+                    await fs.writeFile(args.path, args.content);
+                    toolOutput = `Write to ${args.path} success`;
+                  } else if (tool === 'listFiles') {
+                    const files = await fs.readdir(args.path);
+                    toolOutput = files.join('\n');
+                  } else if (tool === 'runCommand') {
+                    const { exec } = require('child_process');
+                    // Wrap exec in promise
+                    toolOutput = await new Promise((resolve, reject) => {
+                      exec(args.command, (error: any, stdout: any, stderr: any) => {
+                        if (error) reject(stderr || error.message);
+                        else resolve(stdout || 'Command executed successfully');
+                      });
+                    });
+                  } else {
+                    toolOutput = 'Unknown tool';
+                  }
+                  spinner.succeed('Tool execution successful');
+                } catch (e: any) {
+                  toolOutput = `Error: ${e.message}`;
+                  spinner.fail('Tool execution failed');
+                }
+
+                // Send result back to AI
+                console.log(chalk.cyan('\nSending tool output to AI...'));
+                history.push({ role: 'user', content: `Tool Output for ${tool}:\n${toolOutput}` });
+
+                // Recursively call API (simple recursion for now)
+                // Note: For a robust loop, we should use a 'continue' or recursive function,
+                // but this linear flow allows one tool per turn which is key for explicit confirmation.
+                // The user will just see this as a "pre-filled" user message in the next iteration
+                // if we modify the loop flow.
+
+                // Current CLI loop asks for user input at top of 'while(true)'.
+                // Ideally we want to skip user input if we have tool output.
+                // But implementing that requires refactoring the while loop.
+                // For now, let's just print the output and let the user decide what to say next
+                // OR we can auto-submit. Let's auto-submit.
+
+                // Hack: We can just let the loop continue, but the prompt will show.
+                // Better hack: We add a 'pendingMessage' flag?
+                // Let's keep it simple: Just print output and let user resume.
+                console.log(chalk.green('Result sent to context. Continue chat to discuss results.'));
+              } else {
+                console.log(chalk.red('Tool execution cancelled.'));
+                history.push({ role: 'user', content: `Tool execution cancelled by user.` });
+              }
+            } catch (e) {
+              console.log(chalk.red('Failed to parse tool call'));
+            }
+          }
         } catch (error: any) {
           spinner.stop();
           console.log(chalk.red(`\n❌ Error: ${error.message}\n`));
