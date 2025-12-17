@@ -113,6 +113,7 @@ export default {
       }
 
       if (url.pathname === '/api/health') return handleHealth(env, corsHeaders);
+      if (url.pathname.startsWith('/api/fs')) return handleFilesystem(request, env, corsHeaders);
       if (url.pathname === '/api/complete') return handleComplete(request, env, ctx, corsHeaders);
       if (url.pathname === '/api/chat') return handleChat(request, env, ctx, corsHeaders);
       if (url.pathname === '/api/explain') return handleExplain(request, env, ctx, corsHeaders);
@@ -419,6 +420,76 @@ function json(data: any, status = 200, corsHeaders: any = {}): Response {
   });
 }
 
+// ----------------------------------------------------------------------------
+// Filesystem Handler (R2)
+// ----------------------------------------------------------------------------
+async function handleFilesystem(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  const url = new URL(request.url);
+
+  // List Files
+  if (request.method === 'GET' && url.pathname === '/api/fs/list') {
+    try {
+      const list = await env.R2_ASSETS.list();
+      let files = list.objects.map(o => ({
+        name: o.key,
+        size: o.size,
+        uploaded: o.uploaded
+      }));
+
+      // Initialize default files if empty
+      if (files.length === 0) {
+        const defaults = [
+          { name: 'main.ts', content: '// Welcome to Hybrid IDE\nconsole.log("Hello Cloudflare!");' },
+          { name: 'README.md', content: '# Hybrid IDE\n\nYour code is saved to R2.' }
+        ];
+
+        for (const f of defaults) {
+          await env.R2_ASSETS.put(f.name, f.content);
+        }
+        files = defaults.map(d => ({ name: d.name, size: d.content.length, uploaded: new Date() }));
+      }
+
+      return new Response(JSON.stringify(files), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    } catch (e: any) {
+      return new Response('R2 List Error: ' + e.message, { status: 500, headers: corsHeaders });
+    }
+  }
+
+  // Get File Content
+  if (request.method === 'GET' && url.pathname === '/api/fs/file') {
+    const name = url.searchParams.get('name');
+    if (!name) return new Response('Missing name', { status: 400, headers: corsHeaders });
+
+    try {
+      const obj = await env.R2_ASSETS.get(name);
+      if (!obj) return new Response('Not found', { status: 404, headers: corsHeaders });
+
+      const content = await obj.text();
+      return new Response(JSON.stringify({ content }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    } catch (e: any) {
+      return new Response('R2 Read Error: ' + e.message, { status: 500, headers: corsHeaders });
+    }
+  }
+
+  // Save File Content
+  if (request.method === 'POST' && url.pathname === '/api/fs/file') {
+    try {
+      const { name, content } = await request.json() as any;
+      if (!name || content === undefined) return new Response('Missing data', { status: 400, headers: corsHeaders });
+
+      await env.R2_ASSETS.put(name, content);
+      return new Response(JSON.stringify({ success: true, savedAt: new Date() }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    } catch (e: any) {
+      return new Response('R2 Write Error: ' + e.message, { status: 500, headers: corsHeaders });
+    }
+  }
+
+  return new Response('FS Method Not Allowed', { status: 405, headers: corsHeaders });
+}
+
+// ----------------------------------------------------------------------------
+// Consts & Frontend
+// ----------------------------------------------------------------------------
 // Production IDE HTML (VS Code-like Theme)
 const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -569,162 +640,299 @@ const IDE_HTML = `<!DOCTYPE html>
     
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
     require(['vs/editor/editor.main'], function () {
-      editor = monaco.editor.create(document.getElementById('editor'), {
-        value: `// Production Hybrid IDE - $0/month Forever
-// Constraints enforced:
-// - KV write quota: 1000/day (hard cap)
-// - Circuit breaker: Gemini → Ollama (no Workers AI)
-// - No background tasks (request-scoped only)
+     // Client-side Virtual File System (Now backed by R2)
+    let files = {};
+    let activeFile = '';
 
-// Press F1 or Ctrl+Shift+P for Command Palette
-// Press Ctrl+Space to AI-complete
-// Press Ctrl+E to AI-explain
+    // Initialize UI
+    async function init() {
+      await loadFiles();
+      renderUI();
+      if (activeFile) loadFileContent(activeFile);
+    }
 
-function example() {
-  // Type here and press Ctrl+Space for AI completion
-
-} `,
-        language: 'typescript',
-        theme: 'vs-dark',
-        fontSize: 14,
-        fontFamily: "'Consolas', 'Courier New', monospace",
-        automaticLayout: true,
-        minimap: { enabled: true },
-        scrollbar: { verticalScrollbarSize: 10 },
-        padding: { top: 15 }
-      });
-      
-      // Add simplified Command Palette actions for AI
-      editor.addAction({
-        id: 'ai-complete',
-        label: 'AI: Complete Code',
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space],
-        run: function(ed) { completeCode(); }
-      });
-
-      editor.addAction({
-        id: 'ai-explain',
-        label: 'AI: Explain Code',
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE],
-        run: function(ed) { explainCode(); }
-      });
-      
-      editor.addAction({
-          id: 'ai-chat',
-          label: 'AI: Chat',
-          run: function(ed) { alert('Full chat requires CLI: "ide chat"'); }
-      });
-    });
-
-    // Update quota display
-    async function updateQuota() {
+    async function loadFiles() {
       try {
-        const res = await fetch('/api/health');
-        const data = await res.json();
-        const quota = data.kvWriteQuota || 0;
+        const res = await fetch('/api/fs/list');
+        const list = await res.json();
         
-        document.getElementById('quotaDisplay').textContent = \`\${quota}% used\`;
-        document.getElementById('quotaBar').style.width = \`\${quota}%\`;
+        files = {}; // Reset
+        list.forEach(f => {
+          const ext = f.name.split('.').pop();
+          let icon = 'codicon-file';
+          let color = '#cccccc';
+          let lang = 'plaintext';
+          
+          if (ext === 'ts' || ext === 'js') { icon = 'codicon-file-code'; color = '#4fc1ff'; lang = 'typescript'; }
+          if (ext === 'json') { icon = 'codicon-file-code'; color = '#e8c65f'; lang = 'json'; }
+          if (ext === 'md') { icon = 'codicon-file-media'; color = '#cccccc'; lang = 'markdown'; }
+          if (ext === 'toml') { icon = 'codicon-gear'; color = '#cccccc'; lang = 'toml'; }
+          
+          files[f.name] = {
+            content: null, // Load on demand
+            language: lang,
+            icon: icon,
+            color: color
+          };
+        });
         
-        const color = quota > 85 ? '#f44336' : quota > 70 ? '#ff9800' : '#4caf50';
-        document.getElementById('quotaDisplay').style.color = color;
-        document.getElementById('quotaBar').style.background = color;
-        
-        if (quota >= 100) {
-          document.getElementById('statusBar').className = 'status-bar quota-warning';
-        }
+        if (!activeFile && list.length > 0) activeFile = list[0].name;
       } catch (e) {
-        document.getElementById('quotaDisplay').textContent = 'Error';
+        console.error('Failed to list files', e);
       }
     }
-    
-    updateQuota();
-    setInterval(updateQuota, 30000);
 
-    // Re-implemented logic for VS Code style
-    async function completeCode() {
+    async function loadFileContent(filename) {
+      if (!files[filename]) return;
+      if (files[filename].content !== null) return; // Already loaded
+      
+      try {
+        const res = await fetch(`/ api / fs / file ? name = ${ filename }`);
+        const data = await res.json();
+        files[filename].content = data.content;
+        
+        if (activeFile === filename && editor) {
+          editor.setValue(data.content);
+          monaco.editor.setModelLanguage(editor.getModel(), files[filename].language);
+        }
+      } catch (e) {
+        console.error('Failed to load content', e);
+      }
+    }
+
+    async function saveCurrentFile() {
+       if (!activeFile) return;
        const content = editor.getValue();
-       const position = editor.getPosition();
-       const cursor = editor.getModel().getOffsetAt(position);
+       files[activeFile].content = content;
        
        const statusDiv = document.getElementById('provider');
-       statusDiv.textContent = 'AI Completing...';
+       statusDiv.textContent = 'Saving...';
        
        try {
-         const response = await fetch('/api/complete', {
+         const res = await fetch('/api/fs/file', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ 
-             code: content, 
-             cursor, 
-             language: 'typescript', 
-             fileId: 'main.ts' 
-           })
+           body: JSON.stringify({ name: activeFile, content })
          });
          
-         if (!response.ok) throw new Error('API Failed');
-         
-         const reader = response.body.getReader();
-         const decoder = new TextDecoder();
-         let result = '', provider = '';
-         
-         while (true) {
-           const { done, value } = await reader.read();
-           if (done) break;
-           const chunk = decoder.decode(value);
-           const lines = chunk.split('\\n');
-           for (const line of lines) {
-             if (line.startsWith('data: ')) {
-               const data = JSON.parse(line.slice(6));
-               result = data.token;
-               provider = data.provider;
-             }
-           }
-         }
-         
-         if (result) {
-            editor.executeEdits('ai', [{
-                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-                text: result,
-                forceMoveMarkers: true
-            }]);
-            statusDiv.textContent = \`AI: \${provider} (Ready)\`;
-            updateQuota();
+         if (res.ok) {
+           statusDiv.textContent = 'Saved to Cloud!';
+           setTimeout(() => statusDiv.textContent = 'Ready', 2000);
+         } else {
+           throw new Error('Save failed');
          }
        } catch (e) {
-         statusDiv.textContent = 'AI Error';
-         setTimeout(() => statusDiv.textContent = 'Ready', 3000);
+         statusDiv.textContent = 'Save Error';
+         alert('Failed to save file to R2');
        }
     }
 
-    async function explainCode() {
-        const selection = editor.getModel().getValueInRange(editor.getSelection());
-        if(!selection) return;
+    function renderUI() {
+      const tree = document.getElementById('file-tree');
+      const tabs = document.getElementById('tabs-container');
+      
+      tree.innerHTML = '';
+      tabs.innerHTML = '';
+      
+      Object.keys(files).forEach(filename => {
+        const file = files[filename];
+        const isActive = filename === activeFile;
         
-        const statusDiv = document.getElementById('provider');
-        statusDiv.textContent = 'AI Explaining...';
-        
-        try {
-            const response = await fetch('/api/explain', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code: selection, language: 'typescript' })
-            });
-            const data = await response.json();
-            if (data.explanation) {
-                editor.setValue(editor.getValue() + \`\\n\\n/** AI Explanation (\${data.provider}):\\n *  \${data.explanation.replace(/\\n/g, '\\n *  ')}\\n */\`);
-                statusDiv.textContent = \`AI: \${data.provider} (Ready)\`;
+        // Sidebar Item
+        const item = document.createElement('div');
+        item.className = `file - item ${ isActive ? 'active' : '' } `;
+        item.onclick = () => switchFile(filename);
+        item.innerHTML = `< i class="codicon ${file.icon} file-icon" style = "color: ${file.color};" > </i> ${filename}`;
+tree.appendChild(item);
+
+// Tab Item
+if (isActive) {
+  const tab = document.createElement('div');
+  tab.className = `tab ${isActive ? 'active' : ''}`;
+  tab.onclick = () => switchFile(filename);
+  tab.innerHTML = `
+               <i class="codicon ${file.icon}" style="color: ${file.color}; margin-right: 6px; font-size: 14px;"></i>
+               ${filename}
+               <span class="tab-close"><i class="codicon codicon-close"></i></span>
+             `;
+  tabs.appendChild(tab);
+
+  document.getElementById('lang-status').textContent = file.language;
+}
+      });
+    }
+
+function switchFile(filename) {
+  if (activeFile === filename) return;
+
+  // Save current editor state to local cache before switching
+  if (editor && activeFile && files[activeFile] && files[activeFile].content !== null) {
+    files[activeFile].content = editor.getValue();
+  }
+
+  activeFile = filename;
+  const file = files[activeFile];
+
+  // If content is missing, load it
+  if (file.content === null) {
+    if (editor) editor.setValue('Loading...');
+    loadFileContent(filename);
+  } else {
+    if (editor) {
+      editor.setValue(file.content);
+      monaco.editor.setModelLanguage(editor.getModel(), file.language);
+    }
+  }
+
+  renderUI();
+}
+
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+require(['vs/editor/editor.main'], function () {
+  editor = monaco.editor.create(document.getElementById('editor'), {
+    value: '// Loading...',
+    language: 'plaintext',
+    theme: 'vs-dark',
+    fontSize: 14,
+    fontFamily: "'Consolas', 'Courier New', monospace",
+    automaticLayout: true,
+    minimap: { enabled: true },
+    scrollbar: { verticalScrollbarSize: 10 },
+    padding: { top: 15 }
+  });
+
+  // Sync cursor
+  editor.onDidChangeCursorPosition((e) => {
+    document.getElementById('cursor-position').textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+  });
+
+  // AI Actions
+  editor.addAction({
+    id: 'ai-complete',
+    label: 'AI: Complete Code',
+    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space],
+    run: function (ed) { completeCode(); }
+  });
+
+  editor.addAction({
+    id: 'ai-explain',
+    label: 'AI: Explain Code',
+    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE],
+    run: function (ed) { explainCode(); }
+  });
+
+  // Init
+  init();
+});
+
+// Update quota display
+async function updateQuota() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    const quota = data.kvWriteQuota || 0;
+
+    document.getElementById('quotaDisplay').textContent = `${quota}% used`;
+    document.getElementById('quotaBar').style.width = `${quota}%`;
+
+    const color = quota > 85 ? '#f44336' : quota > 70 ? '#ff9800' : '#4caf50';
+    document.getElementById('quotaDisplay').style.color = color;
+    document.getElementById('quotaBar').style.background = color;
+
+    if (quota >= 100) {
+      document.getElementById('statusBar').className = 'status-bar quota-warning';
+    }
+  } catch (e) {
+    document.getElementById('quotaDisplay').textContent = 'Error';
+  }
+}
+
+updateQuota();
+setInterval(updateQuota, 30000);
+
+// Re-implemented logic for VS Code style
+async function completeCode() {
+  const content = editor.getValue();
+  const position = editor.getPosition();
+  const cursor = editor.getModel().getOffsetAt(position);
+
+  const statusDiv = document.getElementById('provider');
+  statusDiv.textContent = 'AI Completing...';
+
+  try {
+    const response = await fetch('/api/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: content,
+        cursor,
+        language: files[activeFile].language,
+        fileId: activeFile
+      })
+    });
+
+    if (!response.ok) throw new Error('API Failed');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let result = '', provider = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6));
+          result = data.token;
+          provider = data.provider;
+        }
+      }
+    }
+
+    if (result) {
+      editor.executeEdits('ai', [{
+        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        text: result,
+        forceMoveMarkers: true
+      }]);
+      statusDiv.textContent = `AI: ${provider} (Ready)`;
+      updateQuota();
+    }
+  } catch (e) {
+    statusDiv.textContent = 'AI Error';
+    setTimeout(() => statusDiv.textContent = 'Ready', 3000);
+  }
+}
+
+async function explainCode() {
+  const selection = editor.getModel().getValueInRange(editor.getSelection());
+  if (!selection) return;
+
+  const statusDiv = document.getElementById('provider');
+  statusDiv.textContent = 'AI Explaining...';
+
+  try {
+    const response = await fetch('/api/explain', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: selection, language: files[activeFile].language })
+    });
+    const data = await response.json();
+    if (data.explanation) {
+      statusDiv.textContent = \`AI: \${data.provider} (Ready)\`;
             }
         } catch(e) {
             statusDiv.textContent = 'AI Error';
         }
     }
     
-    // Ctrl+S prevention
+    // Ctrl+S prevention and SAVE to R2
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            alert('File saved to Cloudflare KV!');
+            saveCurrentFile();
         }
     });
   </script>
