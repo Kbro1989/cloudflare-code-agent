@@ -64,7 +64,7 @@ export default {
     // Serve UI
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
-      return new Response(IDE_HTML as string, {
+      return new Response(String(IDE_HTML), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }

@@ -1,3 +1,4 @@
+declare const monaco: any; // Declare monaco as a global variable for TypeScript
 export const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -147,7 +148,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 // For MVP, we deploy the content of src/index.ts or current editor content
                 let codeToDeploy = currentCode;
 
-                // If current file isn't meaningful, try to fetch src/index.ts
+                // If current file isn\'t meaningful, try to fetch src/index.ts
                 if (!activeFile.endsWith('.ts') && !activeFile.endsWith('.js')) {
                      try {
                         const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
@@ -187,10 +188,10 @@ export const IDE_HTML = `<!DOCTYPE html>
         // --- Monaco Editor Setup ---
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
 
-        let editor;
+        let editor: any;
         let activeFile = 'loading...';
         let currentCode = '';
-        let fileTree = [];
+        let fileTree: any[] = [];
 
         require(['vs/editor/editor.main'], function() {
             monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -212,9 +213,11 @@ export const IDE_HTML = `<!DOCTYPE html>
                 smoothScrolling: true
             });
 
-            editor.onDidChangeCursorPosition((e) => {
-                document.getElementById('cursorLine').innerText = e.position.lineNumber;
-                document.getElementById('cursorCol').innerText = e.position.column;
+            editor.onDidChangeCursorPosition((e: any) => {
+                const cursorLineElement = document.getElementById('cursorLine');
+                const cursorColElement = document.getElementById('cursorCol');
+                if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
+                if (cursorColElement) cursorColElement.innerText = e.position.column;
             });
 
             editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -227,42 +230,53 @@ export const IDE_HTML = `<!DOCTYPE html>
         const modelSelector = document.getElementById('modelSelector');
         const providerBadge = document.getElementById('providerBadge');
 
-        modelSelector.addEventListener('change', (e) => {
-            const isDeepSeek = e.target.value === 'thinking';
-            providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
-            providerBadge.className = isDeepSeek
-                ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
-                : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
+        modelSelector?.addEventListener('change', (e) => {
+            const target = e.target as HTMLSelectElement;
+            const isDeepSeek = target.value === 'thinking';
+            if (providerBadge) {
+                providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
+                providerBadge.className = isDeepSeek
+                    ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
+                    : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
+            }
         });
 
         // --- File System Operations ---
         async function refreshFiles() {
             const listEl = document.getElementById('fileList');
-            listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
+            if (listEl) {
+                listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
+            }
             try {
                 const res = await fetch('/api/fs/list');
                 const uniqueFiles = new Map();
-                (await res.json()).forEach(f => uniqueFiles.set(f.name, f));
+                (await res.json()).forEach((f: any) => uniqueFiles.set(f.name, f));
                 const files = Array.from(uniqueFiles.values());
 
                 fileTree = files;
                 renderFileList(files);
 
-                if (activeFile === 'loading...' && files.find(f => f.name === 'src/index.ts')) {
+                if (activeFile === 'loading...' && files.find((f: any) => f.name === 'src/index.ts')) {
                     loadFile('src/index.ts');
                 }
-            } catch (e) { listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>'; }
+            } catch (e) {
+                if (listEl) {
+                    listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
+                }
+            }
         }
 
-        function renderFileList(files) {
+        function renderFileList(files: { name: string }[]) {
             const listEl = document.getElementById('fileList');
+            if (!listEl) return;
+
             listEl.innerHTML = '';
             files.sort((a, b) => a.name.localeCompare(b.name));
 
             files.forEach((file: { name: string }) => {
-                const div = document.createElement('div');
-                const isImg = file.name.match(/\.(png|jpg|jpeg|gif)$/i);
-                const is3D = file.name.match(/\.(glb|gltf)$/i);
+                const div: HTMLDivElement = document.createElement('div');
+                const isImg = file.name.match(/\\.(png|jpg|jpeg|gif)$/i);
+                const is3D = file.name.match(/\\.(glb|gltf)$/i);
 
                 let iconClass = 'fa-regular fa-file-code';
                 if (isImg) iconClass = 'fa-regular fa-file-image';
@@ -290,7 +304,7 @@ export const IDE_HTML = `<!DOCTYPE html>
             if (!container) return; // Ensure container exists
 
             // 3D Preview
-            if (name.match(/\.(glb|gltf)$/i)) {
+            if (name.match(/\\.(glb|gltf)$/i)) {
                  activeImage = null; // Clear vision context for 3D models (unless we want to screenshot them?)
                  const res = await fetch('/api/fs/File?name=' + encodeURIComponent(name));
                  const blob = await res.blob();
@@ -315,7 +329,7 @@ export const IDE_HTML = `<!DOCTYPE html>
             }
 
             // Image Preview
-            if (name.match(/\.(png|jpg)$/i)) {
+            if (name.match(/\\.(png|jpg)$/i)) {
                  activeImage = name; // Set context for Vision
                  const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
                  const data = await res.json();
@@ -342,8 +356,8 @@ try {
                 currentCode = data.content;
                 if (editor) {
                     const model = editor.getModel();
-                    if (monaco && model) { // Check if monaco and model exist
-                        monaco.editor.setModelLanguage(model, getLanguage(name));
+                    if (window.monaco && model) { // Check if window.monaco and model exist
+                        window.monaco.editor.setModelLanguage(model, getLanguage(name));
                     }
                     editor.setValue(data.content);
                 }
@@ -443,7 +457,7 @@ try {
             const img = document.getElementById(id) as HTMLImageElement | null;
             if (!img) return;
             const base64 = img.src.split(',')[1];
-            const name = 'assets/' + prompt.substring(0,10).replace(/\s/g, '_') + '_' + Date.now() + '.png';
+            const name = 'assets/' + prompt.substring(0,10).replace(/\\s/g, '_') + '_' + Date.now() + '.png';
             await fetch('/api/fs/file', {
                 method: 'POST',
                 body: JSON.stringify({ name, content: base64 })
@@ -471,7 +485,7 @@ try {
             return div;
         }
 
-        function formatToken(t: string): string { return t.replace(/\n/g, '<br>'); }
+        function formatToken(t: string): string { return t.replace(/\\n/g, '<br>'); }
         function getLanguage(n: string): string {
             if(n.endsWith('ts')) return 'typescript';
             if(n.endsWith('html')) return 'html';
