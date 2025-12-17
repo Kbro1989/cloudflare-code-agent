@@ -187,21 +187,11 @@ window.loadFile = async function(name) {
          const blob = await res.blob();
          const url = URL.createObjectURL(blob);
 
-         container.innerHTML = `<div class="h-full w-full bg-slate-900 relative">
-        <model-viewer
-src="${url}"
-id="mv-viewer"
-camera-controls
-auto-rotate
-shadow-intensity="1"
-style="width: 100%; height: 100%;"
-alt="A 3D model"
-background-color="#1e293b"
-    ></model-viewer>
-    <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">
-        <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: ${name}</span>
-            </div>
-            </div>`;
+         container.innerHTML = '<div class="h-full w-full bg-slate-900 relative">' +
+        '<model-viewer\nsrc="' + url + '"\nid="mv-viewer"\ncamera-controls\nauto-rotate\nshadow-intensity="1"\nstyle="width: 100%; height: 100%;"\nalt="A 3D model"\nbackground-color="#1e293b"\n    ></model-viewer>\n    <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">' +
+        '<span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: ' + name + '</span>' +
+            '</div>' +
+            '</div>';
          return;
     }
 
@@ -221,14 +211,14 @@ background-color="#1e293b"
          return;
     }
 
-// Code/Text
-if (!container.querySelector('.monaco-editor')) {
-    location.reload();
-    return;
-}
+    // Code/Text
+    if (!container.querySelector('.monaco-editor')) {
+        location.reload();
+        return;
+    }
 
-try {
-    const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+    try {
+        const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
                 const data = await res.json();
                 currentCode = data.content;
                 if (editor) {
