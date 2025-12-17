@@ -455,6 +455,91 @@ export const IDE_HTML = `<!DOCTYPE html>
             }
             chatHistory.push({ role: 'assistant', content: fullReply });
 
+            // Tool Execution Logic (Web Version)
+            const toolRegex = /```json\s* (\{ [\s\S] *? "tool"[\s\S]*?\ }) \s * ```/;
+            const match = fullReply.match(toolRegex);
+
+            if (match) {
+                try {
+                    const toolCall = JSON.parse(match[1]);
+                    const { tool, args } = toolCall;
+
+                    // Show confirmation in UI (Simple alert for now, or append a button)
+                    // For Web UI, we can just append a 'Execute Tool?' button or auto-run for safe tools?
+                    // Let's mimic CLI: Ask.
+
+                    const toolMsg = document.createElement('div');
+                    toolMsg.style.cssText = 'background: #2d2d2d; padding: 10px; border-radius: 4px; color: #d4d4d4; max-width: 90%; align-self: flex-start; margin-top: 5px; border: 1px solid #0e639c;';
+                    toolMsg.innerHTML = `
+  < div > <strong>🛠️ Tool Request: </strong> ${tool}</div >
+    <pre style="font-size: 11px; color: #858585;" > ${ JSON.stringify(args, null, 2) } </pre>
+      < button id = "exec-${Date.now()}" style = "margin-top:5px;" > Execute </button>
+        `;
+                    chatContainer.appendChild(toolMsg);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                    const btn = toolMsg.querySelector('button');
+                    btn.onclick = async () => {
+                        btn.disabled = true;
+                        btn.innerText = 'Executing...';
+                        let toolOutput = '';
+
+                        try {
+                            if (tool === 'readFile') {
+                                const fRes = await fetch(\`/api/fs/file?name=\${args.path}\`);
+                                if (!fRes.ok) throw new Error(await fRes.text());
+                                const fData = await fRes.json();
+                                toolOutput = fData.content;
+                            } else if (tool === 'writeFile') {
+                                const fRes = await fetch('/api/fs/file', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ name: args.path, content: args.content })
+                                });
+                                if (!fRes.ok) throw new Error(await fRes.text());
+                                toolOutput = \`Write to \${args.path} success\`;
+                                // Refresh file list if side bar is open?
+                                loadFiles();
+                            } else if (tool === 'listFiles') {
+                                const fRes = await fetch('/api/fs/list');
+                                if (!fRes.ok) throw new Error(await fRes.text());
+                                const fData = await fRes.json();
+                                toolOutput = fData.map(f => f.name).join('\\n');
+                            } else if (tool === 'runCommand') {
+                                toolOutput = "Command execution is not supported in the Web UI. Please use the CLI for shell commands.";
+                            } else {
+                                toolOutput = "Unknown tool";
+                            }
+
+                            btn.innerText = 'Executed';
+
+                            // Send result back to AI
+                            chatHistory.push({ role: 'user', content: \`Tool Output for \${tool}:\\n\${toolOutput}\` });
+
+                            // Trigger AI again (Recursion)
+                            // We call sendChatMessage but we need to inject the prompt without UI?
+                            // No, handleChat expects 'message' and 'history'.
+                            // If we pass an empty message but updated history, it should work?
+                            // Or better: Just allow the user to see the output and type "Thanks" or "Next".
+                            // For true agentic loop, we should auto-call.
+                            // Let's update UI with output and let user prompt for now to avoid loops.
+
+                            const outMsg = document.createElement('div');
+                            outMsg.style.cssText = 'background: #252526; color: #aaa; padding: 5px; font-family: monospace; font-size: 11px; margin-top: 5px; white-space: pre-wrap;';
+                            outMsg.innerText = \`> Tool Output:\n\${toolOutput.substring(0, 200) + (toolOutput.length > 200 ? '...' : '')}\`;
+                            chatContainer.appendChild(outMsg);
+                             chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                        } catch (e) {
+                            btn.innerText = 'Failed';
+                            alert('Tool failed: ' + e.message);
+                        }
+                    };
+                } catch(e) {
+                    console.error('Tool parse error', e);
+                }
+            }
+
         } catch (e) {
             aiMsg.innerText = 'Error: ' + e.message;
             aiMsg.style.color = '#f44336';
