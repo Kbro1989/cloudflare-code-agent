@@ -79,7 +79,7 @@ program
         type: 'input',
         name: 'workerUrl',
         message: 'Worker URL:',
-        validate: (i) => i.length > 0 || 'Worker URL required'
+        validate: (i: string) => i.length > 0 || 'Worker URL required'
       },
       {
         type: 'input',

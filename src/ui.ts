@@ -1,4 +1,3 @@
-
 export const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -101,412 +100,412 @@ export const IDE_HTML = `<!DOCTYPE html>
 
             <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
                 <div class="chat-message bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p class="text-sm text-slate-300">Hello! I'm your Super-Agent. 🧞‍♂️</p>
-                    <ul class="text-xs text-slate-400 mt-2 list-disc list-inside space-y-1">
-                        <li><b>Review/Code:</b> Llama 3.3 (Fast)</li>
-                        <li><b>Reasoning:</b> DeepSeek R1 (Smart)</li>
-                        <li><b>Generate:</b> <code>/image cyberpunk city</code></li>
-                        <li><b>3D:</b> Upload .glb to view!</li>
-                    </ul>
-                </div>
-            </div>
+                    <p class="text-sm text-slate-300">Hello! I\'m your Super-Agent. 🧞‍♂️</p>
+                    <ul class="text-xs text-slate-400 mt-2 list-disc list-inside space-y-1">\
+                        <li><b>Review/Code:</b> Llama 3.3 (Fast)</li>\
+                        <li><b>Reasoning:</b> DeepSeek R1 (Smart)</li>\
+                        <li><b>Generate:</b> <code>/image cyberpunk city</code></li>\
+                        <li><b>3D:</b> Upload .glb to view!</li>\
+                    </ul>\
+                </div>\
+            </div>\
 
-            <!-- Chat Input -->
-            <!-- Chat Input -->
-            <div class="p-3 bg-slate-800/80 border-t border-slate-700/50 backdrop-blur">
-                <input type="file" id="visionInput" class="hidden" onchange="uploadFile(this)">
-                <div class="relative flex items-center gap-2">
-                    <button onclick="document.getElementById('visionInput').click()" class="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-700/50" title="Upload Image/File">
-                        <i class="fa-solid fa-paperclip"></i>
-                    </button>
-                    <div class="relative flex-1">
-                        <textarea id="chatInput" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none scroll-smooth transition-all" placeholder="Ask AI or type /image..."></textarea>
-                        <button onclick="sendMessage()" class="absolute right-2 top-1.5 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>
-                    </div>
-                </div>
-                <div class="text-[10px] text-slate-500 mt-1.5 flex justify-between px-1">
-                    <span>Ctrl+Enter to send</span>
-                    <span id="tokenCount">0 tokens</span>
-                </div>
-            </div>
-        </aside>
+            <!-- Chat Input -->\
+            <!-- Chat Input -->\
+            <div class="p-3 bg-slate-800/80 border-t border-slate-700/50 backdrop-blur">\
+                <input type="file" id="visionInput" class="hidden" onchange="uploadFile(this)">\
+                <div class="relative flex items-center gap-2">\
+                    <button onclick="document.getElementById(\'visionInput\').click()" class="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-700/50" title="Upload Image/File">\
+                        <i class="fa-solid fa-paperclip"></i>\
+                    </button>\
+                    <div class="relative flex-1">\
+                        <textarea id="chatInput" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none scroll-smooth transition-all" placeholder="Ask AI or type /image..."></textarea>\
+                        <button onclick="sendMessage()" class="absolute right-2 top-1.5 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>\
+                    </div>\
+                </div>\
+                <div class="text-[10px] text-slate-500 mt-1.5 flex justify-between px-1">\
+                    <span>Ctrl+Enter to send</span>\
+                    <span id="tokenCount">0 tokens</span>\
+                </div>\
+            </div>\
+        </aside>\
 
-    </div>
+    </div>\
 
-    <!-- Scripts -->
-    <script>
-        // --- Deployment Logic ---
-        window.deployProject = async function() {
-            const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");
-            if (!scriptName) return;
+    <!-- Scripts -->\
+    <script>\
+        // --- Deployment Logic ---\
+        window.deployProject = async function() {\
+            const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");\
+            if (!scriptName) return;\
 
-            const btn = document.querySelector('button[onclick="deployProject()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
-            btn.disabled = true;
+            const btn = document.querySelector(\'button[onclick="deployProject()"]\');\
+            const originalText = btn.innerHTML;\
+            btn.innerHTML = \'<i class="fa-solid fa-spinner fa-spin"></i> Deploying...\';\
+            btn.disabled = true;\
 
-            try {
-                // For MVP, we deploy the content of src/index.ts or current editor content
-                let codeToDeploy = currentCode;
+            try {\
+                // For MVP, we deploy the content of src/index.ts or current editor content\
+                let codeToDeploy = currentCode;\
 
-                // If current file isn't meaningful, try to fetch src/index.ts
-                if (!activeFile.endsWith('.ts') && !activeFile.endsWith('.js')) {
-                     try {
-                        const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
-                        const d = await res.json();
-                        codeToDeploy = d.content;
-                     } catch(e) {}
-                }
+                // If current file isn\'t meaningful, try to fetch src/index.ts\
+                if (!activeFile.endsWith(\'.ts\') && !activeFile.endsWith(\'.js\')) {\
+                     try {\
+                        const res = await fetch(\'/api/fs/file?name=\' + encodeURIComponent(\'src/index.ts\'));\
+                        const d = await res.json();\
+                        codeToDeploy = d.content;\
+                     } catch(e) {}\
+                }\
 
-                if (!codeToDeploy) {
-                    alert("No code found to deploy! Open a file first.");
-                    return;
-                }
+                if (!codeToDeploy) {\
+                    alert("No code found to deploy! Open a file first.");\
+                    return;\
+                }\
 
-                const res = await fetch('/api/deploy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ scriptName, code: codeToDeploy })
-                });
+                const res = await fetch(\'/api/deploy\', {\
+                    method: \'POST\',\
+                    headers: { \'Content-Type\': \'application/json\' },\
+                    body: JSON.stringify({ scriptName, code: codeToDeploy })\
+                });\
 
-                const result = await res.json();
+                const result = await res.json();\
 
-                if (res.ok) {
-                    alert('🚀 Success! Deployed to namespace \\'' + result.result.namespace + '\\'.\\nScript: ' + result.result.script);
-                } else {
-                     alert('Deployment Failed: ' + (result.error || 'Unknown Error (Check Server Logs)'));
-                }
+                if (res.ok) {\
+                    alert(\'🚀 Success! Deployed to namespace \\\'\' + result.result.namespace + \'\\\'.\\\nScript: \' + result.result.script);\
+                } else {\
+                     alert(\'Deployment Failed: \' + (result.error || \'Unknown Error (Check Server Logs)\'));\
+                }\
 
-            } catch (e) {
-                alert('Deployment Error: ' + e.message);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
+            } catch (e) {\
+                alert(\'Deployment Error: \' + e.message);\
+            } finally {\
+                btn.innerHTML = originalText;\
+                btn.disabled = false;\
+            }\
+        }\
 
-        // --- Monaco Editor Setup ---
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+        // --- Monaco Editor Setup ---\
+        require.config({ paths: { \'vs\': \'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs\' }});\
 
-        let editor;
-        let activeFile = 'loading...';
-        let currentCode = '';
-        let fileTree = [];
+        let editor;\
+        let activeFile = \'loading...\';\
+        let currentCode = \'\';\
+        let fileTree = [];\
 
-        require(['vs/editor/editor.main'], function() {
-            monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-                target: monaco.languages.typescript.ScriptTarget.ES2020,
-                allowNonTsExtensions: true,
-                moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-            });
+        require([\'vs/editor/editor.main\'], function() {\
+            monaco.languages.typescript.typescriptDefaults.setCompilerOptions({\
+                target: monaco.languages.typescript.ScriptTarget.ES2020,\
+                allowNonTsExtensions: true,\
+                moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,\
+            });\
 
-            editor = monaco.editor.create(document.getElementById('editorContainer'), {
-                value: '// Select a file to view content',
-                language: 'typescript',
-                theme: 'vs-dark',
-                automaticLayout: true,
-                minimap: { enabled: false },
-                fontSize: 13,
-                fontFamily: 'Consolas, "Courier New", monospace',
-                padding: { top: 16 },
-                scrollBeyondLastLine: false,
-                smoothScrolling: true
-            });
+            editor = monaco.editor.create(document.getElementById(\'editorContainer\'), {\
+                value: \'// Select a file to view content\',\
+                language: \'typescript\',\
+                theme: \'vs-dark\',\
+                automaticLayout: true,\
+                minimap: { enabled: false },\
+                fontSize: 13,\
+                fontFamily: \'Consolas, \"Courier New\", monospace\',\
+                padding: { top: 16 },\
+                scrollBeyondLastLine: false,\
+                smoothScrolling: true\
+            });\
 
-            editor.onDidChangeCursorPosition((e) => {
-                document.getElementById('cursorLine').innerText = e.position.lineNumber;
-                document.getElementById('cursorCol').innerText = e.position.column;
-            });
+            editor.onDidChangeCursorPosition((e) => {\
+                document.getElementById(\'cursorLine\').innerText = e.position.lineNumber;\
+                document.getElementById(\'cursorCol\').innerText = e.position.column;\
+            });\
 
-            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                saveCurrentFile(activeFile, editor.getValue());
-            });
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {\
+                saveCurrentFile(activeFile, editor.getValue());\
+            });\
 
-            refreshFiles();
-        });
+            refreshFiles();\
+        });\
 
-        const modelSelector = document.getElementById('modelSelector');
-        const providerBadge = document.getElementById('providerBadge');
+        const modelSelector = document.getElementById(\'modelSelector\');\
+        const providerBadge = document.getElementById(\'providerBadge\');\
 
-        modelSelector.addEventListener('change', (e) => {
-            const isDeepSeek = e.target.value === 'thinking';
-            providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
-            providerBadge.className = isDeepSeek
-                ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
-                : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
-        });
+        modelSelector.addEventListener(\'change\', (e) => {\
+            const isDeepSeek = e.target.value === \'thinking\';\
+            providerBadge.innerText = isDeepSeek ? \'DeepSeek R1\' : \'Llama 3.3\';\
+            providerBadge.className = isDeepSeek\
+                ? \'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded\'\
+                : \'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300\';\
+        });\
 
-        // --- File System Operations ---
-        async function refreshFiles() {
-            const listEl = document.getElementById('fileList');
-            listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
-            try {
-                const res = await fetch('/api/fs/list');
-                const uniqueFiles = new Map();
-                (await res.json()).forEach(f => uniqueFiles.set(f.name, f));
-                const files = Array.from(uniqueFiles.values());
+        // --- File System Operations ---\
+        async function refreshFiles() {\
+            const listEl = document.getElementById(\'fileList\');\
+            listEl.innerHTML = \'<div class="text-slate-500 text-xs p-2">Loading...</div>\';\
+            try {\
+                const res = await fetch(\'/api/fs/list\');\
+                const uniqueFiles = new Map();\
+                (await res.json()).forEach(f => uniqueFiles.set(f.name, f));\
+                const files = Array.from(uniqueFiles.values());\
 
-                fileTree = files;
-                renderFileList(files);
+                fileTree = files;\
+                renderFileList(files);\
 
-                if (activeFile === 'loading...' && files.find(f => f.name === 'src/index.ts')) {
-                    loadFile('src/index.ts');
-                }
-            } catch (e) { listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>'; }
-        }
+                if (activeFile === \'loading...\' && files.find(f => f.name === \'src/index.ts\')) {\
+                    loadFile(\'src/index.ts\');\
+                }\
+            } catch (e) { listEl.innerHTML = \'<div class="text-red-400 text-xs p-2">Failed</div>\'; }\
+        }\
 
-        function renderFileList(files) {
-            const listEl = document.getElementById('fileList');
-            listEl.innerHTML = '';
-            files.sort((a, b) => a.name.localeCompare(b.name));
+        function renderFileList(files) {\
+            const listEl = document.getElementById(\'fileList\');\
+            listEl.innerHTML = \'\';\
+            files.sort((a, b) => a.name.localeCompare(b.name));\
 
-            files.forEach(file => {
-                const div = document.createElement('div');
-                const isImg = file.name.match(/\\.(png|jpg|jpeg|gif)$/i);
-                const is3D = file.name.match(/\\.(glb|gltf)$/i);
+            files.forEach((file: { name: string }) => {\
+                const div = document.createElement(\'div\');\
+                const isImg = file.name.match(/\\\\.(png|jpg|jpeg|gif)$/i);\
+                const is3D = file.name.match(/\\\\.(glb|gltf)$/i);\
 
-                let iconClass = 'fa-regular fa-file-code';
-                if (isImg) iconClass = 'fa-regular fa-file-image';
-                if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
+                let iconClass = \'fa-regular fa-file-code\';\
+                if (isImg) iconClass = \'fa-regular fa-file-image\';\
+                if (is3D) iconClass = \'fa-solid fa-cube text-indigo-400\';\
 
-                div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
-                div.innerHTML = \`
-                    <div class="flex items-center gap-2 truncate" onclick="loadFile('\${file.name}')">
-                        <i class="\${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>
-                        <span>\${file.name}</span>
-                    </div>
-                \`;
-                listEl.appendChild(div);
-            });
-        }
+                div.className = \'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors\';\
+                div.innerHTML = \\\`\
+                    <div class="flex items-center gap-2 truncate" onclick="loadFile(\'\\\${file.name}\')">\
+                        <i class="\\\${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>\
+                        <span>\\\${file.name}</span>\
+                    </div>\
+                \\\`;\
+                listEl.appendChild(div);\
+            });\
+        }\
 
-        let activeFile = null;
-        let activeImage = null; // Track image context for Vision
+        let activeFile = null;\
+        let activeImage = null; // Track image context for Vision\
 
-        async function loadFile(name) {
-            activeFile = name;
-            document.getElementById('activeFileName').innerText = name;
-            const container = document.getElementById('editorContainer');
+        async function loadFile(name) {\
+            activeFile = name;\
+            document.getElementById(\'activeFileName\').innerText = name;\
+            const container = document.getElementById(\'editorContainer\');\
 
-            // 3D Preview
-            if (name.match(/\.(glb|gltf)$/i)) {
-                 activeImage = null; // Clear vision context for 3D models (unless we want to screenshot them?)
-                 const res = await fetch(`/ api / fs / file ? name = ${ encodeURIComponent(name)}`);
-                 const blob = await res.blob();
-                 const url = URL.createObjectURL(blob);
+            // 3D Preview\
+            if (name.match(/\\.(glb|gltf)$/i)) {\
+                 activeImage = null; // Clear vision context for 3D models (unless we want to screenshot them?)\
+                 const res = await fetch(\`/api/fs/File?name=\${encodeURIComponent(name)}\`);\
+                 const blob = await res.blob();\
+                 const url = URL.createObjectURL(blob);\
 
-                 container.innerHTML = `
-    < div class="h-full w-full bg-slate-900 relative" >
-        <model-viewer
-src = "${url}"
-id = "mv-viewer"
-camera - controls
-auto - rotate
-shadow - intensity="1"
-style = "width: 100%; height: 100%;"
-alt = "A 3D model"
-background - color="#1e293b"
-    > </model-viewer>
-    < div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none" >
-        <span class="bg-black/50 text-white px-2 py-1 rounded text-xs" > 3D Preview: ${ name } </span>
-            </div>
-            </div>
-                `;
-                 return;
-            }
+                 container.innerHTML = \\\`\
+    <div class="h-full w-full bg-slate-900 relative">\
+        <model-viewer\
+src="\\\${url}"\
+id="mv-viewer"\
+camera-controls\
+auto-rotate\
+shadow-intensity="1"\
+style="width: 100%; height: 100%;"\
+alt="A 3D model"\
+background-color="#1e293b"\
+    ></model-viewer>\
+    <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">\
+        <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: \\\${name}</span>\
+            </div>\
+            </div>\
+                \\\`;\
+                 return;\
+            }\
 
-            // Image Preview
-            if (name.match(/\.(png|jpg)$/i)) {
-                 activeImage = name; // Set context for Vision
-                 const res = await fetch(\`/api/fs/file?name=\${encodeURIComponent(name)}\`);
-                 const data = await res.json();
-                 let src = data.content;
-                 if (!src.startsWith('data:') && !src.startsWith('http')) {
-                     src = \`data:image/png;base64,\${data.content}\`;
-                 }
+            // Image Preview\
+            if (name.match(/\\.(png|jpg)$/i)) {\
+                 activeImage = name; // Set context for Vision\
+                 const res = await fetch(\`\/api\/fs\/file?name=\\\${encodeURIComponent(name)}\`);\
+                 const data = await res.json();\
+                 let src = data.content;\
+                 if (!src.startsWith(\'data:\') && !src.startsWith(\'http\')) {\
+                     src = \`data:image/png;base64,\$\{data.content}\`;\
+                 }\
 
-                 container.innerHTML = \`
-                    <div class="h-full flex items-center justify-center bg-slate-900">
-                        <img src="\${src}" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">
-                    </div>
-                 \`;
-                 return;
-            }
+                 container.innerHTML = \\\`\
+                    <div class="h-full flex items-center justify-center bg-slate-900">\
+                        <img src="\\\${src}" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">\
+                    </div>\
+                 \\\`;\
+                 return;\
+            }\
 
-// Code/Text
-if (!container.querySelector('.monaco-editor')) {
-    location.reload();
-    return;
-}
+// Code/Text\
+if (!container.querySelector(\'.monaco-editor\')) {\
+    location.reload();\
+    return;\
+}\
 
-try {
-    const res = await fetch(\`/api/fs/file?name=\${encodeURIComponent(name)}\`);
-                const data = await res.json();
-                currentCode = data.content;
-                if (editor) {
-                    const model = editor.getModel();
-                    monaco.editor.setModelLanguage(model, getLanguage(name));
-                    editor.setValue(data.content);
-                }
-            } catch (e) { }
-        }
+try {\
+    const res = await fetch(\`\/api\/fs\/file?name=\\\${encodeURIComponent(name)}\`);\
+                const data = await res.json();\
+                currentCode = data.content;\
+                if (editor) {\
+                    const model = editor.getModel();\
+                    monaco.editor.setModelLanguage(model, getLanguage(name));\
+                    editor.setValue(data.content);\
+                }\
+            } catch (e) { }\
+        }\
 
-        async function saveCurrentFile(name, content) {
-            await fetch('/api/fs/file', {
-                method: 'POST',
-                body: JSON.stringify({ name, content })
-            });
-            refreshFiles();
-        }
+        async function saveCurrentFile(name, content) {\
+            await fetch(\'/api/fs/file\', {\
+                method: \'POST\',\
+                body: JSON.stringify({ name, content })\
+            });\
+            refreshFiles();\
+        }\
 
-        // --- Chat ---
-        const chatInput = document.getElementById('chatInput');
-        const chatMessages = document.getElementById('chatMessages');
+        // --- Chat ---\
+        const chatInput = document.getElementById(\'chatInput\');\
+        const chatMessages = document.getElementById(\'chatMessages\');\
 
-        chatInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-        });
+        chatInput.addEventListener(\'keydown\', (e) => {\
+            if (e.key === \'Enter\' && !e.shiftKey) { e.preventDefault(); sendMessage(); }\\\
+        });\
 
-        async function sendMessage() {
-            const text = chatInput.value.trim();
-            if(!text) return;
-            chatInput.value = '';
+        async function sendMessage() {\
+            const text = chatInput.value.trim();\
+            if(!text) return;\\\
+            chatInput.value = \'\';\
 
-            addMessage('user', text);
+            addMessage(\'user\', text);\\\
 
-            if (text.startsWith('/image')) {
-                const prompt = text.replace('/image', '').trim();
-                handleImageGeneration(prompt);
-                return;
-            }
+            if (text.startsWith(\'/image\')) {\
+                const prompt = text.replace(\'/image\', \'\').trim();\
+                handleImageGeneration(prompt);\\\
+                return;\\\
+            }\
 
-            const model = document.getElementById('modelSelector').value;
-            const aiDiv = addMessage('ai', '', true);
+            const model = document.getElementById(\'modelSelector\').value;\
+            const aiDiv = addMessage(\'ai\', \'\', true);\\\
 
-            try {
-                // Send activeImage context if available
-                const payload = { message: text, model };
-                if (activeImage) payload.image = activeImage;
+            try {\
+                // Send activeImage context if available\
+                const payload = { message: text, model };\
+                if (activeImage) payload.image = activeImage;\\\
 
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
+                const res = await fetch(\'/api/chat\', {\
+                    method: \'POST\',\
+                    body: JSON.stringify(payload)\
+                });\
 
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                aiDiv.innerHTML = '';
+                const reader = res.body.getReader();\
+                const decoder = new TextDecoder();\
+                aiDiv.innerHTML = \'\';\
 
-                while(true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\\n\\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                if(data.token) aiDiv.innerHTML += formatToken(data.token);
-                            } catch(e){}
-                        }
-                    }
-                }
-            } catch(e) { aiDiv.innerText = 'Error'; }
-        }
+                while(true) {\
+                    const { done, value } = await reader.read();\
+                    if (done) break;\
+                    const chunk = decoder.decode(value);\\\
+                    const lines = chunk.split(\'\\\\n\\\\n\');\\\
+                    for (const line of lines) {\
+                        if (line.startsWith(\'data: \')) {\
+                            try {\\\
+                                const data = JSON.parse(line.slice(6));\\\
+                                if(data.token) aiDiv.innerHTML += formatToken(data.token);\\\
+                            } catch(e){}\\\
+                        }\
+                    }\
+                }\
+            } catch(e) { aiDiv.innerText = \'Error\'; }\\\
+        }\
 
-        async function handleImageGeneration(prompt) {
-            const style = document.getElementById('styleSelector').value;
-            const aiDiv = addMessage('ai', 'Generating Image (' + style + ')...', true);
-            try {
-                const res = await fetch('/api/image', {
-                     method: 'POST',
-                     body: JSON.stringify({ prompt, style })
-                });
-                const data = await res.json();
+        async function handleImageGeneration(prompt) {\
+            const style = document.getElementById(\'styleSelector\').value;\
+            const aiDiv = addMessage(\'ai\', \'Generating Image (\' + style + \')...\', true);\\\
+            try {\
+                const res = await fetch(\'/api/image\', {\
+                     method: \'POST\',\
+                     body: JSON.stringify({ prompt, style })\
+                });\
+                const data = await res.json();\\\
 
-                const id = 'img-' + Date.now();
-                aiDiv.innerHTML = \`
-                    <div class="flex flex-col gap-2">
-                        <img src="\${data.image}" class="rounded border border-slate-600" id="\${id}">
-                        <button onclick="saveImage('\${id}', '\${prompt}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
-                    </div>
-                \`;
-            } catch(e) { aiDiv.innerText = 'Generation Failed'; }
-        }
+                const id = \'img-\' + Date.now();\\\
+                aiDiv.innerHTML = \\\`\
+                    <div class="flex flex-col gap-2">\
+                        <img src="\\\${data.image}" class="rounded border border-slate-600" id="\\\${id}">\
+                        <button onclick="saveImage(\'\\\${id}\', \'\\\${prompt}\')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>\
+                    </div>\
+                \\\`;\
+            } catch(e) { aiDiv.innerText = \'Generation Failed\'; }\\\
+        }\
 
-        async function saveImage(id, prompt) {
-            const img = document.getElementById(id);
-            const base64 = img.src.split(',')[1];
-            const name = \`assets/\${prompt.substring(0,10)}_\${Date.now()}.png\`.replace(/\\s/g, '_');
-            await fetch('/api/fs/file', {
-                method: 'POST',
-                body: JSON.stringify({ name, content: base64 })
-            });
-            alert('Saved to ' + name);
-            refreshFiles();
-        }
+        async function saveImage(id, prompt) {\
+            const img = document.getElementById(id);\\\
+            const base64 = img.src.split(\',\')[1];\\\
+            const name = \`assets\/\\\${prompt.substring(0,10)}_\\\${Date.now()}.png\`\.replace(/\\\\s/g, \'_\');\\\
+            await fetch(\'/api/fs/file\', {\
+                method: \'POST\',\
+                body: JSON.stringify({ name, content: base64 })\
+            });\
+            alert(\'Saved to \' + name);\\\
+            refreshFiles();\\\
+        }\
 
-        async function createNewFile() {
-             const name = prompt("Filename:");
-             if(name) {
-                 await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
-                 refreshFiles();
-             }
-        }
+        async function createNewFile() {\
+             const name = prompt("Filename:");\
+             if(name) {\\\
+                 await fetch(\'/api/fs/file\', { method: \'POST\', body: JSON.stringify({ name, content: \'\' }) });\
+                 refreshFiles();\\\
+             }\
+        }\
 
-        function addMessage(role, text, loading) {
-            const div = document.createElement('div');
-            div.className = \`chat-message p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}\`;
-            if(loading) div.innerHTML = 'Thinking...';
-            else div.innerHTML = formatToken(text);
-            chatMessages.appendChild(div);
-            return div;
-        }
+        function addMessage(role, text, loading) {\
+            const div = document.createElement(\'div\');\
+            div.className = \`chat-message p-3 rounded-lg border \\\${role === \'user\' ? \'bg-slate-700/50 ml-6\' : \'bg-indigo-900/20 mr-6\'}\`;\\\
+            if(loading) div.innerHTML = \'Thinking...\';\
+            else div.innerHTML = formatToken(text);\\\
+            chatMessages.appendChild(div);\\\
+            return div;\\\
+        }\
 
-        function formatToken(t) { return t.replace(/\\n/g, '<br>'); }
-        function getLanguage(n) {
-            if(n.endsWith('ts')) return 'typescript';
-            if(n.endsWith('html')) return 'html';
-            return 'plaintext';
-        }
-        async function uploadFile(input) {
-            const file = input.files[0];
-            if (!file) return;
+        function formatToken(t) { return t.replace(/\\\\n/g, \'<br>\'); }\\\
+        function getLanguage(n) {\
+            if(n.endsWith(\'ts\')) return \'typescript\';\
+            if(n.endsWith(\'html\')) return \'html\';\
+            return \'plaintext\';\
+        }\
+        async function uploadFile(input: HTMLInputElement) {\
+            const file: File = input.files[0];\
+            if (!file) return;\\\
 
-            const aiDiv = addMessage('ai', 'Uploading: ' + file.name, true);
+            const aiDiv = addMessage(\'ai\', \'Uploading: \' + file.name, true);\\\
 
-            try {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const base64 = e.target.result.split(',')[1];
+            try {\
+                const reader = new FileReader();\
+                reader.onload = async (e) => {\\\
+                    const base64 = e.target.result.split(\',\')[1];\\\
 
-                    const res = await fetch('/api/fs/file', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            name: file.name,
-                            content: base64,
-                            encoding: 'base64'
-                        })
-                    });
+                    const res = await fetch(\'/api/fs/file\', {\
+                        method: \'POST\',\
+                        body: JSON.stringify({\
+                            name: file.name,\
+                            content: base64,\
+                            encoding: \'base64\'\
+                        })\
+                    });\
 
-                    if (res.ok) {
-                        activeImage = file.name; // Set context for Vision
-                        aiDiv.innerHTML = '✅ Uploaded <b>' + file.name + '</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>';
-                        refreshFiles();
+                    if (res.ok) {\\\
+                        activeImage = file.name; // Set context for Vision\\\
+                        aiDiv.innerHTML = \'✅ Uploaded <b>\' + file.name + \'</b>. <br><span class=\"text-xs opacity-50\">Stored in R2. Ready for Vision.</span>\';\\\
+                        refreshFiles();\\\
 
-                        // Auto-load if 3D
-                        if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
-                           openFile(file.name);
-                        }
-                    } else {
-                        aiDiv.innerText = 'Upload Failed';
-                    }
-                };
-                reader.readAsDataURL(file);
-            } catch (e) {
-                aiDiv.innerText = 'Error: ' + e.message;
-            }
-        }
-    </script>
-</body>
+                        // Auto-load if 3D\\\
+                        if (file.name.endsWith(\'.glb\') || file.name.endsWith(\'.gltf\')) {\\\
+                           openFile(file.name);\\\
+                        }\
+                    } else {\\\
+                        aiDiv.innerText = \'Upload Failed\';\
+                    }\
+                };\\\
+                reader.readAsDataURL(file);\\\
+            } catch (e) {\\\
+                aiDiv.innerText = \'Error: \' + e.message;\
+            }\
+        }\
+    </script>\
+</body>\
 </html>`;
