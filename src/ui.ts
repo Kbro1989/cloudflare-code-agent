@@ -280,34 +280,44 @@ export const IDE_HTML = `<!DOCTYPE html>
             });
         }
 
+        let activeFile = null;
+        let activeImage = null; // Track image context for Vision
+
         async function loadFile(name) {
             activeFile = name;
             document.getElementById('activeFileName').innerText = name;
             const container = document.getElementById('editorContainer');
 
             // 3D Preview
-            if (name.match(/\\.(glb|gltf)$/i)) {
-                 container.innerHTML = \`
-                    <div class="h-full w-full bg-slate-900 relative">
-                        <model-viewer
-                            src=""
-                            id="mv-viewer"
-                            camera-controls
-                            auto-rotate
-                            shadow-intensity="1"
-                            style="width: 100%; height: 100%;"
-                            alt="A 3D model"
-                        ></model-viewer>
-                        <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">
-                            <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview (Placeholder)</span>
-                        </div>
-                    </div>
-                 \`;
+            if (name.match(/\.(glb|gltf)$/i)) {
+                 activeImage = null; // Clear vision context for 3D models (unless we want to screenshot them?)
+                 const res = await fetch(`/ api / fs / file ? name = ${ encodeURIComponent(name)}`);
+                 const blob = await res.blob();
+                 const url = URL.createObjectURL(blob);
+
+                 container.innerHTML = `
+    < div class="h-full w-full bg-slate-900 relative" >
+        <model-viewer
+src = "${url}"
+id = "mv-viewer"
+camera - controls
+auto - rotate
+shadow - intensity="1"
+style = "width: 100%; height: 100%;"
+alt = "A 3D model"
+background - color="#1e293b"
+    > </model-viewer>
+    < div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none" >
+        <span class="bg-black/50 text-white px-2 py-1 rounded text-xs" > 3D Preview: ${ name } </span>
+            </div>
+            </div>
+                `;
                  return;
             }
 
             // Image Preview
-            if (name.match(/\\.(png|jpg)$/i)) {
+            if (name.match(/\.(png|jpg)$/i)) {
+                 activeImage = name; // Set context for Vision
                  const res = await fetch(\`/api/fs/file?name=\${encodeURIComponent(name)}\`);
                  const data = await res.json();
                  let src = data.content;
@@ -323,14 +333,14 @@ export const IDE_HTML = `<!DOCTYPE html>
                  return;
             }
 
-            // Code/Text
-            if (!container.querySelector('.monaco-editor')) {
-                location.reload();
-                return;
-            }
+// Code/Text
+if (!container.querySelector('.monaco-editor')) {
+    location.reload();
+    return;
+}
 
-            try {
-                const res = await fetch(\`/api/fs/file?name=\${encodeURIComponent(name)}\`);
+try {
+    const res = await fetch(\`/api/fs/file?name=\${encodeURIComponent(name)}\`);
                 const data = await res.json();
                 currentCode = data.content;
                 if (editor) {
@@ -374,9 +384,13 @@ export const IDE_HTML = `<!DOCTYPE html>
             const aiDiv = addMessage('ai', '', true);
 
             try {
+                // Send activeImage context if available
+                const payload = { message: text, model };
+                if (activeImage) payload.image = activeImage;
+
                 const res = await fetch('/api/chat', {
                     method: 'POST',
-                    body: JSON.stringify({ message: text, model })
+                    body: JSON.stringify(payload)
                 });
 
                 const reader = res.body.getReader();
@@ -476,6 +490,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                     });
 
                     if (res.ok) {
+                        activeImage = file.name; // Set context for Vision
                         aiDiv.innerHTML = '✅ Uploaded <b>' + file.name + '</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>';
                         refreshFiles();
 

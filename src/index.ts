@@ -286,7 +286,51 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 // Chat (Multi-Model)
 // ----------------------------------------------------------------------------
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
-  const { message, history = [], model } = await request.json() as any;
+  const { message, history = [], model, image } = await request.json() as any;
+
+  // --------------------------------------------------------------------------
+  // Vision Flow (LLaVA)
+  // --------------------------------------------------------------------------
+  if (image) {
+    const obj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + image);
+    if (!obj) return new Response('Image not found in R2', { status: 404, headers: corsHeaders });
+
+    const arrayBuffer = await obj.arrayBuffer();
+    const inputs = {
+      image: [...new Uint8Array(arrayBuffer)],
+      prompt: message,
+      max_tokens: 512
+    };
+
+    try {
+      // @ts-ignore
+      const response = await env.AI.run(MODELS.LLAVA, inputs) as any;
+      // LLaVA output format: { description: "..." }
+      const text = response.description || response.response || "No description generated.";
+
+      // Fake stream response for UI compatibility
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+
+      // Write single chunk
+      await writer.write(encoder.encode(`data: ${JSON.stringify({
+        token: text,
+        provider: 'llava (vision)'
+      })}\n\n`));
+      await writer.close();
+
+      return new Response(readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'X-AI-Provider': 'llava',
+          ...corsHeaders
+        }
+      });
+    } catch (e: any) {
+      return new Response(`Vision Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    }
+  }
 
   // Select Model: 'thinking' -> DeepSeek, else Llama
   const selectedModel = model === 'thinking' ? MODELS.REASONING : MODELS.DEFAULT;
