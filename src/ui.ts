@@ -392,6 +392,12 @@ export const IDE_HTML = `<!DOCTYPE html>
             refreshFiles();
         }
 
+        // --- Deployment Stub ---
+        window.deployProject = async function() {
+            // Placeholder until worker-publisher integration
+            alert("🚀 Deployment System Initializing...\n\nThis feature will use the 'worker-publisher' template to deploy your created apps directly to the edge.\n\nComing in the next update!");
+        }
+
         async function createNewFile() {
              const name = prompt("Filename:");
              if(name) {
