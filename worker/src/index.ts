@@ -420,7 +420,7 @@ function json(data: any, status = 200, corsHeaders: any = {}): Response {
 }
 
 // Production IDE HTML (VS Code-like Theme)
-const IDE_HTML = \`<!DOCTYPE html>
+const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -442,15 +442,15 @@ const IDE_HTML = \`<!DOCTYPE html>
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; overflow: hidden; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; }
-    
+
     .main-layout { display: flex; flex-grow: 1; overflow: hidden; }
-    
+
     /* Activity Bar */
     .activity-bar { width: 48px; background: var(--activity-bar-bg); display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
     .activity-icon { color: #858585; font-size: 24px; margin-bottom: 25px; cursor: pointer; position: relative; }
     .activity-icon.active { color: white; border-left: 2px solid white; }
     .activity-icon:hover { color: white; }
-    
+
     /* Sidebar */
     .sidebar { width: 250px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
     .sidebar-header { padding: 10px 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
@@ -459,7 +459,7 @@ const IDE_HTML = \`<!DOCTYPE html>
     .file-item:hover { background: var(--hover-bg); }
     .file-item.active { background: #37373d; color: white; }
     .file-icon { margin-right: 6px; font-size: 14px; }
-    
+
     /* Editor Area */
     .editor-area { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-color); }
     .tabs-container { display: flex; background: var(--sidebar-bg); height: 35px; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
@@ -467,15 +467,15 @@ const IDE_HTML = \`<!DOCTYPE html>
     .tab.active { background: var(--bg-color); color: white; border-top: 1px solid var(--accent-color); }
     .tab-close { margin-left: auto; font-size: 12px; margin-left: 10px; opacity: 0; }
     .tab:hover .tab-close { opacity: 1; }
-    
+
     #editor { flex-grow: 1; }
-    
+
     /* Status Bar */
     .status-bar { height: 22px; background: var(--status-bar-bg); color: white; display: flex; align-items: center; padding: 0 10px; font-size: 12px; justify-content: space-between; }
     .status-item { margin-right: 15px; display: flex; align-items: center; cursor: pointer; }
     .status-item i { margin-right: 5px; }
     .quota-warning { background: #c72e0f !important; }
-    
+
     /* Badge */
     .badge { background: #007acc; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 5px; }
   </style>
@@ -493,7 +493,7 @@ const IDE_HTML = \`<!DOCTYPE html>
       <div class="activity-icon" title="Accounts"><i class="codicon codicon-account"></i></div>
       <div class="activity-icon" title="Settings"><i class="codicon codicon-settings-gear"></i></div>
     </div>
-    
+
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="sidebar-header">
@@ -517,7 +517,7 @@ const IDE_HTML = \`<!DOCTYPE html>
           <i class="codicon codicon-file-media file-icon" style="color: #cccccc;"></i> README.md
         </div>
       </div>
-      
+
       <!-- Stats / Quota Area (Custom addition) -->
        <div style="margin-top: auto; padding: 15px; border-top: 1px solid var(--border-color);">
         <div style="font-size: 11px; color: #858585; margin-bottom: 5px; text-transform: uppercase;">Usage Statistics</div>
@@ -530,7 +530,7 @@ const IDE_HTML = \`<!DOCTYPE html>
         </div>
       </div>
     </div>
-    
+
     <!-- Main Editor Area -->
     <div class="editor-area">
       <!-- Tabs -->
@@ -541,12 +541,12 @@ const IDE_HTML = \`<!DOCTYPE html>
           <span class="tab-close"><i class="codicon codicon-close"></i></span>
         </div>
       </div>
-      
+
       <!-- Monaco Editor -->
       <div id="editor"></div>
     </div>
   </div>
-  
+
   <!-- Status Bar -->
   <div class="status-bar" id="statusBar">
     <div style="display: flex;">
@@ -566,7 +566,7 @@ const IDE_HTML = \`<!DOCTYPE html>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
   <script>
     let editor;
-    
+
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
     require(['vs/editor/editor.main'], function () {
       editor = monaco.editor.create(document.getElementById('editor'), {
@@ -582,7 +582,7 @@ const IDE_HTML = \`<!DOCTYPE html>
 
 function example() {
   // Type here and press Ctrl+Space for AI completion
-  
+
 }\`,
         language: 'typescript',
         theme: 'vs-dark',
@@ -593,7 +593,7 @@ function example() {
         scrollbar: { verticalScrollbarSize: 10 },
         padding: { top: 15 }
       });
-      
+
       // Add simplified Command Palette actions for AI
       editor.addAction({
         id: 'ai-complete',
@@ -608,7 +608,7 @@ function example() {
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE],
         run: function(ed) { explainCode(); }
       });
-      
+
       editor.addAction({
           id: 'ai-chat',
           label: 'AI: Chat',
@@ -622,14 +622,14 @@ function example() {
         const res = await fetch('/api/health');
         const data = await res.json();
         const quota = data.kvWriteQuota || 0;
-        
+
         document.getElementById('quotaDisplay').textContent = \`\${quota}% used\`;
         document.getElementById('quotaBar').style.width = \`\${quota}%\`;
-        
+
         const color = quota > 85 ? '#f44336' : quota > 70 ? '#ff9800' : '#4caf50';
         document.getElementById('quotaDisplay').style.color = color;
         document.getElementById('quotaBar').style.background = color;
-        
+
         if (quota >= 100) {
           document.getElementById('statusBar').className = 'status-bar quota-warning';
         }
@@ -637,7 +637,7 @@ function example() {
         document.getElementById('quotaDisplay').textContent = 'Error';
       }
     }
-    
+
     updateQuota();
     setInterval(updateQuota, 30000);
 
@@ -646,28 +646,28 @@ function example() {
        const content = editor.getValue();
        const position = editor.getPosition();
        const cursor = editor.getModel().getOffsetAt(position);
-       
+
        const statusDiv = document.getElementById('provider');
        statusDiv.textContent = 'AI Completing...';
-       
+
        try {
          const response = await fetch('/api/complete', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ 
-             code: content, 
-             cursor, 
-             language: 'typescript', 
-             fileId: 'main.ts' 
+           body: JSON.stringify({
+             code: content,
+             cursor,
+             language: 'typescript',
+             fileId: 'main.ts'
            })
          });
-         
+
          if (!response.ok) throw new Error('API Failed');
-         
+
          const reader = response.body.getReader();
          const decoder = new TextDecoder();
          let result = '', provider = '';
-         
+
          while (true) {
            const { done, value } = await reader.read();
            if (done) break;
@@ -681,7 +681,7 @@ function example() {
              }
            }
          }
-         
+
          if (result) {
             editor.executeEdits('ai', [{
                 range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
@@ -700,10 +700,10 @@ function example() {
     async function explainCode() {
         const selection = editor.getModel().getValueInRange(editor.getSelection());
         if(!selection) return;
-        
+
         const statusDiv = document.getElementById('provider');
         statusDiv.textContent = 'AI Explaining...';
-        
+
         try {
             const response = await fetch('/api/explain', {
               method: 'POST',
@@ -719,7 +719,7 @@ function example() {
             statusDiv.textContent = 'AI Error';
         }
     }
-    
+
     // Ctrl+S prevention
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -729,4 +729,4 @@ function example() {
     });
   </script>
 </body>
-</html>\`;
+</html>`;
