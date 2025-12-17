@@ -459,10 +459,9 @@ export const IDE_HTML = `<!DOCTYPE html>
             const file = input.files[0];
             if (!file) return;
 
-            const aiDiv = addMessage('ai', `Uploading ${ file.name }...`, true);
+            const aiDiv = addMessage('ai', 'Uploading: ' + file.name, true);
 
             try {
-                // Convert to Base64
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const base64 = e.target.result.split(',')[1];
@@ -477,7 +476,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                     });
 
                     if (res.ok) {
-                        aiDiv.innerHTML = `✅ Uploaded < b > ${ file.name } </b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span > `;
+                        aiDiv.innerHTML = '✅ Uploaded <b>' + file.name + '</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>';
                         refreshFiles();
 
                         // Auto-load if 3D
