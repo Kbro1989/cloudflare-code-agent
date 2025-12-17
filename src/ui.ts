@@ -350,7 +350,7 @@ export const IDE_HTML = `<!DOCTYPE html>
 
         async function handleImageGeneration(prompt) {
             const style = document.getElementById('styleSelector').value;
-            const aiDiv = addMessage('ai', `Generating Image (\${ style })...`, true);
+            const aiDiv = addMessage('ai', 'Generating Image (' + style + ')...', true);
             try {
                 const res = await fetch('/api/image', {
                      method: 'POST',
