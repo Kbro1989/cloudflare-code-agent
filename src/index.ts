@@ -1,150 +1,73 @@
-/**
- * PRODUCTION HYBRID IDE WORKER - 100% LOCKED
- * Constraints enforced:
- * - KV write quota: 1000/day max (hard cap)
- * - No secret logging (grep-checked)
- * - Circuit breaker: Gemini fails → Ollama only (NO Workers AI)
- * - No background tasks (request-scoped only)
- * - KV = source of truth (no WebSocket state)
- * - Max 30s CPU per request (Cloudflare hard limit)
- */
 
-interface Env {
+import { Ai } from '@cloudflare/ai';
+
+export interface Env {
+  AI: Ai;
   CACHE: KVNamespace;
-  MEMORY: KVNamespace;
   R2_ASSETS: R2Bucket;
-  AI: any; // Workers AI binding
-  RATE_LIMITER: DurableObjectNamespace;
-
-  // Secrets (NEVER logged, NEVER stored in code)
-  GEMINI_API_KEY: string;
+  GEMINI_API_KEY?: string;
   OLLAMA_URL?: string;
   OLLAMA_AUTH_TOKEN?: string;
-
-  // Constants (non-secret)
-  MAX_FILE_SIZE: number;
   MAX_CACHE_SIZE: number;
-  KV_BATCH_SIZE: number;
-  RATE_LIMIT_PER_MINUTE: number;
 }
 
-// Durable Object: Rate limiting only
-export class RateLimiter {
-  state: DurableObjectState;
-  requests: Map<string, number[]> = new Map();
-
-  constructor(state: DurableObjectState) {
-    this.state = state;
-  }
-
-  async fetch(request: Request): Promise<Response> {
-    const { clientId, limit, window } = await request.json() as any;
-    const now = Date.now();
-    const windowStart = now - window;
-
-    let times = this.requests.get(clientId) || [];
-    times = times.filter(t => t > windowStart);
-
-    if (times.length >= limit) {
-      return new Response(JSON.stringify({
-        allowed: false,
-        retryAfter: Math.ceil((times[0] - windowStart) / 1000)
-      }), { status: 429, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    times.push(now);
-    this.requests.set(clientId, times);
-
-    return new Response(JSON.stringify({ allowed: true }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
-
-// Main Worker
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // CORS Headers
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-AI-Provider, X-AI-Cost',
     };
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Rate limit check
-    const clientId = request.headers.get('cf-connecting-ip') || 'unknown';
-    const rateLimiterId = env.RATE_LIMITER.idFromName('global');
-    const rateLimiter = env.RATE_LIMITER.get(rateLimiterId);
-
-    const rateCheck = await rateLimiter.fetch('https://rate-limit', {
-      method: 'POST',
-      body: JSON.stringify({
-        clientId,
-        limit: env.RATE_LIMIT_PER_MINUTE,
-        window: 60000
-      })
-    });
-
-    if (rateCheck.status === 429) {
-      const data = await rateCheck.json() as any;
-      return new Response(`Rate limit exceeded. Retry in ${data.retryAfter}s`, {
-        status: 429,
-        headers: { ...corsHeaders, 'Retry-After': String(data.retryAfter) }
+    // Serve UI
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      const { IDE_HTML } = await import('./ui');
+      return new Response(IDE_HTML, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }
 
-    // KV write quota check (HARD CAP)
-    const today = new Date().toISOString().split('T')[0];
-    const writeCount = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
-
-    if (parseInt(writeCount) >= 1000) {
-      return json({ error: "Daily KV write quota exceeded (1000/day). Use Ollama or wait 24h." }, 429, corsHeaders);
-    }
-
-    try {
-      if (url.pathname === '/' || url.pathname === '/ide') {
-        return new Response(IDE_HTML, {
-          headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
-        });
-      }
-
-      if (url.pathname === '/api/health') return handleHealth(env, corsHeaders);
-      if (url.pathname.startsWith('/api/fs')) return handleFilesystem(request, env, corsHeaders);
-      if (url.pathname === '/api/complete') return handleComplete(request, env, ctx, corsHeaders);
-      if (url.pathname === '/api/chat') return handleChat(request, env, ctx, corsHeaders);
-      if (url.pathname === '/api/explain') return handleExplain(request, env, ctx, corsHeaders);
-
-      return new Response('Not found', { status: 404, headers: corsHeaders });
-    } catch (e: any) {
-      // NO SECRET LOGGING - redact any secrets from error messages
-      const safeMessage = e.message.replace(/GEMINI_API_KEY|OLLAMA_AUTH_TOKEN|AIza[A-Za-z0-9_-]+/g, '[REDACTED]');
-      return new Response(`Internal error: ${safeMessage}`, {
-        status: 500,
-        headers: corsHeaders
-      });
+    // Router
+    switch (url.pathname) {
+      case '/api/complete':
+        return handleComplete(request, env, ctx, corsHeaders);
+      case '/api/explain':
+        return handleExplain(request, env, ctx, corsHeaders);
+      case '/api/chat':
+        return handleChat(request, env, ctx, corsHeaders);
+      case '/api/fs/list':
+      case '/api/fs/file':
+        return handleFilesystem(request, env, corsHeaders);
+      case '/api/health':
+        return handleHealth(request, env, corsHeaders);
+      default:
+        return new Response('Not Found', { status: 404, headers: corsHeaders });
     }
   }
 };
 
-// KV quota increment (call after EVERY successful write)
-async function incrementKVQuota(env: Env): Promise<void> {
+// ----------------------------------------------------------------------------
+// Health & Status
+// ----------------------------------------------------------------------------
+async function incrementKVQuota(env: Env) {
   const today = new Date().toISOString().split('T')[0];
-  const current = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
-  await env.CACHE.put(`kvWriteCount:${today}`, (parseInt(current) + 1).toString(), {
-    expirationTtl: 86400 // Reset daily
-  });
+  const count = parseInt(await env.CACHE.get(`kvWriteCount:${today}`) || '0');
+  await env.CACHE.put(`kvWriteCount:${today}`, (count + 1).toString());
 }
 
-// Health check
-async function handleHealth(env: Env, corsHeaders: any): Promise<Response> {
-  const status = {
-    worker: true,
-    kvWriteQuota: 0,
-    providers: [] as any[]
+async function handleHealth(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  const status: any = {
+    status: 'healthy',
+    region: request.cf?.colo,
+    providers: [],
+    kvWriteQuota: 0
   };
 
   // Check KV quota usage
@@ -219,7 +142,81 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
     }, 429, corsHeaders);
   }
 
-  // Generate with circuit breaker
+  // 1. Try Llama 3.3 70B (Primary) - True Streaming
+  if (env.AI) {
+    try {
+      // Explicitly cast to any to allow 3rd argument (options) which is missing in strict types
+      const stream: any = await (env.AI as any).run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+        prompt: finalPrompt,
+        max_tokens: 256,
+      }, {
+        returnRawResponse: true
+      });
+
+      // Transform Cloudflare SSE format to our UI format
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const reader = stream.body?.getReader();
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        ctx.waitUntil((async () => {
+          let fullCompletion = '';
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+                    if (data.response) {
+                      fullCompletion += data.response;
+                      // Re-emit in our format
+                      const uiMessage = `data: ${JSON.stringify({
+                        token: data.response,
+                        cached: false,
+                        provider: 'llama-3.3-70b',
+                        cost: 0
+                      })}\n\n`;
+                      await writer.write(encoder.encode(uiMessage));
+                    }
+                  } catch (e) { /* ignore parse error in chunk */ }
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Stream error:', e);
+          } finally {
+            await writer.close();
+            // Cache full result if successful and under size limit
+            if (fullCompletion.length > 0 && fullCompletion.length <= env.MAX_CACHE_SIZE && writeCount < 1000) {
+              await env.CACHE.put(cacheKey, fullCompletion, { expirationTtl: 2592000 });
+              await incrementKVQuota(env);
+            }
+          }
+        })());
+
+        return new Response(readable, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'X-AI-Provider': 'llama-3.3-70b',
+            ...corsHeaders
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Llama 3.3 failed, falling back to Gemini/Ollama:', e);
+    }
+  }
+
+  // 2. Fallback: Gemini / Ollama / Legacy Logic
   try {
     const result = await generateCompletion(env, finalPrompt, 150);
 
@@ -288,7 +285,9 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
       const response = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
         prompt: prompt
       });
+      // @ts-ignore - Handle type mismatch safely
       if (response && response.response) {
+        // @ts-ignore
         return { completion: response.response.trim(), provider: 'workers-ai' };
       }
     } catch (e) {
@@ -494,9 +493,3 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
 
   return new Response('FS Method Not Allowed', { status: 405, headers: corsHeaders });
 }
-
-// ----------------------------------------------------------------------------
-// Consts & Frontend
-// ----------------------------------------------------------------------------
-import { IDE_HTML } from './ui';
-
