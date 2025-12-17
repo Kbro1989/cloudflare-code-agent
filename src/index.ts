@@ -420,7 +420,7 @@ function json(data: any, status = 200, corsHeaders: any = {}): Response {
 }
 
 // Production IDE HTML (VS Code-like Theme)
-const IDE_HTML = \`<!DOCTYPE html>
+const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -570,7 +570,7 @@ const IDE_HTML = \`<!DOCTYPE html>
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
     require(['vs/editor/editor.main'], function () {
       editor = monaco.editor.create(document.getElementById('editor'), {
-        value: \`// Production Hybrid IDE - $0/month Forever
+        value: `// Production Hybrid IDE - $0/month Forever
 // Constraints enforced:
 // - KV write quota: 1000/day (hard cap)
 // - Circuit breaker: Gemini → Ollama (no Workers AI)
@@ -582,8 +582,8 @@ const IDE_HTML = \`<!DOCTYPE html>
 
 function example() {
   // Type here and press Ctrl+Space for AI completion
-  
-}\`,
+
+} \`,
         language: 'typescript',
         theme: 'vs-dark',
         fontSize: 14,
@@ -729,4 +729,4 @@ function example() {
     });
   </script>
 </body>
-</html>\`;
+</html>`;
