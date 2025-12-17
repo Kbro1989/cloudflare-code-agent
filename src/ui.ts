@@ -93,7 +93,7 @@ export const IDE_HTML = `<!DOCTYPE html>
 
         <!-- Chat Panel -->
         <aside class="w-80 glass-panel border-l border-slate-700 flex flex-col shadow-xl z-10" id="chatPanel">
-            <div class="p-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
+            <div class="p-3 border-b border-slate-700/50 bg-slate-800/50 flex justify-between items-center backdrop-blur-md">
                 <span class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-robot text-indigo-400"></i> AI Assistant</span>
                 <span id="providerBadge" class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Llama 3.3</span>
             </div>
