@@ -30,7 +30,7 @@ export const IDE_HTML = `<!DOCTYPE html>
         <div class="flex items-center space-x-3">
             <i class="fa-solid fa-cloud-bolt text-indigo-400 text-xl"></i>
             <span class="font-bold text-lg tracking-tight">Hybrid<span class="text-indigo-400">IDE</span></span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v4.1 3D-Engine</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v4.2 3D-Engine</span>
         </div>
         <div class="flex items-center space-x-4">
             <select id="modelSelector" class="bg-slate-800 text-xs text-slate-300 border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
@@ -123,6 +123,11 @@ export const IDE_HTML = `<!DOCTYPE html>
 
     <!-- Scripts -->
     <script>
+        // --- Deployment Stub ---
+        window.deployProject = async function() {
+            alert("Deployment System Initializing... This feature will use the 'worker-publisher' template to deploy your created apps directly to the edge. Coming in the next update!");
+        }
+
         // --- Monaco Editor Setup ---
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
 
@@ -151,17 +156,13 @@ export const IDE_HTML = `<!DOCTYPE html>
                 smoothScrolling: true
             });
 
-            // Editor Events
             editor.onDidChangeCursorPosition((e) => {
                 document.getElementById('cursorLine').innerText = e.position.lineNumber;
                 document.getElementById('cursorCol').innerText = e.position.column;
             });
 
-            editor.onDidChangeModelContent(() => {
-                const newValue = editor.getValue();
-                if (newValue !== currentCode) {
-                   // Debounced save could go here
-                }
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                saveCurrentFile(activeFile, editor.getValue());
             });
 
             refreshFiles();
@@ -204,8 +205,8 @@ export const IDE_HTML = `<!DOCTYPE html>
 
             files.forEach(file => {
                 const div = document.createElement('div');
-                const isImg = file.name.match(/\.(png|jpg|jpeg|gif)$/i);
-                const is3D = file.name.match(/\.(glb|gltf)$/i);
+                const isImg = file.name.match(/\\.(png|jpg|jpeg|gif)$/i);
+                const is3D = file.name.match(/\\.(glb|gltf)$/i);
 
                 let iconClass = 'fa-regular fa-file-code';
                 if (isImg) iconClass = 'fa-regular fa-file-image';
@@ -228,57 +229,32 @@ export const IDE_HTML = `<!DOCTYPE html>
             const container = document.getElementById('editorContainer');
 
             // 3D Preview
-            if (name.match(/\.(glb|gltf)$/i)) {
-                 // For now, simple placeholder as we need signed urls or base64 blob handling for <model-viewer>
-                 // Assuming we can just set src if we had a public URL.
-                 // Since we don't, we'd need to fetch blob and create object URL.
-                 // NOTE: Use a loading state
-                 container.innerHTML = '<div class="text-white text-center pt-10">Loading 3D Model...</div>';
-
-                 try {
-                     // We need a way to get BLOB. current API returns JSON { content: string }.
-                     // Using the API endpoint directly as src might work if it returned raw bytes?
-                     // No, it returns JSON.
-                     // WORKAROUND: We will fetch the JSON, get the content. If base64 (uploaded via our tool w/ base64 encoding), we use data URI.
-                     // If text (code), this fails.
-                     // We'll trust our "Upload" logic handles base64 encoding for binaries.
-                     // Or we just display the Viewer and ask user to drag-drop for now? No, integration is key.
-
-                     container.innerHTML = \`
-                        <div class="h-full w-full bg-slate-900 relative">
-                            <model-viewer
-                                src=""
-                                id="mv-viewer"
-                                camera-controls
-                                auto-rotate
-                                shadow-intensity="1"
-                                style="width: 100%; height: 100%;"
-                                alt="A 3D model"
-                            >
-                                <div slot="progress-bar"></div>
-                            </model-viewer>
-                            <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">
-                                <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Viewer Active</span>
-                            </div>
+            if (name.match(/\\.(glb|gltf)$/i)) {
+                 container.innerHTML = \`
+                    <div class="h-full w-full bg-slate-900 relative">
+                        <model-viewer
+                            src=""
+                            id="mv-viewer"
+                            camera-controls
+                            auto-rotate
+                            shadow-intensity="1"
+                            style="width: 100%; height: 100%;"
+                            alt="A 3D model"
+                        ></model-viewer>
+                        <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">
+                            <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview (Placeholder)</span>
                         </div>
-                     \`;
-
-                     // Try to fetch data
-                     // Note: Real solution requires updating backend to serve raw files or base64
-                     // Let's assume we implement the 'raw' param later.
-                     // For today, I'll allow Dropping files onto the viewer as a fallback feature.
-                 } catch(e) { }
+                    </div>
+                 \`;
                  return;
             }
 
             // Image Preview
-            if (name.match(/\.(png|jpg)$/i)) {
+            if (name.match(/\\.(png|jpg)$/i)) {
                  const res = await fetch(\`/api/fs/file?name=\${encodeURIComponent(name)}\`);
                  const data = await res.json();
-                 // If base64
                  let src = data.content;
                  if (!src.startsWith('data:') && !src.startsWith('http')) {
-                     // Assume base64 raw
                      src = \`data:image/png;base64,\${data.content}\`;
                  }
 
@@ -291,9 +267,7 @@ export const IDE_HTML = `<!DOCTYPE html>
             }
 
             // Code/Text
-            // Restore editor if missing
             if (!container.querySelector('.monaco-editor')) {
-                // Hard reset for switching back from 3D/Image
                 location.reload();
                 return;
             }
@@ -308,6 +282,14 @@ export const IDE_HTML = `<!DOCTYPE html>
                     editor.setValue(data.content);
                 }
             } catch (e) { }
+        }
+
+        async function saveCurrentFile(name, content) {
+            await fetch('/api/fs/file', {
+                method: 'POST',
+                body: JSON.stringify({ name, content })
+            });
+            refreshFiles();
         }
 
         // --- Chat ---
@@ -390,12 +372,6 @@ export const IDE_HTML = `<!DOCTYPE html>
             });
             alert('Saved to ' + name);
             refreshFiles();
-        }
-
-        // --- Deployment Stub ---
-        window.deployProject = async function() {
-            // Placeholder until worker-publisher integration
-            alert("🚀 Deployment System Initializing...\n\nThis feature will use the 'worker-publisher' template to deploy your created apps directly to the edge.\n\nComing in the next update!");
         }
 
         async function createNewFile() {
