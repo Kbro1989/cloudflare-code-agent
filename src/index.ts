@@ -341,9 +341,78 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
     return new Response('Invalid message', { status: 400, headers: corsHeaders });
   }
 
-  // Build prompt from history (max 5 messages to stay within context window)
-  const prompt = buildChatPrompt(message, history.slice(-5));
+  // Build prompt from history (max 8 messages for context)
+  const prompt = buildChatPrompt(message, history.slice(-8));
 
+  // 1. Try Llama 3.3 70B (Primary) - True Streaming
+  if (env.AI) {
+    try {
+      // Explicitly cast to any to allow 3rd argument (options)
+      const stream: any = await (env.AI as any).run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+        prompt: prompt,
+        max_tokens: 1024, // Longer output for chat
+      }, {
+        returnRawResponse: true
+      });
+
+      // Transform Cloudflare SSE format to our UI format
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const reader = stream.body?.getReader();
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        ctx.waitUntil((async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n'); // Standard newline splitting from Workers AI
+
+              for (const line of lines) {
+                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+                    if (data.response) {
+                      // Re-emit in our format
+                      const uiMessage = `data: ${JSON.stringify({
+                        token: data.response,
+                        cached: false,
+                        provider: 'llama-3.3-70b',
+                        cost: 0
+                      })}\n\n`;
+                      await writer.write(encoder.encode(uiMessage));
+                    }
+                  } catch (e) { /* ignore parse error in chunk */ }
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Chat Stream error:', e);
+            await writer.write(encoder.encode(`data: ${JSON.stringify({ token: "\n[Error: Connection interrupted]", provider: "system" })}\n\n`));
+          } finally {
+            await writer.close();
+          }
+        })());
+
+        return new Response(readable, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'X-AI-Provider': 'llama-3.3-70b',
+            ...corsHeaders
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Chat Llama 3.3 failed, falling back:', e);
+    }
+  }
+
+  // Fallback to legacy non-streaming
   try {
     const result = await generateCompletion(env, prompt, 500);
     return streamResponse(result.completion, false, result.provider, corsHeaders);
