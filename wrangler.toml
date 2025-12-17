@@ -19,4 +19,4 @@ binding = "AI"
 
 [[r2_buckets]]
 bucket_name = "hello-ai-assets"
-binding = "ASSETS"
+binding = "R2_ASSETS"
