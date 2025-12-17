@@ -117,10 +117,16 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
     // @ts-ignore
     const response = await env.AI.run(modelId, inputs);
 
-    // Convert binary stream to base64
+    // Convert binary stream to base64 (Safe for large files)
     // @ts-ignore
     const arrayBuffer = await new Response(response as any).arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
     const dataUrl = `data:image/png;base64,${base64}`;
 
     return json({ image: dataUrl, provider: modelId, style: style || 'speed' }, 200, corsHeaders);

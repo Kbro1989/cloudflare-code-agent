@@ -37,6 +37,11 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <option value="default">⚡ Llama 3.3 (Fast)</option>
                 <option value="thinking">🧠 DeepSeek R1 (Reasoning)</option>
             </select>
+            <select id="styleSelector" class="bg-slate-800 text-xs text-slate-300 border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
+                <option value="speed">⚡ Flux (Speed)</option>
+                <option value="realism">📸 Realism (SDXL)</option>
+                <option value="artistic">🎨 Artistic (Dreamshaper)</option>
+            </select>
             <div id="statusIndicator" class="flex items-center space-x-2 text-xs text-slate-400">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Online</span>
@@ -344,11 +349,12 @@ export const IDE_HTML = `<!DOCTYPE html>
         }
 
         async function handleImageGeneration(prompt) {
-            const aiDiv = addMessage('ai', 'Generating Image...', true);
+            const style = document.getElementById('styleSelector').value;
+            const aiDiv = addMessage('ai', `Generating Image (\${ style })...`, true);
             try {
                 const res = await fetch('/api/image', {
                      method: 'POST',
-                     body: JSON.stringify({ prompt })
+                     body: JSON.stringify({ prompt, style })
                 });
                 const data = await res.json();
 
