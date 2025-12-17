@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2024-12-16"
 account_id = "6872653edcee9c791787c1b783173793"
 
+[[migrations]]
+tag = "v4"
+delete_classes = ["RateLimiter"]
+
+
 
 # KV Namespaces
 [[kv_namespaces]]
