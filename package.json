@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "@cloudflare/ai": "^1.2.2",
+        "cloudflare": "^5.2.0",
         "diff": "^5.2.0"
     },
     "devDependencies": {

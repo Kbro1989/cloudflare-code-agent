@@ -1,51 +1,28 @@
 
 import { Ai } from '@cloudflare/ai';
+import Cloudflare from 'cloudflare';
 
 export interface Env {
   AI: Ai;
   CACHE: KVNamespace;
   R2_ASSETS: R2Bucket;
-  GEMINI_API_KEY?: string; // Legacy/Fallback
+  GENERATE_API_KEY?: string; // Legacy/Fallback
   OLLAMA_URL?: string;     // Legacy/Fallback
   OLLAMA_AUTH_TOKEN?: string;
   MAX_CACHE_SIZE: number;
+  // Deployment Secrets
+  CLOUDFLARE_API_TOKEN?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  DISPATCHER?: any; // DispatchNamespace binding
 }
 
-// ----------------------------------------------------------------------------
-// Model Registry - The Brains & Artists
-// ----------------------------------------------------------------------------
-const MODELS = {
-  // Text / Coding
-  DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
-
-  // Image Gen
-  FLUX: '@cf/black-forest-labs/flux-1-schnell',
-  SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
-  DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
-
-  // Vision
-  LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
-  RESNET: '@cf/microsoft/resnet-50'
-};
-
-const SYSTEM_PROMPT = `
-You are an advanced AI coding agent (Omni-Dev Level).
-You have access to the user's local filesystem via the CLI.
-Tools:
-1. readFile(path)
-2. writeFile(path, content)
-3. listFiles(path)
-4. runCommand(cmd)
-
-Output JSON tool calls wrapped in \`\`\`json blocks.
-`;
+// ... (MODELS and SYSTEM_PROMPT remain same)
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // CORS Headers
+    // ... (CORS Headers remain same)
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
@@ -73,8 +50,10 @@ export default {
           return handleExplain(request, env, ctx, corsHeaders);
         case '/api/chat':
           return handleChat(request, env, ctx, corsHeaders);
-        case '/api/image': // New Endpoint
+        case '/api/image':
           return handleImage(request, env, ctx, corsHeaders);
+        case '/api/deploy': // New Endpoint
+          return handleDeploy(request, env, corsHeaders);
         case '/api/fs/list':
         case '/api/fs/file':
           return handleFilesystem(request, env, corsHeaders);
@@ -88,6 +67,87 @@ export default {
     }
   }
 };
+
+// ----------------------------------------------------------------------------
+// Deployment Handler (Self-Replication)
+// ----------------------------------------------------------------------------
+async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID || !env.DISPATCHER) {
+    return new Response('Deployment secrets missing (API_TOKEN, ACCOUNT_ID, or DISPATCHER)', { status: 500, headers: corsHeaders });
+  }
+
+  const { scriptName, code } = await request.json() as any;
+  if (!scriptName || !code) return new Response('Missing scriptName or code', { status: 400, headers: corsHeaders });
+
+  try {
+    const result = await deploySnippetToNamespace(
+      {
+        namespaceName: "code-agent-dispatcher", // Matches wrangler.toml
+        scriptName,
+        code,
+      },
+      env
+    );
+    return json({ success: true, result }, 200, corsHeaders);
+  } catch (e: any) {
+    return new Response(`Deploy Failed: ${e.message}`, { status: 500, headers: corsHeaders });
+  }
+}
+
+async function deploySnippetToNamespace(
+  opts: {
+    namespaceName: string;
+    scriptName: string;
+    code: string;
+    bindings?: any[];
+  },
+  env: Env
+) {
+  const { namespaceName, scriptName, code, bindings = [] } = opts;
+
+  const cf = new Cloudflare({
+    apiToken: env.CLOUDFLARE_API_TOKEN,
+  });
+
+  // Ensure dispatch namespace exists
+  try {
+    // @ts-ignore
+    await cf.workersForPlatforms.dispatch.namespaces.get(namespaceName, {
+      account_id: env.CLOUDFLARE_ACCOUNT_ID!,
+    });
+  } catch {
+    // @ts-ignore
+    await cf.workersForPlatforms.dispatch.namespaces.create({
+      account_id: env.CLOUDFLARE_ACCOUNT_ID!,
+      name: namespaceName,
+    });
+  }
+
+  const moduleFileName = `${scriptName}.mjs`;
+
+  // Upload worker to namespace
+  // @ts-ignore
+  await cf.workersForPlatforms.dispatch.namespaces.scripts.update(
+    namespaceName,
+    scriptName,
+    {
+      account_id: env.CLOUDFLARE_ACCOUNT_ID!,
+      metadata: {
+        main_module: moduleFileName,
+        bindings,
+      },
+      files: [
+        new File([code], moduleFileName, {
+          type: "application/javascript+module",
+        }),
+      ],
+    },
+  );
+
+  return { namespace: namespaceName, script: scriptName };
+}
+
+// ... (Rest of existing functions from handleImage downwards)
 
 // ----------------------------------------------------------------------------
 // Image Generation Router

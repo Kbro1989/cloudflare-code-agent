@@ -38,3 +38,7 @@ enabled = true
 [observability.logs]
 enabled = true
 head_sampling_rate = 0.01
+
+[[dispatch_namespaces]]
+binding = "DISPATCHER"
+namespace = "code-agent-dispatcher"

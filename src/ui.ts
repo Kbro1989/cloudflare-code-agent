@@ -128,9 +128,54 @@ export const IDE_HTML = `<!DOCTYPE html>
 
     <!-- Scripts -->
     <script>
-        // --- Deployment Stub ---
+        // --- Deployment Logic ---
         window.deployProject = async function() {
-            alert("Deployment System Initializing... This feature will use the 'worker-publisher' template to deploy your created apps directly to the edge. Coming in the next update!");
+            const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");
+            if (!scriptName) return;
+
+            const btn = document.querySelector('button[onclick="deployProject()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
+            btn.disabled = true;
+
+            try {
+                // For MVP, we deploy the content of src/index.ts or current editor content
+                let codeToDeploy = currentCode;
+
+                // If current file isn't meaningful, try to fetch src/index.ts
+                if (!activeFile.endsWith('.ts') && !activeFile.endsWith('.js')) {
+                     try {
+                        const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
+                        const d = await res.json();
+                        codeToDeploy = d.content;
+                     } catch(e) {}
+                }
+
+                if (!codeToDeploy) {
+                    alert("No code found to deploy! Open a file first.");
+                    return;
+                }
+
+                const res = await fetch('/api/deploy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scriptName, code: codeToDeploy })
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    alert(`🚀 Success! Deployed to namespace '${result.result.namespace}'.\nScript: ${ result.result.script } `);
+                } else {
+                     alert('Deployment Failed: ' + (result.error || 'Unknown Error (Check Server Logs)'));
+                }
+
+            } catch (e) {
+                alert('Deployment Error: ' + e.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
         // --- Monaco Editor Setup ---
