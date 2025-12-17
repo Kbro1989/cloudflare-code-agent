@@ -419,55 +419,147 @@ function json(data: any, status = 200, corsHeaders: any = {}): Response {
   });
 }
 
-// Production IDE HTML (Monaco Editor)
-const IDE_HTML = `<!DOCTYPE html>
+// Production IDE HTML (VS Code-like Theme)
+const IDE_HTML = \`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hybrid IDE - Production ($0/month)</title>
+  <!-- VS Code Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css" />
   <style>
+    :root {
+      --bg-color: #1e1e1e;
+      --sidebar-bg: #252526;
+      --activity-bar-bg: #333333;
+      --status-bar-bg: #007acc;
+      --border-color: #3e3e42;
+      --text-color: #cccccc;
+      --accent-color: #007acc;
+      --hover-bg: #2a2d2e;
+      --input-bg: #3c3c3c;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: monospace; height: 100vh; overflow: hidden; background: #1e1e1e; color: #ccc; }
-    .container { display: flex; height: 100vh; }
-    .sidebar { width: 280px; background: #252526; border-right: 1px solid #3e3e42; padding: 20px; }
-    .sidebar h2 { color: #007acc; margin-bottom: 10px; }
-    .sidebar p { font-size: 12px; line-height: 1.5; color: #858585; }
-    .sidebar .badge { background: #0e639c; color: white; padding: 4px 8px; border-radius: 3px; font-size: 11px; margin-top: 10px; display: inline-block; }
-    .editor-container { flex-grow: 1; display: flex; flex-direction: column; }
-    .toolbar { background: #2d2d30; border-bottom: 1px solid #3e3e42; padding: 10px 15px; display: flex; gap: 10px; }
-    button { background: #0e639c; color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-size: 13px; }
-    button:hover { background: #1177bb; }
-    button:disabled { background: #3c3c3c; cursor: not-allowed; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; overflow: hidden; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; }
+    
+    .main-layout { display: flex; flex-grow: 1; overflow: hidden; }
+    
+    /* Activity Bar */
+    .activity-bar { width: 48px; background: var(--activity-bar-bg); display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+    .activity-icon { color: #858585; font-size: 24px; margin-bottom: 25px; cursor: pointer; position: relative; }
+    .activity-icon.active { color: white; border-left: 2px solid white; }
+    .activity-icon:hover { color: white; }
+    
+    /* Sidebar */
+    .sidebar { width: 250px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+    .sidebar-header { padding: 10px 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+    .file-tree { flex-grow: 1; padding-top: 5px; }
+    .file-item { padding: 3px 20px; cursor: pointer; display: flex; align-items: center; font-size: 13px; color: #cccccc; }
+    .file-item:hover { background: var(--hover-bg); }
+    .file-item.active { background: #37373d; color: white; }
+    .file-icon { margin-right: 6px; font-size: 14px; }
+    
+    /* Editor Area */
+    .editor-area { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg-color); }
+    .tabs-container { display: flex; background: var(--sidebar-bg); height: 35px; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
+    .tab { padding: 8px 15px; font-size: 13px; color: #969696; background: #2d2d2d; border-right: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; min-width: 120px; }
+    .tab.active { background: var(--bg-color); color: white; border-top: 1px solid var(--accent-color); }
+    .tab-close { margin-left: auto; font-size: 12px; margin-left: 10px; opacity: 0; }
+    .tab:hover .tab-close { opacity: 1; }
+    
     #editor { flex-grow: 1; }
-    .status-bar { background: #007acc; color: white; padding: 5px 15px; font-size: 12px; display: flex; justify-content: space-between; }
-    .quota-warning { background: #f44336; }
+    
+    /* Status Bar */
+    .status-bar { height: 22px; background: var(--status-bar-bg); color: white; display: flex; align-items: center; padding: 0 10px; font-size: 12px; justify-content: space-between; }
+    .status-item { margin-right: 15px; display: flex; align-items: center; cursor: pointer; }
+    .status-item i { margin-right: 5px; }
+    .quota-warning { background: #c72e0f !important; }
+    
+    /* Badge */
+    .badge { background: #007acc; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 5px; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="main-layout">
+    <!-- Activity Bar -->
+    <div class="activity-bar">
+      <div class="activity-icon active" title="Explorer"><i class="codicon codicon-files"></i></div>
+      <div class="activity-icon" title="Search"><i class="codicon codicon-search"></i></div>
+      <div class="activity-icon" title="Source Control"><i class="codicon codicon-source-control"></i></div>
+      <div class="activity-icon" title="Run and Debug"><i class="codicon codicon-debug-alt"></i></div>
+      <div class="activity-icon" title="Extensions"><i class="codicon codicon-extensions"></i></div>
+      <div style="flex-grow: 1;"></div>
+      <div class="activity-icon" title="Accounts"><i class="codicon codicon-account"></i></div>
+      <div class="activity-icon" title="Settings"><i class="codicon codicon-settings-gear"></i></div>
+    </div>
+    
+    <!-- Sidebar -->
     <div class="sidebar">
-      <h2>🚀 Hybrid IDE</h2>
-      <p><strong>Production Mode</strong></p>
-      <p style="margin-top: 10px;">• Cost: $0/month<br>• AI: Gemini Flash (free)<br>• Fallback: Ollama (local)<br>• Quota: KV 1000 writes/day</p>
-      <div class="badge">100% Free Tier</div>
-      <div style="margin-top: 20px; padding: 10px; background: #2d2d30; border-radius: 4px;">
-        <div style="font-size: 11px; color: #858585; margin-bottom: 5px;">KV Write Quota</div>
-        <div id="quotaDisplay" style="font-size: 14px; color: #4caf50;">Loading...</div>
+      <div class="sidebar-header">
+        <span>Explorer</span>
+        <i class="codicon codicon-ellipsis"></i>
+      </div>
+      <div style="padding: 10px 20px; font-weight: bold; font-size: 11px; display: flex; align-items: center;">
+        <i class="codicon codicon-chevron-down" style="margin-right: 5px;"></i> HYBRID-IDE-PROJECT
+      </div>
+      <div class="file-tree">
+        <div class="file-item active">
+          <i class="codicon codicon-file-code file-icon" style="color: #4fc1ff;"></i> main.ts
+        </div>
+        <div class="file-item">
+          <i class="codicon codicon-file-code file-icon" style="color: #e8c65f;"></i> package.json
+        </div>
+        <div class="file-item">
+          <i class="codicon codicon-gear file-icon" style="color: #cccccc;"></i> wrangler.toml
+        </div>
+        <div class="file-item">
+          <i class="codicon codicon-file-media file-icon" style="color: #cccccc;"></i> README.md
+        </div>
+      </div>
+      
+      <!-- Stats / Quota Area (Custom addition) -->
+       <div style="margin-top: auto; padding: 15px; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 11px; color: #858585; margin-bottom: 5px; text-transform: uppercase;">Usage Statistics</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 12px;">
+          <span>KV Writes</span>
+          <span id="quotaDisplay" style="color: #4caf50;">0%</span>
+        </div>
+        <div style="width: 100%; height: 4px; background: #3c3c3c; border-radius: 2px;">
+          <div id="quotaBar" style="width: 0%; height: 100%; background: #4caf50; border-radius: 2px;"></div>
+        </div>
       </div>
     </div>
     
-    <div class="editor-container">
-      <div class="toolbar">
-        <button id="completeBtn" onclick="completeCode()">✨ Complete (Ctrl+Space)</button>
-        <button id="explainBtn" onclick="explainCode()">💡 Explain (Ctrl+E)</button>
-        <button id="chatBtn" onclick="openChat()">💬 Chat</button>
+    <!-- Main Editor Area -->
+    <div class="editor-area">
+      <!-- Tabs -->
+      <div class="tabs-container">
+        <div class="tab active">
+          <i class="codicon codicon-file-code" style="color: #4fc1ff; margin-right: 6px; font-size: 14px;"></i>
+          main.ts
+          <span class="tab-close"><i class="codicon codicon-close"></i></span>
+        </div>
       </div>
+      
+      <!-- Monaco Editor -->
       <div id="editor"></div>
-      <div class="status-bar" id="statusBar">
-        <span id="status">Ready - Production Mode</span>
-        <span id="provider">Waiting for first request...</span>
-      </div>
+    </div>
+  </div>
+  
+  <!-- Status Bar -->
+  <div class="status-bar" id="statusBar">
+    <div style="display: flex;">
+      <div class="status-item"><i class="codicon codicon-remote"></i> Production</div>
+      <div class="status-item"><i class="codicon codicon-git-branch"></i> main*</div>
+      <div class="status-item"><i class="codicon codicon-error"></i> 0 <i class="codicon codicon-warning" style="margin-left: 5px;"></i> 0</div>
+    </div>
+    <div style="display: flex;">
+         <div class="status-item" id="provider">Waiting...</div>
+         <div class="status-item">Ln 12, Col 34</div>
+         <div class="status-item">UTF-8</div>
+         <div class="status-item">TypeScript</div>
+         <div class="status-item"><i class="codicon codicon-bell"></i></div>
     </div>
   </div>
 
@@ -484,6 +576,7 @@ const IDE_HTML = `<!DOCTYPE html>
 // - Circuit breaker: Gemini → Ollama (no Workers AI)
 // - No background tasks (request-scoped only)
 
+// Press F1 or Ctrl+Shift+P for Command Palette
 // Press Ctrl+Space to AI-complete
 // Press Ctrl+E to AI-explain
 
@@ -494,9 +587,32 @@ function example() {
         language: 'typescript',
         theme: 'vs-dark',
         fontSize: 14,
+        fontFamily: "'Consolas', 'Courier New', monospace",
         automaticLayout: true,
         minimap: { enabled: true },
-        scrollbar: { verticalScrollbarSize: 10 }
+        scrollbar: { verticalScrollbarSize: 10 },
+        padding: { top: 15 }
+      });
+      
+      // Add simplified Command Palette actions for AI
+      editor.addAction({
+        id: 'ai-complete',
+        label: 'AI: Complete Code',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space],
+        run: function(ed) { completeCode(); }
+      });
+
+      editor.addAction({
+        id: 'ai-explain',
+        label: 'AI: Explain Code',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE],
+        run: function(ed) { explainCode(); }
+      });
+      
+      editor.addAction({
+          id: 'ai-chat',
+          label: 'AI: Chat',
+          run: function(ed) { alert('Full chat requires CLI: "ide chat"'); }
       });
     });
 
@@ -508,12 +624,14 @@ function example() {
         const quota = data.kvWriteQuota || 0;
         
         document.getElementById('quotaDisplay').textContent = \`\${quota}% used\`;
-        document.getElementById('quotaDisplay').style.color = quota > 85 ? '#f44336' : quota > 70 ? '#ff9800' : '#4caf50';
+        document.getElementById('quotaBar').style.width = \`\${quota}%\`;
+        
+        const color = quota > 85 ? '#f44336' : quota > 70 ? '#ff9800' : '#4caf50';
+        document.getElementById('quotaDisplay').style.color = color;
+        document.getElementById('quotaBar').style.background = color;
         
         if (quota >= 100) {
           document.getElementById('statusBar').className = 'status-bar quota-warning';
-          document.getElementById('status').textContent = '⚠️ Daily KV quota exceeded - Use Ollama or wait 24h';
-          document.getElementById('completeBtn').disabled = true;
         }
       } catch (e) {
         document.getElementById('quotaDisplay').textContent = 'Error';
@@ -521,111 +639,94 @@ function example() {
     }
     
     updateQuota();
-    setInterval(updateQuota, 30000); // Update every 30 seconds
+    setInterval(updateQuota, 30000);
 
+    // Re-implemented logic for VS Code style
     async function completeCode() {
-      const content = editor.getValue();
-      const position = editor.getPosition();
-      const cursor = editor.getModel().getOffsetAt(position);
-      
-      document.getElementById('status').textContent = 'AI completing...';
-      document.getElementById('completeBtn').disabled = true;
-      
-      try {
-        const response = await fetch('/api/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            code: content, 
-            cursor, 
-            language: 'typescript', 
-            fileId: 'main.ts' 
-          })
-        });
-        
-        if (!response.ok) {
-          const error = await response.json();
-          document.getElementById('status').textContent = \`Error: \${error.error || 'Failed'}\`;
-          return;
-        }
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let result = '', provider = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.slice(6));
-              result = data.token;
-              provider = data.provider;
-            }
-          }
-        }
-        
-        if (result) {
-          editor.setValue(content + result);
-          document.getElementById('status').textContent = \`Completion applied (\${provider}, $0)\`;
-          document.getElementById('provider').textContent = \`Last used: \${provider}\`;
-          updateQuota(); // Refresh quota after completion
-        }
-      } catch (e) {
-        document.getElementById('status').textContent = 'Error: ' + e.message;
-      } finally {
-        document.getElementById('completeBtn').disabled = false;
-      }
+       const content = editor.getValue();
+       const position = editor.getPosition();
+       const cursor = editor.getModel().getOffsetAt(position);
+       
+       const statusDiv = document.getElementById('provider');
+       statusDiv.textContent = 'AI Completing...';
+       
+       try {
+         const response = await fetch('/api/complete', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ 
+             code: content, 
+             cursor, 
+             language: 'typescript', 
+             fileId: 'main.ts' 
+           })
+         });
+         
+         if (!response.ok) throw new Error('API Failed');
+         
+         const reader = response.body.getReader();
+         const decoder = new TextDecoder();
+         let result = '', provider = '';
+         
+         while (true) {
+           const { done, value } = await reader.read();
+           if (done) break;
+           const chunk = decoder.decode(value);
+           const lines = chunk.split('\\n');
+           for (const line of lines) {
+             if (line.startsWith('data: ')) {
+               const data = JSON.parse(line.slice(6));
+               result = data.token;
+               provider = data.provider;
+             }
+           }
+         }
+         
+         if (result) {
+            editor.executeEdits('ai', [{
+                range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                text: result,
+                forceMoveMarkers: true
+            }]);
+            statusDiv.textContent = \`AI: \${provider} (Ready)\`;
+            updateQuota();
+         }
+       } catch (e) {
+         statusDiv.textContent = 'AI Error';
+         setTimeout(() => statusDiv.textContent = 'Ready', 3000);
+       }
     }
 
     async function explainCode() {
-      const selection = editor.getModel().getValueInRange(editor.getSelection()) || editor.getValue();
-      
-      document.getElementById('status').textContent = 'AI explaining...';
-      document.getElementById('explainBtn').disabled = true;
-      
-      try {
-        const response = await fetch('/api/explain', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: selection, language: 'typescript' })
-        });
+        const selection = editor.getModel().getValueInRange(editor.getSelection());
+        if(!selection) return;
         
-        const data = await response.json();
+        const statusDiv = document.getElementById('provider');
+        statusDiv.textContent = 'AI Explaining...';
         
-        if (data.explanation) {
-          const explanation = data.explanation.replace(/\\n/g, '\\n// ');
-          editor.setValue(editor.getValue() + '\\n\\n// AI Explanation:\\n// ' + explanation);
-          document.getElementById('status').textContent = \`Explanation added (\${data.provider}, $0)\`;
-          document.getElementById('provider').textContent = \`Last used: \${data.provider}\`;
+        try {
+            const response = await fetch('/api/explain', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: selection, language: 'typescript' })
+            });
+            const data = await response.json();
+            if (data.explanation) {
+                editor.setValue(editor.getValue() + \`\\n\\n/** AI Explanation (\${data.provider}):\\n *  \${data.explanation.replace(/\\n/g, '\\n *  ')}\\n */\`);
+                statusDiv.textContent = \`AI: \${data.provider} (Ready)\`;
+            }
+        } catch(e) {
+            statusDiv.textContent = 'AI Error';
         }
-      } catch (e) {
-        document.getElementById('status').textContent = 'Error: ' + e.message;
-      } finally {
-        document.getElementById('explainBtn').disabled = false;
-      }
     }
-
-    function openChat() {
-      alert('CLI chat: Run "ide chat" in your terminal for interactive AI chat with history.');
-    }
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', e => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === ' ') { 
-          e.preventDefault(); 
-          completeCode(); 
-        } else if (e.key === 'e') { 
-          e.preventDefault(); 
-          explainCode(); 
+    
+    // Ctrl+S prevention
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            alert('File saved to Cloudflare KV!');
         }
-      }
     });
   </script>
 </body>
-</html>`;
+</html>\`;
