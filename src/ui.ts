@@ -1,4 +1,409 @@
 declare const monaco: any; // Declare monaco as a global variable for TypeScript
+
+// Helper function to escape strings for JavaScript literal insertion
+function escapeJsString(str: string): string {
+    return str.replace(/\\/g, '\\\\').replace(/'/g, '\\\'');
+}
+
+// --- Deployment Logic ---
+(window as any).deployProject = async function() {
+    const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");
+    if (!scriptName) return;
+
+    const btn = document.querySelector('button[onclick="window.deployProject()"]') as HTMLButtonElement | null;
+    if (!btn) return;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
+    btn.disabled = true;
+
+    try {
+        let codeToDeploy = (window as any).currentCode;
+
+        if (!((window as any).activeFile as string).endsWith('.ts') && !((window as any).activeFile as string).endsWith('.js')) {
+             try {
+                const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
+                const d = await res.json() as any; // Cast to any
+                codeToDeploy = d.content;
+             } catch(e) {}
+        }
+
+        if (!codeToDeploy) {
+            alert("No code found to deploy! Open a file first.");
+            return;
+        }
+
+        const res = await fetch('/api/deploy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scriptName, code: codeToDeploy })
+        });
+
+        const result = await res.json() as any; // Cast to any
+
+        if (res.ok) {
+            alert('🚀 Success! Deployed to namespace \'' + escapeJsString(result.result.namespace) + '\'.\\nScript: ' + escapeJsString(result.result.script));
+        } else {
+             alert('Deployment Failed: ' + escapeJsString(result.error || 'Unknown Error (Check Server Logs)'));
+        }
+
+    } catch (e: any) {
+        alert('Deployment Error: ' + escapeJsString(e.message));
+    }
+    finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+// --- Monaco Editor Setup ---
+(window as any).editor = null;
+(window as any).activeFile = 'loading...';
+(window as any).currentCode = '';
+(window as any).fileTree = [];
+
+(window as any).require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+
+(window as any).require(['vs/editor/editor.main'], function() {
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2020,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+    });
+
+    (window as any).editor = monaco.editor.create(document.getElementById('editorContainer'), {
+        value: '// Select a file to view content',
+        language: 'typescript',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 13,
+        fontFamily: 'Consolas, "Courier New", monospace',
+        padding: { top: 16 },
+        scrollBeyondLastLine: false,
+        smoothScrolling: true
+    });
+
+    (window as any).editor.onDidChangeCursorPosition((e: any) => {
+        const cursorLineElement = document.getElementById('cursorLine');
+        const cursorColElement = document.getElementById('cursorCol');
+        if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
+        if (cursorColElement) cursorColElement.innerText = e.position.column;
+    });
+
+    (window as any).editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        (window as any).saveCurrentFile((window as any).activeFile, (window as any).editor.getValue());
+    });
+
+    (window as any).refreshFiles();
+});
+
+const modelSelector = document.getElementById('modelSelector');
+const providerBadge = document.getElementById('providerBadge');
+
+modelSelector?.addEventListener('change', (e) => {
+    const target = e.target as HTMLSelectElement;
+    const isDeepSeek = target.value === 'thinking';
+    if (providerBadge) {
+        providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
+        providerBadge.className = isDeepSeek
+            ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
+            : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
+    }
+});
+
+// --- File System Operations ---
+(window as any).refreshFiles = async function() {
+    const listEl = document.getElementById('fileList');
+    if (listEl) {
+        listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
+    }
+    try {
+        const res = await fetch('/api/fs/list');
+        const uniqueFiles = new Map();
+        (await res.json() as any[]).forEach((f: any) => uniqueFiles.set(f.name, f));
+        const files = Array.from(uniqueFiles.values());
+
+        (window as any).fileTree = files;
+        (window as any).renderFileList(files);
+
+        if (((window as any).activeFile as string) === 'loading...' && files.find((f: any) => f.name === 'src/index.ts')) {
+            (window as any).loadFile('src/index.ts');
+        }
+    } catch (e) {
+        if (listEl) {
+            listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
+        }
+    }
+};
+
+(window as any).renderFileList = function(files: { name: string }[]) {
+    const listEl = document.getElementById('fileList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    files.sort((a, b) => a.name.localeCompare(b.name));
+
+    files.forEach((file: { name: string }) => {
+        const div: HTMLDivElement = document.createElement('div');
+        const isImg = file.name.match(/\.(png|jpg|jpeg|gif)$/i);
+        const is3D = file.name.match(/\.(glb|gltf)$/i);
+
+        let iconClass = 'fa-regular fa-file-code';
+        if (isImg) iconClass = 'fa-regular fa-file-image';
+        if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
+
+        div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
+        div.innerHTML = `<div class="flex items-center gap-2 truncate" onclick="window.loadFile('${escapeJsString(file.name)}')">
+                            <i class="${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>
+                            <span>${file.name}</span>
+                        </div>`;
+        listEl.appendChild(div);
+    });
+};
+
+(window as any).loadFile = async function(name: string) {
+    (window as any).activeFile = name;
+    const activeFileNameElement = document.getElementById('activeFileName');
+    if (activeFileNameElement) {
+        activeFileNameElement.innerText = name;
+    }
+    const container = document.getElementById('editorContainer');
+    if (!container) return;
+
+    // 3D Preview
+    if (name.match(/\.(glb|gltf)$/i)) {
+         (window as any).activeImage = null;
+         const res = await fetch('/api/fs/File?name=' + encodeURIComponent(name));
+         const blob = await res.blob();
+         const url = URL.createObjectURL(blob);
+
+         container.innerHTML = `<div class="h-full w-full bg-slate-900 relative">
+<model-viewer
+src="${url}"
+id="mv-viewer"
+camera-controls
+auto-rotate
+shadow-intensity="1"
+style="width: 100%; height: 100%;"
+alt="A 3D model"
+background-color="#1e293b"
+></model-viewer>
+<div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">
+    <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: ${name}</span>
+        </div>
+        </div>`;
+         return;
+    }
+
+    // Image Preview
+    if (name.match(/\.(png|jpg)$/i)) {
+         (window as any).activeImage = name;
+         const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+         const data = await res.json() as any; // Cast to any
+         let src = data.content;
+         if (!src.startsWith('data:') && !src.startsWith('http')) {
+             src = `data:image/png;base64,${data.content}`;
+         }
+
+         container.innerHTML = `<div class="h-full flex items-center justify-center bg-slate-900">
+                <img src="${src}" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">
+            </div>`;
+         return;
+    }
+
+// Code/Text
+if (!container.querySelector('.monaco-editor')) {
+    location.reload();
+    return;
+}
+
+try {
+    const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+                const data = await res.json() as any; // Cast to any
+                (window as any).currentCode = data.content;
+                if ((window as any).editor) {
+                    const model = (window as any).editor.getModel();
+                    if (monaco && model) { // Use monaco directly
+                        monaco.editor.setModelLanguage(model, (window as any).getLanguage(name));
+                    }
+                    (window as any).editor.setValue(data.content);
+                }
+            } catch (e) { }
+};
+
+(window as any).saveCurrentFile = async function(name: string, content: string) {
+    await fetch('/api/fs/file', {
+        method: 'POST',
+        body: JSON.stringify({ name, content })
+    });
+    (window as any).refreshFiles();
+};
+
+// --- Chat ---
+const chatInput = document.getElementById('chatInput') as HTMLTextAreaElement | null;
+const chatMessages = document.getElementById('chatMessages');
+
+chatInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (window as any).sendMessage(); }
+});
+
+(window as any).sendMessage = async function() {
+    if (!chatInput) return;
+    const text = chatInput.value.trim();
+    if(!text) return;
+    chatInput.value = '';
+
+    (window as any).addMessage('user', text, false);
+
+    if (text.startsWith('/image')) {
+        const prompt = text.replace('/image', '').trim();
+        (window as any).handleImageGeneration(prompt);
+        return;
+    }
+
+    const modelSelector = document.getElementById('modelSelector') as HTMLSelectElement | null;
+    const model = modelSelector ? modelSelector.value : 'default';
+
+    const aiDiv = (window as any).addMessage('ai', '', true);
+
+    try {
+        const payload: { message: string; model: string; image?: string; } = { message: text, model: model };
+        if ((window as any).activeImage) payload.image = (window as any).activeImage;
+
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        const reader = res.body?.getReader();
+        if (!reader) {
+            aiDiv.innerText = 'Error: Could not get response reader.';
+            return;
+        }
+        const decoder = new TextDecoder();
+        aiDiv.innerHTML = '';
+
+        while(true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if(data.token) aiDiv.innerHTML += (window as any).formatToken(data.token);
+                    } catch(e){}
+                }
+            }
+        }
+    } catch(e: any) { aiDiv.innerText = 'Error: ' + escapeJsString(e.message); }
+};
+
+(window as any).handleImageGeneration = async function(prompt: string) {
+    const styleSelector = document.getElementById('styleSelector') as HTMLSelectElement | null;
+    const style = styleSelector ? styleSelector.value : 'speed';
+    const aiDiv = (window as any).addMessage('ai', 'Generating Image (' + style + ')...', true);
+    try {
+        const res = await fetch('/api/image', {
+             method: 'POST',
+             body: JSON.stringify({ prompt, style })
+        });
+        const data = await res.json() as any; // Cast to any
+
+        const id = 'img-' + Date.now();
+        aiDiv.innerHTML = `<div class="flex flex-col gap-2">
+                <img src="${data.image}" class="rounded border border-slate-600" id="${id}">
+                <button onclick="window.saveImage('${id}', '${escapeJsString(prompt)}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
+            </div>`;
+    } catch(e: any) { aiDiv.innerText = 'Generation Failed: ' + escapeJsString(e.message); }
+};
+
+(window as any).saveImage = async function(id: string, prompt: string) {
+    const img = document.getElementById(id) as HTMLImageElement | null;
+    if (!img) return;
+    const base64 = img.src.split(',')[1];
+    const name = `assets/${prompt.substring(0,10).replace(/\s/g, '_')}_${Date.now()}.png`;
+    await fetch('/api/fs/file', {
+        method: 'POST',
+        body: JSON.stringify({ name, content: base64 })
+    });
+    alert('Saved to ' + escapeJsString(name));
+    (window as any).refreshFiles();
+};
+
+(window as any).createNewFile = async function() {
+     const name = prompt("Filename:");
+     if(name) {
+         await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
+         (window as any).refreshFiles();
+     }
+};
+
+(window as any).addMessage = function(role: string, text: string, loading: boolean) {
+    const div = document.createElement('div');
+    div.className = `chat-message p-3 rounded-lg border ${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}`;
+    if(loading) div.innerHTML = 'Thinking...';
+    else div.innerHTML = (window as any).formatToken(text);
+    if (chatMessages) {
+        chatMessages.appendChild(div);
+    }
+    return div;
+};
+
+(window as any).formatToken = function(t: string): string { return t.replace(/\n/g, '<br>'); };
+
+(window as any).getLanguage = function(n: string): string {
+    if(n.endsWith('ts')) return 'typescript';
+    if(n.endsWith('html')) return 'html';
+    return 'plaintext';
+};
+
+(window as any).uploadFile = async function(input: HTMLInputElement) {
+    const file = input.files ? input.files[0] : null;
+    if (!file) return;
+
+    const aiDiv = (window as any).addMessage('ai', 'Uploading: ' + file.name, true);
+
+    try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const result = e.target?.result;
+            if (result === null || typeof result !== 'string') {
+                aiDiv.innerText = 'Upload Failed: Could not read file content.';
+                return;
+            }
+            const base64 = result.split(',')[1];
+
+            const res = await fetch('/api/fs/file', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: file.name,
+                    content: base64,
+                    encoding: 'base64'
+                })
+            });
+
+            if (res.ok) {
+                (window as any).activeImage = file.name;
+                aiDiv.innerHTML = `✅ Uploaded <b>${escapeJsString(file.name)}</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>`;
+                (window as any).refreshFiles();
+
+                if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
+                   (window as any).loadFile(file.name);
+                }
+            } else {
+                aiDiv.innerText = 'Upload Failed';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+    catch (e: any) {
+        aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
+    }
+};
+
+
 export const IDE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +451,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Online</span>
             </div>
-            <button onclick="deployProject()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-2 shadow-lg shadow-indigo-500/20">
+            <button onclick="window.deployProject()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-2 shadow-lg shadow-indigo-500/20">
                 <i class="fa-solid fa-rocket"></i> <span>Deploy</span>
             </button>
         </div>
@@ -60,8 +465,8 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="p-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
                 <span class="text-sm font-semibold text-slate-300">EXPLORER</span>
                 <div class="space-x-1">
-                    <button class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" onclick="refreshFiles()"><i class="fa-solid fa-rotate-right"></i></button>
-                    <button class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" onclick="createNewFile()"><i class="fa-solid fa-plus"></i></button>
+                    <button class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" onclick="window.refreshFiles()"><i class="fa-solid fa-rotate-right"></i></button>
+                    <button class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" onclick="window.createNewFile()"><i class="fa-solid fa-plus"></i></button>
                 </div>
             </div>
             <div id="fileList" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-sm">
@@ -75,7 +480,7 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="h-9 bg-[#2d2d2d] flex items-center border-b border-[#3e3e3e] overflow-x-auto select-none" id="tabsContainer">
                 <div class="px-3 py-2 bg-[#1e1e1e] border-t-2 border-indigo-500 text-slate-200 text-xs flex items-center space-x-2 min-w-fit">
                     <span id="activeFileName">src/index.ts</span>
-                    <button class="hover:text-red-400" onclick="closeTab()"><i class="fa-solid fa-times"></i></button>
+                    <button class="hover:text-red-400" onclick="window.closeTab()"><i class="fa-solid fa-times"></i></button>
                 </div>
             </div>
 
@@ -113,14 +518,14 @@ export const IDE_HTML = `<!DOCTYPE html>
 
             <!-- Chat Input -->
             <div class="p-3 bg-slate-800/80 border-t border-slate-700/50 backdrop-blur">
-                <input type="file" id="visionInput" class="hidden" onchange="uploadFile(this)">
+                <input type="file" id="visionInput" class="hidden" onchange="window.uploadFile(this)">
                 <div class="relative flex items-center gap-2">
                     <button onclick="document.getElementById('visionInput').click()" class="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-700/50" title="Upload Image/File">
                         <i class="fa-solid fa-paperclip"></i>
                     </button>
                     <div class="relative flex-1">
                         <textarea id="chatInput" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none scroll-smooth transition-all" placeholder="Ask AI or type /image..."></textarea>
-                        <button onclick="sendMessage()" class="absolute right-2 top-1.5 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>
+                        <button onclick="window.sendMessage()" class="absolute right-2 top-1.5 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
                 </div>
                 <div class="text-[10px] text-slate-500 mt-1.5 flex justify-between px-1">
@@ -131,410 +536,5 @@ export const IDE_HTML = `<!DOCTYPE html>
         </aside>
 
     </div>
-
-    <!-- Scripts -->
-    <script>
-        // --- Deployment Logic ---
-        window.deployProject = async function() {
-            const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");
-            if (!scriptName) return;
-
-            const btn = document.querySelector('button[onclick="deployProject()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
-            btn.disabled = true;
-
-            try {
-                // For MVP, we deploy the content of src/index.ts or current editor content
-                let codeToDeploy = currentCode;
-
-                // If current file isn\'t meaningful, try to fetch src/index.ts
-                if (!activeFile.endsWith('.ts') && !activeFile.endsWith('.js')) {
-                     try {
-                        const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
-                        const d = await res.json();
-                        codeToDeploy = d.content;
-                     } catch(e) {}
-                }
-
-                if (!codeToDeploy) {
-                    alert("No code found to deploy! Open a file first.");
-                    return;
-                }
-
-                const res = await fetch('/api/deploy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ scriptName, code: codeToDeploy })
-                });
-
-                const result = await res.json();
-
-                if (res.ok) {
-                    alert('🚀 Success! Deployed to namespace \'' + result.result.namespace + '\'.\\nScript: ' + result.result.script);
-                } else {
-                     alert('Deployment Failed: ' + (result.error || 'Unknown Error (Check Server Logs)'));
-                }
-
-            } catch (e) {
-                alert('Deployment Error: ' + e.message);
-            }
-            finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        // --- Monaco Editor Setup ---
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-
-        let editor: any;
-        let activeFile = 'loading...';
-        let currentCode = '';
-        let fileTree: any[] = [];
-
-        require(['vs/editor/editor.main'], function() {
-            monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-                target: monaco.languages.typescript.ScriptTarget.ES2020,
-                allowNonTsExtensions: true,
-                moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-            });
-
-            editor = monaco.editor.create(document.getElementById('editorContainer'), {
-                value: '// Select a file to view content',
-                language: 'typescript',
-                theme: 'vs-dark',
-                automaticLayout: true,
-                minimap: { enabled: false },
-                fontSize: 13,
-                fontFamily: 'Consolas, "Courier New", monospace',
-                padding: { top: 16 },
-                scrollBeyondLastLine: false,
-                smoothScrolling: true
-            });
-
-            editor.onDidChangeCursorPosition((e: any) => {
-                const cursorLineElement = document.getElementById('cursorLine');
-                const cursorColElement = document.getElementById('cursorCol');
-                if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
-                if (cursorColElement) cursorColElement.innerText = e.position.column;
-            });
-
-            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                saveCurrentFile(activeFile, editor.getValue());
-            });
-
-            refreshFiles();
-        });
-
-        const modelSelector = document.getElementById('modelSelector');
-        const providerBadge = document.getElementById('providerBadge');
-
-        modelSelector?.addEventListener('change', (e) => {
-            const target = e.target as HTMLSelectElement;
-            const isDeepSeek = target.value === 'thinking';
-            if (providerBadge) {
-                providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
-                providerBadge.className = isDeepSeek
-                    ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
-                    : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
-            }
-        });
-
-        // --- File System Operations ---
-        async function refreshFiles() {
-            const listEl = document.getElementById('fileList');
-            if (listEl) {
-                listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
-            }
-            try {
-                const res = await fetch('/api/fs/list');
-                const uniqueFiles = new Map();
-                (await res.json()).forEach((f: any) => uniqueFiles.set(f.name, f));
-                const files = Array.from(uniqueFiles.values());
-
-                fileTree = files;
-                renderFileList(files);
-
-                if (activeFile === 'loading...' && files.find((f: any) => f.name === 'src/index.ts')) {
-                    loadFile('src/index.ts');
-                }
-            } catch (e) {
-                if (listEl) {
-                    listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
-                }
-            }
-        }
-
-        function renderFileList(files: { name: string }[]) {
-            const listEl = document.getElementById('fileList');
-            if (!listEl) return;
-
-            listEl.innerHTML = '';
-            files.sort((a, b) => a.name.localeCompare(b.name));
-
-            files.forEach((file: { name: string }) => {
-                const div: HTMLDivElement = document.createElement('div');
-                const isImg = file.name.match(/\\.(png|jpg|jpeg|gif)$/i);
-                const is3D = file.name.match(/\\.(glb|gltf)$/i);
-
-                let iconClass = 'fa-regular fa-file-code';
-                if (isImg) iconClass = 'fa-regular fa-file-image';
-                if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
-
-                div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
-                div.innerHTML = '<div class="flex items-center gap-2 truncate" onclick="loadFile(\'' + file.name + '\')">' +
-                                    '<i class="' + iconClass + ' text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>' +
-                                    '<span>' + file.name + '</span>' +
-                                '</div>';
-                listEl.appendChild(div);
-            });
-        }
-
-        let activeFile: string | null = null;
-        let activeImage: string | null = null; // Track image context for Vision
-
-        async function loadFile(name: string) {
-            activeFile = name;
-            const activeFileNameElement = document.getElementById('activeFileName');
-            if (activeFileNameElement) {
-                activeFileNameElement.innerText = name;
-            }
-            const container = document.getElementById('editorContainer');
-            if (!container) return; // Ensure container exists
-
-            // 3D Preview
-            if (name.match(/\\.(glb|gltf)$/i)) {
-                 activeImage = null; // Clear vision context for 3D models (unless we want to screenshot them?)
-                 const res = await fetch('/api/fs/File?name=' + encodeURIComponent(name));
-                 const blob = await res.blob();
-                 const url = URL.createObjectURL(blob);
-
-                 container.innerHTML = '<div class="h-full w-full bg-slate-900 relative">' +
-        '<model-viewer ' +
-'src="' + url + '" ' +
-'id="mv-viewer" ' +
-'camera-controls ' +
-'auto-rotate ' +
-'shadow-intensity="1" ' +
-'style="width: 100%; height: 100%;" ' +
-'alt="A 3D model" ' +
-'background-color="#1e293b"' +
-    '></model-viewer>' +
-    '<div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">' +
-        '<span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: ' + name + '</span>' +
-            '</div>' +
-            '</div>';
-                 return;
-            }
-
-            // Image Preview
-            if (name.match(/\\.(png|jpg)$/i)) {
-                 activeImage = name; // Set context for Vision
-                 const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-                 const data = await res.json();
-                 let src = data.content;
-                 if (!src.startsWith('data:') && !src.startsWith('http')) {
-                     src = 'data:image/png;base64,' + data.content;
-                 }
-
-                 container.innerHTML = '<div class="h-full flex items-center justify-center bg-slate-900">' +
-                        '<img src="' + src + '" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">' +
-                    '</div>';
-                 return;
-            }
-
-// Code/Text
-if (!container.querySelector('.monaco-editor')) {
-    location.reload();
-    return;
-}
-
-try {
-    const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-                const data = await res.json();
-                currentCode = data.content;
-                if (editor) {
-                    const model = editor.getModel();
-                    if (window.monaco && model) { // Check if window.monaco and model exist
-                        window.monaco.editor.setModelLanguage(model, getLanguage(name));
-                    }
-                    editor.setValue(data.content);
-                }
-            } catch (e) { }
-        }
-
-        async function saveCurrentFile(name: string, content: string) {
-            await fetch('/api/fs/file', {
-                method: 'POST',
-                body: JSON.stringify({ name, content })
-            });
-            refreshFiles();
-        }
-
-        // --- Chat ---
-        const chatInput = document.getElementById('chatInput') as HTMLTextAreaElement | null;
-        const chatMessages = document.getElementById('chatMessages');
-
-        chatInput?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-        });
-
-        async function sendMessage() {
-            if (!chatInput) return;
-            const text = chatInput.value.trim();
-            if(!text) return;
-            chatInput.value = '';
-
-            addMessage('user', text, false);
-
-            if (text.startsWith('/image')) {
-                const prompt = text.replace('/image', '').trim();
-                handleImageGeneration(prompt);
-                return;
-            }
-
-            const modelSelector = document.getElementById('modelSelector') as HTMLSelectElement | null;
-            const model = modelSelector ? modelSelector.value : 'default';
-
-            const aiDiv = addMessage('ai', '', true);
-
-            try {
-                // Send activeImage context if available
-                const payload: { message: string; model: string; image?: string; } = { message: text, model: model };
-                if (activeImage) payload.image = activeImage;
-
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
-
-                const reader = res.body?.getReader();
-                if (!reader) {
-                    aiDiv.innerText = 'Error: Could not get response reader.';
-                    return;
-                }
-                const decoder = new TextDecoder();
-                aiDiv.innerHTML = '';
-
-                while(true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                if(data.token) aiDiv.innerHTML += formatToken(data.token);
-                            } catch(e){}
-                        }
-                    }
-                }
-            } catch(e: any) { aiDiv.innerText = 'Error: ' + e.message; }
-        }
-
-        async function handleImageGeneration(prompt: string) {
-            const styleSelector = document.getElementById('styleSelector') as HTMLSelectElement | null;
-            const style = styleSelector ? styleSelector.value : 'speed';
-            const aiDiv = addMessage('ai', 'Generating Image (' + style + ')...', true);
-            try {
-                const res = await fetch('/api/image', {
-                     method: 'POST',
-                     body: JSON.stringify({ prompt, style })
-                });
-                const data = await res.json();
-
-                const id = 'img-' + Date.now();
-                aiDiv.innerHTML = '<div class="flex flex-col gap-2">' +
-                        '<img src="' + data.image + '" class="rounded border border-slate-600" id="' + id + '">' +
-                        '<button onclick="saveImage(\'' + id + '\', \'' + prompt + '\')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>' +
-                    '</div>';
-            } catch(e: any) { aiDiv.innerText = 'Generation Failed: ' + e.message; }
-        }
-
-        async function saveImage(id: string, prompt: string) {
-            const img = document.getElementById(id) as HTMLImageElement | null;
-            if (!img) return;
-            const base64 = img.src.split(',')[1];
-            const name = 'assets/' + prompt.substring(0,10).replace(/\\s/g, '_') + '_' + Date.now() + '.png';
-            await fetch('/api/fs/file', {
-                method: 'POST',
-                body: JSON.stringify({ name, content: base64 })
-            });
-            alert('Saved to ' + name);
-            refreshFiles();
-        }
-
-        async function createNewFile() {
-             const name = prompt("Filename:");
-             if(name) {
-                 await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
-                 refreshFiles();
-             }
-        }
-
-        function addMessage(role: string, text: string, loading: boolean) {
-            const div = document.createElement('div');
-            div.className = 'chat-message p-3 rounded-lg border ' + (role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6');
-            if(loading) div.innerHTML = 'Thinking...';
-            else div.innerHTML = formatToken(text);
-            if (chatMessages) {
-                chatMessages.appendChild(div);
-            }
-            return div;
-        }
-
-        function formatToken(t: string): string { return t.replace(/\\n/g, '<br>'); }
-        function getLanguage(n: string): string {
-            if(n.endsWith('ts')) return 'typescript';
-            if(n.endsWith('html')) return 'html';
-            return 'plaintext';
-        }
-        async function uploadFile(input: HTMLInputElement) {
-            const file = input.files ? input.files[0] : null;
-            if (!file) return;
-
-            const aiDiv = addMessage('ai', 'Uploading: ' + file.name, true);
-
-            try {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const result = e.target?.result;
-                    if (result === null || typeof result !== 'string') {
-                        aiDiv.innerText = 'Upload Failed: Could not read file content.';
-                        return;
-                    }
-                    const base64 = result.split(',')[1];
-
-                    const res = await fetch('/api/fs/file', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            name: file.name,
-                            content: base64,
-                            encoding: 'base64'
-                        })
-                    });
-
-                    if (res.ok) {
-                        activeImage = file.name; // Set context for Vision
-                        aiDiv.innerHTML = '✅ Uploaded <b>' + file.name + '</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>';
-                        refreshFiles();
-
-                        // Auto-load if 3D
-                        if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
-                           loadFile(file.name);
-                        }
-                    } else {
-                        aiDiv.innerText = 'Upload Failed';
-                    }
-                };
-                reader.readAsDataURL(file);
-            }
-            catch (e: any) {
-                aiDiv.innerText = 'Error: ' + e.message;
-            }
-        }
-    </script>
 </body>
 </html>`;
