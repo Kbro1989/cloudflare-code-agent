@@ -16,7 +16,35 @@ export interface Env {
   DISPATCHER?: any; // DispatchNamespace binding
 }
 
-// ... (MODELS and SYSTEM_PROMPT remain same)
+// ----------------------------------------------------------------------------
+// Model Registry - The Brains & Artists
+// ----------------------------------------------------------------------------
+const MODELS = {
+  // Text / Coding
+  DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+
+  // Image Gen
+  FLUX: '@cf/black-forest-labs/flux-1-schnell',
+  SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
+  DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
+
+  // Vision
+  LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
+  RESNET: '@cf/microsoft/resnet-50'
+};
+
+const SYSTEM_PROMPT = `
+You are an advanced AI coding agent (Omni-Dev Level).
+You have access to the user's local filesystem via the CLI.
+Tools:
+1. readFile(path)
+2. writeFile(path, content)
+3. listFiles(path)
+4. runCommand(cmd)
+
+Output JSON tool calls wrapped in \`\`\`json blocks.
+`;
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

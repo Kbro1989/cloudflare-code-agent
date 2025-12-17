@@ -165,7 +165,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 const result = await res.json();
 
                 if (res.ok) {
-                    alert(`🚀 Success! Deployed to namespace '${result.result.namespace}'.\nScript: ${ result.result.script } `);
+                    alert('🚀 Success! Deployed to namespace \\'' + result.result.namespace + '\\'.\\nScript: ' + result.result.script);
                 } else {
                      alert('Deployment Failed: ' + (result.error || 'Unknown Error (Check Server Logs)'));
                 }
