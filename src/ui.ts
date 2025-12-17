@@ -456,7 +456,8 @@ export const IDE_HTML = `<!DOCTYPE html>
             chatHistory.push({ role: 'assistant', content: fullReply });
 
             // Tool Execution Logic (Web Version)
-            const toolRegex = /```json\s* (\{ [\s\S] *? "tool"[\s\S]*?\ }) \s * ```/;
+            // Tool Execution Logic (Web Version)
+            const toolRegex = new RegExp('```json\\\\s* (\\\\{ [\\\\s\\\\S] *? "tool"[\\\\s\\\\S]*?\\\\ }) \\\\s * ```');
             const match = fullReply.match(toolRegex);
 
             if (match) {
@@ -470,11 +471,11 @@ export const IDE_HTML = `<!DOCTYPE html>
 
                     const toolMsg = document.createElement('div');
                     toolMsg.style.cssText = 'background: #2d2d2d; padding: 10px; border-radius: 4px; color: #d4d4d4; max-width: 90%; align-self: flex-start; margin-top: 5px; border: 1px solid #0e639c;';
-                    toolMsg.innerHTML = `
-  < div > <strong>🛠️ Tool Request: </strong> ${tool}</div >
-    <pre style="font-size: 11px; color: #858585;" > ${ JSON.stringify(args, null, 2) } </pre>
-      < button id = "exec-${Date.now()}" style = "margin-top:5px;" > Execute </button>
-        `;
+                    toolMsg.innerHTML = \`
+                        <div><strong>🛠️ Tool Request:</strong> \${tool}</div>
+                        <pre style="font-size: 11px; color: #858585;">\${JSON.stringify(args, null, 2)}</pre>
+                        <button id="exec-\${Date.now()}" style="margin-top:5px;">Execute</button>
+                    \`;
                     chatContainer.appendChild(toolMsg);
                     chatContainer.scrollTop = chatContainer.scrollHeight;
 
