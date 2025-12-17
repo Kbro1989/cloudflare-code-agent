@@ -1,22 +1,48 @@
 name = "cloudflare-code-agent"
 main = "src/index.ts"
-compatibility_date = "2024-12-13"
+compatibility_date = "2024-12-16"
 account_id = "6872653edcee9c791787c1b783173793"
 
+# Durable Objects
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+script_name = "cloudflare-code-agent"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
+# KV Namespaces
 [[kv_namespaces]]
-binding = "MY_KV"
-id = "19ed43640eb04f69b98289b998ef971f" # Run: npm run kv:create
+binding = "CACHE"
+id = "53e7b59de4764464bed75a677bf9805c"
 
+[[kv_namespaces]]
+binding = "MEMORY"
+id = "f13368114b6a4d8e9ca2919481f33fdd"
+
+# R2 Bucket
+[[r2_buckets]]
+bucket_name = "hello-ai-assets"
+binding = "R2_ASSETS" # Renamed from ASSETS to avoid conflict
+
+# Vars
 [vars]
-Top-Secret = "Make It Work"
-GITHUB_CLIENT_ID = "Ov23liizVSWaYyh9TESV"
-
-# Secrets (Add via `wrangler secret put GITHUB_CLIENT_SECRET`)
-# GITHUB_CLIENT_SECRET
+MAX_FILE_SIZE = 10485760
+MAX_CACHE_SIZE = 524288
+KV_BATCH_SIZE = 10
+RATE_LIMITER_PER_MINUTE = 15
 
 [ai]
 binding = "AI"
 
-[[r2_buckets]]
-bucket_name = "hello-ai-assets"
-binding = "R2_ASSETS"
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 0.01
+
+[observability.metrics]
+enabled = true
