@@ -163,10 +163,10 @@ window.renderFileList = function(files) {
         if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
 
         div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
-        div.innerHTML = `<div class="flex items-center gap-2 truncate" onclick="window.loadFile('${escapeJsString(file.name)}')">
-                            <i class="${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>
-                            <span>${file.name}</span>
-                        </div>`;
+        div.innerHTML = '<div class="flex items-center gap-2 truncate" onclick="window.loadFile(\'' + escapeJsString(file.name) + '\')">' +
+                            '<i class="' + iconClass + ' text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>' +
+                            '<span>' + file.name + '</span>' +
+                        '</div>';
         listEl.appendChild(div);
     });
 };
