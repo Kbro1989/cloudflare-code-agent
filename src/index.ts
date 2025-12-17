@@ -63,17 +63,13 @@ export default {
     // Serve UI
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
-      return new Response(String(IDE_HTML), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
-      });
-    }
-
-    // Serve ui.js
-    if (url.pathname === '/ui.js') {
-      // Correctly import and serve the JavaScript file as a string
       const { UI_JS } = await import('./ui.js');
-      return new Response(UI_JS, {
-        headers: { 'Content-Type': 'application/javascript; charset=utf-8' }
+      const finalHtml = IDE_HTML.replace(
+        '<script>\\n        // --- All of your UI Logic will be injected by the worker ---\\n    </script>',
+        `<script>\\n${UI_JS}\\n</script>`
+      );
+      return new Response(finalHtml, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }
     

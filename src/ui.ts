@@ -132,6 +132,8 @@ export const IDE_HTML = `<!DOCTYPE html>
     </div>
 
     <!-- Scripts -->
-    <script type="module" src="/ui.js"></script>
+    <script>
+        // --- All of your UI Logic will be injected by the worker ---
+    </script>
 </body>
 </html>`;

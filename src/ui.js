@@ -52,7 +52,7 @@ window.deployProject = async function() {
         const result = await res.json();
 
         if (res.ok) {
-            alert(`🚀 Success! Deployed to namespace '${escapeJsString(result.result.namespace)}'.\nScript: ${escapeJsString(result.result.script)}`);
+            alert('Success! Deployed to namespace \'' + escapeJsString(result.result.namespace) + '\'.\nScript: ' + escapeJsString(result.result.script));
         } else {
              alert('Deployment Failed: ' + escapeJsString(result.error || 'Unknown Error (Check Server Logs)'));
         }
