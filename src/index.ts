@@ -421,30 +421,33 @@ function json(data: any, status = 200, corsHeaders: any = {}): Response {
 }
 
 // ----------------------------------------------------------------------------
-// Filesystem Handler (R2)
+// Filesystem Handler (R2 - Sandboxed)
 // ----------------------------------------------------------------------------
+const WORKSPACE_PREFIX = 'projects/default/';
+
 async function handleFilesystem(request: Request, env: Env, corsHeaders: any): Promise<Response> {
   const url = new URL(request.url);
 
   // List Files
   if (request.method === 'GET' && url.pathname === '/api/fs/list') {
     try {
-      const list = await env.R2_ASSETS.list();
+      // List only files in the workspace
+      const list = await env.R2_ASSETS.list({ prefix: WORKSPACE_PREFIX });
       let files = list.objects.map(o => ({
-        name: o.key,
+        name: o.key.replace(WORKSPACE_PREFIX, ''), // Strip prefix for UI
         size: o.size,
         uploaded: o.uploaded
-      }));
+      })).filter(f => f.name !== ''); // Filter out the folder key itself if present
 
-      // Initialize default files if empty
+      // Initialize default files if empty (and no root prefix exists)
       if (files.length === 0) {
         const defaults = [
           { name: 'main.ts', content: '// Welcome to Hybrid IDE\nconsole.log("Hello Cloudflare!");' },
-          { name: 'README.md', content: '# Hybrid IDE\n\nYour code is saved to R2.' }
+          { name: 'README.md', content: '# Hybrid IDE\n\nYour code is saved to R2 in a sandboxed workspace.' }
         ];
 
         for (const f of defaults) {
-          await env.R2_ASSETS.put(f.name, f.content);
+          await env.R2_ASSETS.put(WORKSPACE_PREFIX + f.name, f.content);
         }
         files = defaults.map(d => ({ name: d.name, size: d.content.length, uploaded: new Date() }));
       }
@@ -461,7 +464,7 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
     if (!name) return new Response('Missing name', { status: 400, headers: corsHeaders });
 
     try {
-      const obj = await env.R2_ASSETS.get(name);
+      const obj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + name);
       if (!obj) return new Response('Not found', { status: 404, headers: corsHeaders });
 
       const content = await obj.text();
@@ -477,7 +480,12 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
       const { name, content } = await request.json() as any;
       if (!name || content === undefined) return new Response('Missing data', { status: 400, headers: corsHeaders });
 
-      await env.R2_ASSETS.put(name, content);
+      // Prevent directory traversal (basic check)
+      if (name.includes('..') || name.startsWith('/')) {
+        return new Response('Invalid filename', { status: 400, headers: corsHeaders });
+      }
+
+      await env.R2_ASSETS.put(WORKSPACE_PREFIX + name, content);
       return new Response(JSON.stringify({ success: true, savedAt: new Date() }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
     } catch (e: any) {
       return new Response('R2 Write Error: ' + e.message, { status: 500, headers: corsHeaders });
