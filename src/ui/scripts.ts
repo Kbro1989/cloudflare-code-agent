@@ -208,7 +208,7 @@ async function loadRepos() {
         repos.forEach(repo => {
             const div = document.createElement('div');
             div.className = 'file-item';
-            div.textContent = '📦 ' + repo.name; // (${repo.stargazers_count}⭐)
+            div.textContent = '📦 ' + repo.name; // (stargazers_count⭐)
             div.title = repo.description || "No description";
             div.onclick = () => {
                 // Future: Clone logic
