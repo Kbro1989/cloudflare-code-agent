@@ -108,7 +108,21 @@ export const IDE_HTML = `<!DOCTYPE html>
       <div id="view-search" style="display: none; padding: 20px; font-size: 12px; color: #858585;">Search not implemented</div>
       <div id="view-scm" style="display: none; padding: 20px; font-size: 12px; color: #858585;">No changes detected</div>
       <div id="view-debug" style="display: none; padding: 20px; font-size: 12px; color: #858585;">Debug configuration missing</div>
-      <div id="view-extensions" style="display: none; padding: 20px; font-size: 12px; color: #858585;">No extensions installed</div>
+
+      <!-- Chat View -->
+      <div id="view-extensions" style="display: none; padding: 0; display: flex; flex-direction: column; height: 100%;">
+          <div id="chat-messages" style="flex-grow: 1; padding: 15px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 15px;">
+              <div style="background: #2d2d2d; padding: 10px; border-radius: 4px; color: #d4d4d4;">
+                  <i class="codicon codicon-hubot" style="margin-right: 5px;"></i> Hello! I'm your AI coding assistant. How can I help you?
+              </div>
+          </div>
+          <div style="padding: 10px; border-top: 1px solid var(--border-color); background: var(--sidebar-bg);">
+              <textarea id="chat-input" placeholder="Ask a question..." style="width: 100%; height: 60px; background: #3c3c3c; border: 1px solid var(--border-color); color: white; padding: 8px; font-family: inherit; font-size: 12px; resize: none; border-radius: 2px;"></textarea>
+              <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
+                  <button onclick="sendChatMessage()" style="background: var(--accent-color); color: white; border: none; padding: 4px 12px; font-size: 11px; cursor: pointer; border-radius: 2px;">Send <i class="codicon codicon-send"></i></button>
+              </div>
+          </div>
+      </div>
 
       <!-- Stats / Quota Area -->
        <div style="margin-top: auto; padding: 15px; border-top: 1px solid var(--border-color);">
@@ -372,8 +386,84 @@ export const IDE_HTML = `<!DOCTYPE html>
       ['explorer', 'search', 'scm', 'debug', 'extensions'].forEach(v => {
         const el = document.getElementById(\`view-\${v}\`);
         if(el) el.style.display = (v === viewName) ? 'block' : 'none';
+        // Special flex layout for chat
+        if (v === 'extensions' && viewName === 'extensions') el.style.display = 'flex';
       });
     }
+
+    // Chat Functions
+    let chatHistory = [];
+    async function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        if (!message) return;
+
+        // User Message
+        const chatContainer = document.getElementById('chat-messages');
+        const userMsg = document.createElement('div');
+        userMsg.style.cssText = 'background: #0e639c; color: white; padding: 10px; border-radius: 4px; align-self: flex-end; max-width: 90%;';
+        userMsg.innerText = message;
+        chatContainer.appendChild(userMsg);
+
+        input.value = '';
+        chatHistory.push({ role: 'user', content: message });
+
+        // AI Placeholder
+        const aiMsg = document.createElement('div');
+        aiMsg.style.cssText = 'background: #2d2d2d; padding: 10px; border-radius: 4px; color: #d4d4d4; max-width: 90%; align-self: flex-start;';
+        aiMsg.innerHTML = '<i class="codicon codicon-loading codicon-modifier-spin"></i> Thinking...';
+        chatContainer.appendChild(aiMsg);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, history: chatHistory })
+            });
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let fullReply = '';
+            aiMsg.innerHTML = '<i class="codicon codicon-hubot" style="margin-right: 5px;"></i> ';
+            const contentSpan = document.createElement('span');
+            aiMsg.appendChild(contentSpan);
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.token) {
+                                fullReply += data.token;
+                                contentSpan.innerText = fullReply;
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+            chatHistory.push({ role: 'assistant', content: fullReply });
+
+        } catch (e) {
+            aiMsg.innerText = 'Error: ' + e.message;
+            aiMsg.style.color = '#f44336';
+        }
+    }
+
+    // Handle Enter in Chat Input
+    document.getElementById('chat-input')?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChatMessage();
+        }
+    });
 
     // Monaco Init
     require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }});
