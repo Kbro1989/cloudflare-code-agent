@@ -393,7 +393,8 @@ export const IDE_HTML = `<!DOCTYPE html>
 
     // Chat Functions
     let chatHistory = [];
-    async function sendChatMessage() {
+    window.sendChatMessage = async function() {
+        console.log('Sending chat message...');
         const input = document.getElementById('chat-input');
         const message = input.value.trim();
         if (!message) return;
