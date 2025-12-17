@@ -1,0 +1,45 @@
+{
+  "name": "cloudflare-code-agent",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-16",
+  "account_id": "6872653edcee9c791787c1b783173793",
+  "migrations": [
+    {
+      "tag": "v4",
+      "deleted_classes": [
+        "RateLimiter"
+      ]
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "53e7b59de4764464bed75a677bf9805c"
+    },
+    {
+      "binding": "MEMORY",
+      "id": "f13368114b6a4d8e9ca2919481f33fdd"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "bucket_name": "hello-ai-assets",
+      "binding": "R2_ASSETS"
+    }
+  ],
+  "vars": {
+    "MAX_FILE_SIZE": 10485760,
+    "MAX_CACHE_SIZE": 524288,
+    "KV_BATCH_SIZE": 10
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  }
+}
