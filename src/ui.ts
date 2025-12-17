@@ -438,7 +438,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\\\\n'); // Double escape for template literal inner string!
+                const lines = chunk.split('\\n'); // Standard newline splitting
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -563,7 +563,7 @@ export const IDE_HTML = `<!DOCTYPE html>
              const { done, value } = await reader.read();
              if (done) break;
              const chunk = decoder.decode(value, { stream: true });
-             const lines = chunk.split('\\\\n'); // Handle streaming lines
+             const lines = chunk.split('\\n'); // Handle streaming lines
 
              for (const line of lines) {
                 if (line.startsWith('data: ')) {
