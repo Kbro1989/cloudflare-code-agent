@@ -446,7 +446,9 @@ export const IDE_HTML = `<!DOCTYPE html>
                             const data = JSON.parse(line.slice(6));
                             if (data.token) {
                                 fullReply += data.token;
-                                contentSpan.innerText = fullReply;
+                                contentSpan.textContent += data.token; // Append only new text
+                                // Throttle scroll to every ~100 chars or use requestAnimationFrame?
+                                // For now, just append. Scroll is cheap if content grows at bottom.
                                 chatContainer.scrollTop = chatContainer.scrollHeight;
                             }
                         } catch (e) {}
