@@ -73,30 +73,30 @@ program
   .description('Initialize IDE configuration')
   .action(async () => {
     console.log(chalk.cyan('🚀 Production Hybrid IDE Setup\n'));
-    
+
     const answers = await inquirer.prompt([
-      { 
-        type: 'input', 
-        name: 'workerUrl', 
-        message: 'Worker URL:', 
+      {
+        type: 'input',
+        name: 'workerUrl',
+        message: 'Worker URL:',
         validate: (i) => i.length > 0 || 'Worker URL required'
       },
-      { 
-        type: 'input', 
-        name: 'projectId', 
-        message: 'Project ID:', 
-        default: 'default' 
+      {
+        type: 'input',
+        name: 'projectId',
+        message: 'Project ID:',
+        default: 'default'
       }
     ]);
-    
-    config = { 
-      workerUrl: answers.workerUrl.replace(/\/$/, ''), 
+
+    config = {
+      workerUrl: answers.workerUrl.replace(/\/$/, ''),
       projectId: answers.projectId,
       aliases: {}
     };
-    
+
     await saveConfig();
-    
+
     console.log(chalk.green('\n✅ Configuration saved!'));
     console.log(chalk.gray(`\nConfig file: ${configFile}`));
     console.log(chalk.cyan('\nNext: ide doctor'));
@@ -120,7 +120,7 @@ program
       spinner.succeed(`Read ${file} (${language})`);
 
       const aiSpinner = ora('AI completing code...').start();
-      
+
       try {
         const response = await callAPI('/api/complete', {
           fileId: file,
@@ -128,18 +128,18 @@ program
           cursor: content.length,
           language
         });
-        
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let result = '', provider = '', cost = 0;
-        
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          
+
           const chunk = decoder.decode(value);
           const lines = chunk.split('\n');
-          
+
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const data = JSON.parse(line.slice(6));
@@ -149,13 +149,13 @@ program
             }
           }
         }
-        
+
         if (result) {
           aiSpinner.succeed(`Completed via ${provider} (cost: $${cost})`);
-          
+
           console.log(chalk.green('\n✨ AI Completion:\n'));
           console.log(chalk.white(result));
-          
+
           if (options.interactive || !options.interactive) {
             const { apply } = await inquirer.prompt([
               {
@@ -165,7 +165,7 @@ program
                 default: false
               }
             ]);
-            
+
             if (apply) {
               await fs.writeFile(file, content + result);
               console.log(chalk.green('\n✅ Completion applied to file'));
@@ -178,7 +178,7 @@ program
         }
       } catch (error: any) {
         aiSpinner.fail('AI completion failed');
-        
+
         if (error.message.includes('quota exceeded')) {
           console.log(chalk.yellow('\n⚠️  Daily KV quota exceeded (1000 writes/day)'));
           console.log(chalk.cyan('Solutions:'));
@@ -207,7 +207,7 @@ program
 
       const spinner = ora(`Analyzing ${file}...`).start();
       let content = await fs.readFile(file, 'utf-8');
-      
+
       if (options.lines) {
         const [start, end] = options.lines.split('-').map((n: string) => parseInt(n) - 1);
         const lines = content.split('\n');
@@ -227,7 +227,7 @@ program
 
       if (data.explanation) {
         spinner.succeed(`Explained via ${data.provider}`);
-        
+
         console.log(chalk.cyan('\n💡 Code Explanation:\n'));
         console.log(chalk.white(data.explanation));
       } else {
@@ -348,18 +348,18 @@ program
       } else {
         console.log(chalk.bold('🤖 AI Providers:'));
         health.providers.forEach((p: any) => {
-          const icon = p.status === 'available' ? '✅' : 
-                       p.status === 'circuit_open' ? '⚠️ ' : '❌';
+          const icon = p.status === 'available' ? '✅' :
+            p.status === 'circuit_open' ? '⚠️ ' : '❌';
           const free = p.free ? chalk.green('(FREE)') : chalk.yellow('(PAID)');
           console.log(`  ${icon} ${p.name} - ${p.tier} ${free} - ${p.status}`);
         });
 
         console.log(chalk.bold('\n📊 Daily KV Quota:'));
         const quotaPercent = health.kvWriteQuota || 0;
-        const quotaColor = quotaPercent > 85 ? chalk.red : 
-                          quotaPercent > 70 ? chalk.yellow : chalk.green;
+        const quotaColor = quotaPercent > 85 ? chalk.red :
+          quotaPercent > 70 ? chalk.yellow : chalk.green;
         console.log(`  ${quotaColor(`${quotaPercent}%`)} used (${Math.round(quotaPercent * 10)}/1000 writes)`);
-        
+
         if (quotaPercent >= 100) {
           console.log(chalk.red('\n  ⚠️  QUOTA EXCEEDED - Switch to Ollama or wait 24h'));
         } else if (quotaPercent > 85) {
@@ -409,7 +409,7 @@ program
         name: 'KV Quota',
         test: async () => {
           const res = await fetch(`${config.workerUrl}/api/health`);
-          const health = await response.json();
+          const health = await res.json();
           if (health.kvWriteQuota >= 100) {
             throw new Error('Daily quota exceeded');
           }
@@ -442,7 +442,7 @@ program
   .description('Create or show command alias')
   .action(async (name, cmd) => {
     if (!config.aliases) config.aliases = {};
-    
+
     if (!cmd || cmd.length === 0) {
       // Show alias
       if (config.aliases[name]) {
@@ -471,10 +471,10 @@ async function fileExists(filePath: string): Promise<boolean> {
 function detectLanguage(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
   const langMap: Record<string, string> = {
-    '.ts': 'typescript', '.tsx': 'typescript', 
+    '.ts': 'typescript', '.tsx': 'typescript',
     '.js': 'javascript', '.jsx': 'javascript',
     '.py': 'python', '.html': 'html', '.css': 'css',
-    '.json': 'json', '.go': 'go', '.rs': 'rust', 
+    '.json': 'json', '.go': 'go', '.rs': 'rust',
     '.cpp': 'cpp', '.c': 'c', '.java': 'java',
     '.rb': 'ruby', '.php': 'php', '.swift': 'swift'
   };

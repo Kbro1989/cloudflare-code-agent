@@ -37,8 +37,8 @@ RATE_LIMIT_PER_MINUTE = 15        # Gemini free tier: 15 RPM
 # CRITICAL: NO Workers AI binding
 # Workers AI costs $0.011/request after free tier
 # We use Gemini (free) → Ollama (free) ONLY
-# [ai]
-# binding = "AI"  # REMOVED
+[ai]
+binding = "AI"
 
 # Observability (Free tier: 1% sampling)
 [observability]

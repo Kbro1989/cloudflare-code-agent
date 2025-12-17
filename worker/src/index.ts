@@ -13,13 +13,14 @@ interface Env {
   CACHE: KVNamespace;
   MEMORY: KVNamespace;
   ASSETS: R2Bucket;
+  AI: any; // Workers AI binding
   RATE_LIMITER: DurableObjectNamespace;
-  
+
   // Secrets (NEVER logged, NEVER stored in code)
   GEMINI_API_KEY: string;
   OLLAMA_URL?: string;
   OLLAMA_AUTH_TOKEN?: string;
-  
+
   // Constants (non-secret)
   MAX_FILE_SIZE: number;
   MAX_CACHE_SIZE: number;
@@ -40,20 +41,20 @@ export class RateLimiter {
     const { clientId, limit, window } = await request.json() as any;
     const now = Date.now();
     const windowStart = now - window;
-    
+
     let times = this.requests.get(clientId) || [];
     times = times.filter(t => t > windowStart);
-    
+
     if (times.length >= limit) {
-      return new Response(JSON.stringify({ 
-        allowed: false, 
+      return new Response(JSON.stringify({
+        allowed: false,
         retryAfter: Math.ceil((times[0] - windowStart) / 1000)
       }), { status: 429, headers: { 'Content-Type': 'application/json' } });
     }
-    
+
     times.push(now);
     this.requests.set(clientId, times);
-    
+
     return new Response(JSON.stringify({ allowed: true }), {
       headers: { 'Content-Type': 'application/json' }
     });
@@ -78,7 +79,7 @@ export default {
     const clientId = request.headers.get('cf-connecting-ip') || 'unknown';
     const rateLimiterId = env.RATE_LIMITER.idFromName('global');
     const rateLimiter = env.RATE_LIMITER.get(rateLimiterId);
-    
+
     const rateCheck = await rateLimiter.fetch('https://rate-limit', {
       method: 'POST',
       body: JSON.stringify({
@@ -87,11 +88,11 @@ export default {
         window: 60000
       })
     });
-    
+
     if (rateCheck.status === 429) {
       const data = await rateCheck.json() as any;
-      return new Response(`Rate limit exceeded. Retry in ${data.retryAfter}s`, { 
-        status: 429, 
+      return new Response(`Rate limit exceeded. Retry in ${data.retryAfter}s`, {
+        status: 429,
         headers: { ...corsHeaders, 'Retry-After': String(data.retryAfter) }
       });
     }
@@ -99,7 +100,7 @@ export default {
     // KV write quota check (HARD CAP)
     const today = new Date().toISOString().split('T')[0];
     const writeCount = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
-    
+
     if (parseInt(writeCount) >= 1000) {
       return json({ error: "Daily KV write quota exceeded (1000/day). Use Ollama or wait 24h." }, 429, corsHeaders);
     }
@@ -110,19 +111,19 @@ export default {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
-      
+
       if (url.pathname === '/api/health') return handleHealth(env, corsHeaders);
       if (url.pathname === '/api/complete') return handleComplete(request, env, ctx, corsHeaders);
       if (url.pathname === '/api/chat') return handleChat(request, env, ctx, corsHeaders);
       if (url.pathname === '/api/explain') return handleExplain(request, env, ctx, corsHeaders);
-      
+
       return new Response('Not found', { status: 404, headers: corsHeaders });
     } catch (e: any) {
       // NO SECRET LOGGING - redact any secrets from error messages
       const safeMessage = e.message.replace(/GEMINI_API_KEY|OLLAMA_AUTH_TOKEN|AIza[A-Za-z0-9_-]+/g, '[REDACTED]');
-      return new Response(`Internal error: ${safeMessage}`, { 
-        status: 500, 
-        headers: corsHeaders 
+      return new Response(`Internal error: ${safeMessage}`, {
+        status: 500,
+        headers: corsHeaders
       });
     }
   }
@@ -132,7 +133,7 @@ export default {
 async function incrementKVQuota(env: Env): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
   const current = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
-  await env.CACHE.put(`kvWriteCount:${today}`, (parseInt(current) + 1).toString(), { 
+  await env.CACHE.put(`kvWriteCount:${today}`, (parseInt(current) + 1).toString(), {
     expirationTtl: 86400 // Reset daily
   });
 }
@@ -144,12 +145,12 @@ async function handleHealth(env: Env, corsHeaders: any): Promise<Response> {
     kvWriteQuota: 0,
     providers: [] as any[]
   };
-  
+
   // Check KV quota usage
   const today = new Date().toISOString().split('T')[0];
   const writeCount = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
   status.kvWriteQuota = Math.round((parseInt(writeCount) / 1000) * 100);
-  
+
   // Check Gemini (circuit breaker aware)
   if (env.GEMINI_API_KEY) {
     const isFailing = await env.CACHE.get('geminiCircuitBreaker') === 'true';
@@ -160,17 +161,17 @@ async function handleHealth(env: Env, corsHeaders: any): Promise<Response> {
       free: true
     });
   }
-  
+
   // Check Ollama (optional fallback)
   if (env.OLLAMA_URL) {
     try {
       const res = await fetch(`${env.OLLAMA_URL}/api/tags`, {
-        headers: env.OLLAMA_AUTH_TOKEN ? { 
-          'Authorization': `Bearer ${env.OLLAMA_AUTH_TOKEN}` 
+        headers: env.OLLAMA_AUTH_TOKEN ? {
+          'Authorization': `Bearer ${env.OLLAMA_AUTH_TOKEN}`
         } : {},
         signal: AbortSignal.timeout(2000)
       });
-      
+
       status.providers.push({
         name: 'ollama',
         tier: 'fallback',
@@ -186,41 +187,41 @@ async function handleHealth(env: Env, corsHeaders: any): Promise<Response> {
       });
     }
   }
-  
+
   return json(status, 200, corsHeaders);
 }
 
 // AI Completion with circuit breaker
 async function handleComplete(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   const { fileId, code, cursor, language, prompt } = await request.json() as any;
-  
+
   // Build prompt
   const before = code ? code.substring(Math.max(0, cursor - 600), cursor) : '';
   const after = code ? code.substring(cursor, Math.min(code.length, cursor + 150)) : '';
   const finalPrompt = prompt || `Complete this ${language} code:\n${before}<CURSOR>${after}\n\nOutput only the completion:`;
-  
+
   // Check cache first (READ doesn't count against quota)
   const cacheKey = await hashString(`${fileId}:${finalPrompt}`);
   const cached = await env.CACHE.get(cacheKey);
-  
+
   if (cached) {
     return streamResponse(cached, true, 'cache', corsHeaders);
   }
-  
+
   // Check KV quota before attempting AI call
   const today = new Date().toISOString().split('T')[0];
   const writeCount = parseInt(await env.CACHE.get(`kvWriteCount:${today}`) || '0');
-  
+
   if (writeCount >= 1000) {
-    return json({ 
-      error: "Daily KV write quota exceeded. Completion not cached. Use Ollama for unlimited local AI." 
+    return json({
+      error: "Daily KV write quota exceeded. Completion not cached. Use Ollama for unlimited local AI."
     }, 429, corsHeaders);
   }
-  
+
   // Generate with circuit breaker
   try {
     const result = await generateCompletion(env, finalPrompt, 150);
-    
+
     // Cache if reasonable size AND quota available
     if (result.completion.length <= env.MAX_CACHE_SIZE && writeCount < 1000) {
       ctx.waitUntil(
@@ -228,7 +229,7 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
           .then(() => incrementKVQuota(env))
       );
     }
-    
+
     return streamResponse(result.completion, false, result.provider, corsHeaders);
   } catch (e: any) {
     return new Response(`AI generation failed: ${e.message}`, { status: 503, headers: corsHeaders });
@@ -239,7 +240,7 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 async function generateCompletion(env: Env, prompt: string, maxTokens: number): Promise<{ completion: string, provider: string }> {
   // Check if Gemini is in circuit-breaker state
   const geminiFailing = await env.CACHE.get('geminiCircuitBreaker') === 'true';
-  
+
   // Try Gemini if circuit is closed
   if (!geminiFailing && env.GEMINI_API_KEY) {
     try {
@@ -265,7 +266,7 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
           signal: AbortSignal.timeout(20000)
         }
       );
-      
+
       if (res.ok) {
         const data = await res.json() as any;
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -279,16 +280,30 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
       console.error('Gemini failed, circuit opened for 5 minutes');
     }
   }
-  
-  // Fallback to Ollama (NO Workers AI - too expensive)
+  // Fallback 1: Workers AI (Llama 3 - Free Tier Enforced)
+  if (env.AI) { // Try if Gemini failed or is skipped
+    try {
+      // @ts-ignore - AI type is generic
+      const response = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+        prompt: prompt
+      });
+      if (response && response.response) {
+        return { completion: response.response.trim(), provider: 'workers-ai' };
+      }
+    } catch (e) {
+      console.error('Workers AI failed:', e);
+    }
+  }
+
+  // Fallback 2: Ollama (NO Workers AI - too expensive)
   if (env.OLLAMA_URL) {
     try {
       const res = await fetch(`${env.OLLAMA_URL}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(env.OLLAMA_AUTH_TOKEN ? { 
-            'Authorization': `Bearer ${env.OLLAMA_AUTH_TOKEN}` 
+          ...(env.OLLAMA_AUTH_TOKEN ? {
+            'Authorization': `Bearer ${env.OLLAMA_AUTH_TOKEN}`
           } : {})
         },
         body: JSON.stringify({
@@ -303,7 +318,7 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
         }),
         signal: AbortSignal.timeout(30000)
       });
-      
+
       if (res.ok) {
         const data = await res.json() as any;
         if (data.response) {
@@ -314,21 +329,21 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
       console.error('Ollama error:', e);
     }
   }
-  
+
   throw new Error('All AI providers failed. Gemini circuit is open, Ollama unavailable.');
 }
 
 // Chat endpoint (request-scoped, no state)
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   const { message, history = [] } = await request.json() as any;
-  
+
   if (!message || message.length > 2000) {
     return new Response('Invalid message', { status: 400, headers: corsHeaders });
   }
-  
+
   // Build prompt from history (max 5 messages to stay within context window)
   const prompt = buildChatPrompt(message, history.slice(-5));
-  
+
   try {
     const result = await generateCompletion(env, prompt, 500);
     return streamResponse(result.completion, false, result.provider, corsHeaders);
@@ -339,7 +354,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
 
 function buildChatPrompt(message: string, history: any[] = []): string {
   let prompt = '';
-  
+
   if (history.length > 0) {
     prompt += 'Previous conversation:\n';
     history.forEach(msg => {
@@ -347,7 +362,7 @@ function buildChatPrompt(message: string, history: any[] = []): string {
     });
     prompt += '\n';
   }
-  
+
   prompt += `Question: ${message}\n\nAnswer:`;
   return prompt;
 }
@@ -355,9 +370,9 @@ function buildChatPrompt(message: string, history: any[] = []): string {
 // Explain code
 async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   const { code, language } = await request.json() as any;
-  
+
   const prompt = `Explain this ${language} code concisely:\n\`\`\`${language}\n${code}\n\`\`\`\n\nExplanation:`;
-  
+
   try {
     const result = await generateCompletion(env, prompt, 300);
     return json({ explanation: result.completion, provider: result.provider }, 200, corsHeaders);
@@ -376,16 +391,16 @@ function streamResponse(content: string, cached: boolean, provider: string, cors
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-        token: content, 
-        cached, 
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        token: content,
+        cached,
         provider,
         cost: provider === 'gemini' || provider === 'ollama' || cached ? 0 : 0
       })}\n\n`));
       controller.close();
     }
   });
-  
+
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
