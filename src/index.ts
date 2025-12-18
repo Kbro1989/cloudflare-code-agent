@@ -65,11 +65,12 @@ export default {
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
       const finalHtml = IDE_HTML.replace(
-        '</body>',
+        `< script >
+  // --- All of your UI Logic will be injected by the worker ---
+  </script>`,
         `<script>
 ${UI_JS}
-</script>
-</body>`
+</script>`
       );
       return new Response(finalHtml, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' }
