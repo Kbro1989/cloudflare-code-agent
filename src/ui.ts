@@ -183,11 +183,10 @@ export const IDE_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-export const UI_JS = `// Helper function to escape strings for JavaScript literal insertion
+export const UI_JS = `
 function escapeJsString(str) {
-    // Escapes single quotes and backslashes for insertion into a JavaScript string literal within HTML attributes.
-    // Note: The '$' character does not need special escaping when injecting into a plain JS string literal.
-    return str.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, '\\\\'');
+    if (!str) return str;
+    return String(str).replace(/\\\\/g, "\\\\\\\\").replace(/'/g, "\\'");
 }
 
 // Global variables for the IDE state
