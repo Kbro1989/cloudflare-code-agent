@@ -102,6 +102,13 @@ ${UI_JS}
         case '/api/fs/list':
         case '/api/fs/file':
           return handleFilesystem(request, env, corsHeaders);
+        case '/api/terminal':
+          return handleTerminal(request, env, corsHeaders);
+        case '/api/github/clone':
+        case '/api/github/push':
+        case '/api/github/user':
+        case '/api/github/content':
+          return handleGithub(request, env, corsHeaders);
         case '/api/health':
           return handleHealth(request, env, corsHeaders);
         default:
@@ -138,6 +145,99 @@ async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promi
     return new Response(`Deploy Failed: ${e.message}`, { status: 500, headers: corsHeaders });
   }
 }
+
+// ----------------------------------------------------------------------------
+// Terminal & GitHub Handlers
+// ----------------------------------------------------------------------------
+
+import { GitHubService } from './services/github';
+
+async function handleTerminal(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+  const { command } = await request.json() as any;
+  const args = command.trim().split(/\s+/);
+  const cmd = args[0];
+  const target = args[1];
+
+  let output = '';
+
+  try {
+    switch (cmd) {
+      case 'ls':
+        const listed = await env.R2_ASSETS.list();
+        output = listed.objects.map(o => o.key).join('\n');
+        break;
+      case 'cat':
+        if (!target) { output = 'Usage: cat <filename>'; break; }
+        const file = await env.R2_ASSETS.get(target);
+        if (!file) output = `File not found: ${target}`;
+        else output = await file.text();
+        break;
+      case 'rm':
+        if (!target) { output = 'Usage: rm <filename>'; break; }
+        await env.R2_ASSETS.delete(target);
+        output = `Deleted ${target}`;
+        break;
+      case 'echo':
+        output = args.slice(1).join(' ');
+        break;
+      default:
+        output = `Command not found: ${cmd}. Try: ls, cat, rm, echo`;
+    }
+  } catch (e: any) {
+    output = `Error: ${e.message}`;
+  }
+
+  return json({ output }, 200, corsHeaders);
+}
+
+async function handleGithub(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  const url = new URL(request.url);
+  // Pass empty strings as we are using Token-auth methods mostly
+  const gh = new GitHubService('', '');
+
+  try {
+    const body = await request.json() as any;
+    const { token, owner, repo, branch, path } = body;
+
+    if (url.pathname.endsWith('/user')) {
+      const user = await gh.getUser(token);
+      return json(user, 200, corsHeaders);
+    }
+
+    if (url.pathname.endsWith('/clone')) {
+      // "Clone" here means list files and returning them to UI to "save" to R2
+      // A real recursive clone might be too heavy for one request, but let's try shallow or simple
+      const tree = await gh.getTree(token, owner, repo, branch || 'main') as any;
+      if (tree.truncated) {
+        return json({ error: 'Repo too large (truncated)' }, 400, corsHeaders);
+      }
+
+      // Filter for blobs (files)
+      const files = tree.tree.filter((t: any) => t.type === 'blob');
+
+      // We return the file list. The UI should then fetch content for them or we do it here?
+      // Doing it here matches "Clone" better but might timeout.
+      // Let's return the tree and let the UI fetch contents or we fetch a few critical ones.
+      return json({ files }, 200, corsHeaders);
+    }
+
+    // Fetch specific file content from GH (used by Clone loop)
+    if (url.pathname.endsWith('/content')) {
+      const content = await gh.getRepoContent(token, owner, repo, path);
+      // GH returns base64 content often
+      return json(content, 200, corsHeaders);
+    }
+
+    return new Response('Not Found', { status: 404, headers: corsHeaders });
+
+  } catch (e: any) {
+    return new Response(`GitHub Error: ${e.message}`, { status: 500, headers: corsHeaders });
+  }
+}
+
+// Helper (Reuse existing if available, or keep this one if unique)
+function info(msg: string) { console.log(msg); }
 
 async function deploySnippetToNamespace(
   opts: {

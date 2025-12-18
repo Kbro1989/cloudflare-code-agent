@@ -69,6 +69,23 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div id="fileList" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-sm">
                 <div class="animate-pulse flex space-x-2 p-2"><div class="rounded-full bg-slate-700 h-4 w-4"></div><div class="h-4 bg-slate-700 rounded w-3/4"></div></div>
             </div>
+
+            <!-- GitHub Section -->
+            <div class="p-3 border-t border-slate-700/50 bg-slate-800/30">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-semibold text-slate-400">GITHUB SYNC</span>
+                    <button class="text-slate-500 hover:text-white" onclick="window.toggleGithubSettings()"><i class="fa-solid fa-cog"></i></button>
+                </div>
+                <div id="githubControls" class="space-y-2">
+                    <div class="flex gap-1">
+                        <input id="ghRepo" placeholder="owner/repo" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 px-2 py-1 rounded w-full">
+                    </div>
+                     <div class="flex gap-1">
+                        <button onclick="window.ghClone()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs py-1 rounded"><i class="fa-solid fa-download"></i> Clone</button>
+                        <button onclick="window.ghPush()" class="flex-1 bg-indigo-900 hover:bg-indigo-800 text-indigo-300 text-xs py-1 rounded"><i class="fa-solid fa-upload"></i> Push</button>
+                    </div>
+                </div>
+            </div>
         </aside>
 
         <!-- Editor Area -->
@@ -83,9 +100,24 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <div id="previewContainer" class="absolute inset-0 hidden z-10 bg-slate-900"></div>
             </div>
 
+            <!-- Bottom Panel (Terminal) -->
+            <div id="bottomPanel" class="h-48 bg-[#1e1e1e] border-t border-slate-700 hidden flex flex-col">
+                <div class="flex justify-between items-center px-4 py-1 bg-[#2d2d2d] border-b border-[#3e3e3e]">
+                    <span class="text-xs text-slate-300">TERMINAL</span>
+                    <button class="text-slate-400 hover:text-white" onclick="document.getElementById('bottomPanel').classList.add('hidden')"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div id="terminalOutput" class="flex-1 overflow-y-auto p-2 font-mono text-xs text-slate-300 space-y-1">
+                    <div class="text-emerald-400">Welcome to Cloudflare Agent Terminal</div>
+                </div>
+                <div class="p-2 bg-[#2d2d2d] flex items-center">
+                    <span class="text-emerald-400 mr-2">$</span>
+                    <input id="terminalInput" class="bg-transparent border-none outline-none text-slate-200 text-sm w-full font-mono" placeholder="Type command...">
+                </div>
+            </div>
+
             <div class="h-8 bg-slate-800 border-t border-slate-700 flex items-center px-4 justify-between text-xs text-slate-400">
                 <div class="flex space-x-4">
-                    <span class="hover:text-slate-200 cursor-pointer"><i class="fa-solid fa-terminal mr-1"></i> TERMINAL</span>
+                    <span class="hover:text-slate-200 cursor-pointer" onclick="document.getElementById('bottomPanel').classList.remove('hidden'); document.getElementById('terminalInput').focus()"><i class="fa-solid fa-terminal mr-1"></i> TERMINAL</span>
                     <span class="hover:text-slate-200 cursor-pointer"><i class="fa-solid fa-triangle-exclamation mr-1"></i> PROBLEMS</span>
                 </div>
                 <div>Ln <span id="cursorLine">1</span>, Col <span id="cursorCol">1</span></div>
@@ -794,10 +826,148 @@ require(['vs/editor/editor.main'], function(monacoInstance) {
         moduleResolution: monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
     });
 
-    editor = monacoInstance.editor.create(document.getElementById('editorContainer'), {
+    editor = monacoInstance.editor.create(document.getElementById('monacoContainer'), {
         value: '// Select a file to view content',
         language: 'typescript',
         theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 13,
+        fontFamily: 'Consolas, "Courier New", monospace',
+        padding: { top: 16 },
+        scrollBeyondLastLine: false,
+        smoothScrolling: true
+    });
+
+    editor.onDidChangeCursorPosition((e) => {
+        const cursorLineElement = document.getElementById('cursorLine');
+        const cursorColElement = document.getElementById('cursorCol');
+        if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
+        if (cursorColElement) cursorColElement.innerText = e.position.column;
+    });
+
+    editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
+        if (activeFile) window.saveCurrentFile(activeFile, editor.getValue());
+    });
+
+    window.refreshFiles();
+});
+
+// --- Terminal Logic ---
+const termInput = document.getElementById('terminalInput');
+if (termInput) {
+    termInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+            const cmd = termInput.value;
+            if (!cmd) return;
+            termInput.value = '';
+
+            const out = document.getElementById('terminalOutput');
+            const line = document.createElement('div');
+            line.innerHTML = '<span class="text-slate-500 mr-2">$</span>' + window.escapeHtml(cmd);
+            out.appendChild(line);
+
+            try {
+                const res = await fetch('/api/terminal', {
+                    method: 'POST',
+                    body: JSON.stringify({ command: cmd })
+                });
+                const d = await res.json();
+                const respLine = document.createElement('pre');
+                respLine.className = 'text-slate-300 whitespace-pre-wrap ml-4';
+                respLine.innerText = d.output;
+                out.appendChild(respLine);
+            } catch (err) {
+                const errLine = document.createElement('div');
+                errLine.className = 'text-red-400 ml-4';
+                errLine.innerText = 'Error: ' + err.message;
+                out.appendChild(errLine);
+            }
+            out.scrollTop = out.scrollHeight;
+        }
+    });
+}
+
+window.escapeHtml = function(text) {
+    if (!text) return text;
+    return text.replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
+}
+
+// --- GitHub Logic ---
+window.toggleGithubSettings = function() {
+    const current = localStorage.getItem('gh_token') || '';
+    const token = prompt("Enter GitHub Personal Access Token (repo scope):", current);
+    if (token !== null) {
+        localStorage.setItem('gh_token', token);
+        alert("Token saved locally.");
+    }
+};
+
+window.ghClone = async function() {
+    const repoInput = document.getElementById('ghRepo');
+    const repo = repoInput ? repoInput.value : '';
+    const token = localStorage.getItem('gh_token');
+
+    if (!repo || !token) {
+        alert("Please set Repo (owner/repo) and Token (settings icon) first.");
+        return;
+    }
+
+    const [owner, colRepo] = repo.split('/');
+    if (!owner || !colRepo) { alert("Invalid Format. Use owner/repo"); return; }
+
+    const btn = document.querySelector('button[onclick="window.ghClone()"]');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const res = await fetch('/api/github/clone', {
+            method: 'POST',
+            body: JSON.stringify({ token, owner, repo: colRepo })
+        });
+        const data = await res.json();
+
+        if (data.error) throw new Error(data.error);
+        if (!data.files) throw new Error("No files found");
+
+        // Fetch Content Loop
+        let count = 0;
+        for (const file of data.files) {
+             // Skip huge files or images for now?
+             const cRes = await fetch('/api/github/content', {
+                 method: 'POST',
+                 body: JSON.stringify({ token, owner, repo: colRepo, path: file.path })
+             });
+             const contentData = await cRes.json();
+
+             // Save to FS
+             await fetch('/api/fs/file', {
+                 method: 'POST',
+                 body: JSON.stringify({
+                    name: file.path,
+                    content: contentData.content,
+                    encoding: contentData.encoding
+                 })
+             });
+             count++;
+        }
+        alert('Cloned ' + count + ' files successfully.');
+        window.refreshFiles();
+
+    } catch (e) {
+        alert("Clone Failed: " + e.message);
+    } finally {
+        btn.innerHTML = oldText;
+    }
+};
+
+window.ghPush = function() {
+    alert("Push not yet implemented (Requires commit object construction).");
+};
         automaticLayout: true,
         minimap: { enabled: false },
         fontSize: 13,
