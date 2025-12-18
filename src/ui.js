@@ -69,23 +69,25 @@ window.deployProject = async function() {
 }
 
 // --- Monaco Editor Setup ---
-constMONACO_VS_URL = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs';
-require.config({ paths: { vs: MONACO_VS_URL } });
-window.MonacoEnvironment = { getWorkerUrl: () => proxy };
+if (typeof window !== 'undefined') {
+  const MONACO_VS_URL = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs';
+  require.config({ paths: { vs: MONACO_VS_URL } });
+  window.MonacoEnvironment = { getWorkerUrl: () => proxy };
 
-let proxy = URL.createObjectURL(
-  new Blob(
-    [
-      `
-  self.MonacoEnvironment = {
-    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/'
-  };
-  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/base/worker/workerMain.js');
-`
-    ],
-    { type: 'text/javascript' }
-  )
-);
+  let proxy = URL.createObjectURL(
+    new Blob(
+      [
+        `
+    self.MonacoEnvironment = {
+      baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/'
+    };
+    importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/base/worker/workerMain.js');
+  `
+      ],
+      { type: 'text/javascript' }
+    )
+  );
+}
 
 require(['vs/editor/editor.main'], function(monacoInstance) {
     window.monaco = monacoInstance; // Expose monaco globally
