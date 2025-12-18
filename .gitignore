@@ -2,4 +2,24 @@ node_modules/
 .wrangler/
 dist/
 .env
+.env*
 *.log
+npm-debug.log*
+
+# Secrets & Security
+*.key
+*.pem
+wrangler.toml.backup
+.secrets
+
+# IDEs
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Build artifacts
+*.tsbuildinfo

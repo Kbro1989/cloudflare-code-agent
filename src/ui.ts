@@ -184,10 +184,6 @@ export const IDE_HTML = `<!DOCTYPE html>
 </html>`;
 
 export const UI_JS = `
-function escapeJsString(str) {
-    return (str || '').toString();
-}
-
 // Global variables for the IDE state
 // Global variables for the IDE state
 let activeFile = null; // Currently active file name
