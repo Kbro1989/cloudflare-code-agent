@@ -71,12 +71,12 @@ export default {
     // Serve ui.js
     if (url.pathname === '/ui.js') {
       // Correctly import and serve the JavaScript file as a string
-      const { UI_JS } = await import('./ui.js');
+      const { UI_JS } = await import('./ui');
       return new Response(UI_JS, {
         headers: { 'Content-Type': 'application/javascript; charset=utf-8' }
       });
     }
-    
+
     // Router
     try {
       switch (url.pathname) {
