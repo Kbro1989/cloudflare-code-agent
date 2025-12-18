@@ -36,14 +36,14 @@ const MODELS = {
 
 const SYSTEM_PROMPT = `
 You are an advanced AI coding agent (Omni-Dev Level).
-You have access to the user's local filesystem via the CLI.
-Tools:
-1. readFile(path)
-2. writeFile(path, content)
-3. listFiles(path)
-4. runCommand(cmd)
-
-Output JSON tool calls wrapped in \`\`\`json blocks.
+To edit files, output a code block with the first line specifying the file path:
+\`\`\`language
+// file: path/to/file.ext
+... code ...
+\`\`\`
+Always specify the full relative path.
+Output JSON tool calls wrapped in \`\`\`json blocks only if asked specific questions about filesystem data.
+For edits, prefer providing the code block directly.
 `;
 
 export default {
@@ -65,9 +65,9 @@ export default {
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
       const finalHtml = IDE_HTML.replace(
-        `<script>
-        // --- All of your UI Logic will be injected by the worker ---
-    </script>`,
+        `< script >
+  // --- All of your UI Logic will be injected by the worker ---
+  </script>`,
         `<script>
 ${UI_JS}
 </script>`
@@ -109,6 +109,8 @@ ${UI_JS}
         case '/api/github/user':
         case '/api/github/content':
           return handleGithub(request, env, corsHeaders);
+        case '/api/context/map':
+          return handleContextMap(request, env, corsHeaders);
         case '/api/health':
           return handleHealth(request, env, corsHeaders);
         default:
@@ -119,6 +121,29 @@ ${UI_JS}
     }
   }
 };
+
+// ----------------------------------------------------------------------------
+// Context / RAG Handler
+// ----------------------------------------------------------------------------
+async function handleContextMap(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  try {
+    const listed = await env.R2_ASSETS.list();
+    // Simple context map: list of files.
+    // In a real RAG, we'd add token counts or summary signatures here.
+    const files = listed.objects.map(o => ({
+      name: o.key,
+      size: o.size,
+      updated: o.uploaded
+    }));
+
+    // Filter out binary/useless files for LLM context
+    const textFiles = files.filter(f => !f.name.match(/\.(png|jpg|glb|gltf|woff2)$/i));
+
+    return json({ tree: textFiles }, 200, corsHeaders);
+  } catch (e: any) {
+    return json({ error: e.message }, 500, corsHeaders);
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Deployment Handler (Self-Replication)

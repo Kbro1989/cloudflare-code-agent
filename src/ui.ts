@@ -164,6 +164,20 @@ export const IDE_HTML = `<!DOCTYPE html>
 
     </div>
 
+    <!-- Diff Modal (God Mode) -->
+    <div id="diffModal" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#1e1e1e] w-[90%] h-[90%] border border-slate-600 rounded-lg shadow-2xl flex flex-col overflow-hidden">
+            <div class="h-10 bg-[#2d2d2d] flex items-center justify-between px-4 border-b border-slate-700">
+                <span class="font-bold text-slate-300"><i class="fa-solid fa-code-compare text-indigo-400 mr-2"></i>Review Changes</span>
+                <div class="space-x-2">
+                    <button onclick="window.rejectDiff()" class="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1 rounded transition border border-red-700">Reject</button>
+                    <button onclick="window.acceptDiff()" class="text-xs bg-emerald-900/50 hover:bg-emerald-900 text-emerald-200 px-3 py-1 rounded transition border border-emerald-700">Accept</button>
+                </div>
+            </div>
+            <div id="diffContainer" class="flex-1 relative"></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script type="module" src="/ui.js"></script>
 </body>
@@ -178,11 +192,13 @@ function escapeJsString(str) {
 
 // Global variables for the IDE state
 // Global variables for the IDE state
-let editor; // Monaco editor instance
 let activeFile = null; // Currently active file name
 let openTabs = []; // Array of file names
 let fileTree = []; // Array representing the file system tree
 let activeImage = null; // Track image context for Vision
+let projectMap = []; // Context: Full list of text files
+let contextFiles = new Set(); // Files explicitly referenced via @
+let diffEditor = null; // Monaco Diff Editor Instance
 
 // --- Deployment Logic ---
 window.deployProject = async function() {
@@ -591,7 +607,52 @@ window.sendMessage = async function() {
     const aiDiv = window.addMessage('ai', '', true);
 
     try {
-        const payload = { message: text, model };
+        // --- Context Injection (God Mode) ---
+        let promptWithContext = text;
+        const attachedContext = [];
+
+        // 1. Explicit @file references
+        const mentions = text.match(/@[\w.\/-]+/g);
+        if (mentions) {
+            for (const mention of mentions) {
+                const fname = mention.substring(1);
+                try {
+                     const res = await fetch('/api/fs/file?name=' + encodeURIComponent(fname));
+                     if(res.ok) {
+                        const d = await res.json();
+                        attachedContext.push({ name: fname, content: d.content });
+                     }
+                } catch(e) {}
+            }
+        }
+
+        // 2. Active File Context (Text Files Only)
+        if (activeFile && !mentions?.includes('@' + activeFile) && !activeFile.match(/\.(png|jpg|glb|gltf)$/i)) {
+             try {
+                 let content = '';
+                 if (editor && activeFile === editor.getModel()?.uri.path.substring(1)) {
+                     content = editor.getValue();
+                 } else {
+                     const res = await fetch('/api/fs/file?name=' + encodeURIComponent(activeFile));
+                     const d = await res.json();
+                     content = d.content;
+                 }
+                 attachedContext.push({ name: activeFile, content: content, isCurrent: true });
+             } catch(e){}
+        }
+
+        const payload = { message: promptWithContext, model };
+
+        // Lightweight Context Prepend
+        if (attachedContext.length > 0) {
+            let contextStr = '\\\\n--- CONTEXT ---\\\\n';
+            attachedContext.forEach(c => {
+                contextStr += 'File: ' + c.name + '\\\\n' +
+                              '\\x60\\x60\\x60' + window.getLanguage(c.name) + '\\\\n' + c.content + '\\\\n\\x60\\x60\\x60\\\\n\\\\n';
+            });
+            payload.message = contextStr + '--- USER QUERY ---\\\\n' + text;
+        }
+
         if (activeImage) payload.image = activeImage;
 
         const res = await fetch('/api/chat', {
@@ -692,13 +753,23 @@ window.applyCode = function(encodedCode) {
 
 window.formatToken = function(text) {
     // Regex for code blocks (using hex 60 for backtick to avoid string closure)
-    const pattern = /\\x60\\x60\\x60(\\\w+)?\\\n([\\\s\\\S]*?)\\x60\\x60\\x60/g;
-    text = text.replace(pattern, function(match, lang, code) {
+    // Capture: 1=lang, 2=filename(optional), 3=content
+    const pattern = /\\x60\\x60\\x60(\\\w+)?\\\n(?:\\/\\/\\s*file:\\s*([^\\\n\\\r]+)\\\n)?([\\\s\\\S]*?)\\x60\\x60\\x60/g;
+    text = text.replace(pattern, function(match, lang, file, code) {
+        // If file is missing, 'file' arg might be 'code' if regex groups are weird?
+        // No, groups are: 1, 2, 3.
+        // If 2 is missing, it's undefined.
         const encoded = encodeURIComponent(code);
+        const encodedFile = file ? encodeURIComponent(file.trim()) : '';
+        const fileBadge = file ? \`<span class="bg-indigo-500/20 text-indigo-300 px-1.5 rounded text-[10px] ml-2">\${file.trim()}</span>\` : '';
+
         return \`<div class="bg-slate-900 rounded p-2 my-2 border border-slate-700 relative group">
                     <div class="flex justify-between items-center text-xs text-slate-500 mb-1">
-                        <span>\${lang || 'code'}</span>
-                        <button onclick="window.applyCode('\${encoded}')" class="text-indigo-400 hover:text-indigo-300 opacity-50 group-hover:opacity-100 transition"><i class="fa-solid fa-arrow-right-to-bracket"></i> Apply</button>
+                        <div class="flex items-center">
+                            <span>\${lang || 'code'}</span>
+                            \${fileBadge}
+                        </div>
+                        <button onclick="window.applyCode('\${encoded}', '\${encodedFile}')" class="text-indigo-400 hover:text-indigo-300 opacity-50 group-hover:opacity-100 transition"><i class="fa-solid fa-arrow-right-to-bracket"></i> Apply</button>
                     </div>
                     <pre class="overflow-x-auto text-xs text-slate-300 font-mono"><code>\${code}</code></pre>
                 </div>\`;
@@ -882,6 +953,13 @@ if (termInput) {
                 errLine.className = 'text-red-400 ml-4';
                 errLine.innerText = 'Error: ' + err.message;
                 out.appendChild(errLine);
+
+                // Auto-Fix Button (God Mode)
+                const fixBtn = document.createElement('button');
+                fixBtn.className = 'text-xs bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded ml-4 mt-1 hover:bg-indigo-800 transition flex items-center gap-1';
+                fixBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Fix';
+                fixBtn.onclick = () => window.autoFix(cmd, err.message);
+                out.appendChild(fixBtn);
             }
             out.scrollTop = out.scrollHeight;
         }
@@ -968,28 +1046,6 @@ window.ghClone = async function() {
 window.ghPush = function() {
     alert("Push not yet implemented (Requires commit object construction).");
 };
-        automaticLayout: true,
-        minimap: { enabled: false },
-        fontSize: 13,
-        fontFamily: 'Consolas, "Courier New", monospace',
-        padding: { top: 16 },
-        scrollBeyondLastLine: false,
-        smoothScrolling: true
-    });
-
-    editor.onDidChangeCursorPosition((e) => {
-        const cursorLineElement = document.getElementById('cursorLine');
-        const cursorColElement = document.getElementById('cursorCol');
-        if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
-        if (cursorColElement) cursorColElement.innerText = e.position.column;
-    });
-
-    editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
-        window.saveCurrentFile(activeFile, editor.getValue());
-    });
-
-    window.refreshFiles();
-});
 
 const modelSelector = document.getElementById('modelSelector');
 const providerBadge = document.getElementById('providerBadge');
@@ -1262,15 +1318,84 @@ window.addMessage = function(role, text, loading) {
     return div;
 };
 
-window.applyCode = function(encodedCode) {
-    if(!editor) return;
-    const code = decodeURIComponent(encodedCode);
-    const position = editor.getPosition();
-    editor.executeEdits("ai-apply", [{
-        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-        text: code,
-        forceMoveMarkers: true
-    }]);
+window.applyCode = async function(encodedCode, encodedFile) {
+    // 0. Handle File Targeting
+    const targetFile = encodedFile ? decodeURIComponent(encodedFile) : activeFile;
+    if (targetFile && targetFile !== activeFile) {
+        // Switch to the target file first
+        await window.loadFile(targetFile); // Assuming loadFile handles opening/creating
+        // wait a bit for editor to update? loadFile is async and sets editor value.
+    }
+
+    if(!editor || !activeFile) return;
+    const newCode = decodeURIComponent(encodedCode);
+    const originalCode = editor.getValue(); // Current editor content
+
+    // 1. Show Modal
+    const modal = document.getElementById('diffModal');
+    if (modal) modal.classList.remove('hidden');
+
+    // 2. Initialize Diff Editor if needed
+    if (!diffEditor) {
+        diffEditor = monaco.editor.createDiffEditor(document.getElementById('diffContainer'), {
+            theme: 'vs-dark',
+            originalEditable: false,
+            readOnly: false // Modified side is editable
+        });
+    }
+
+    // 3. Set Models (Original vs Modified)
+    // Heuristic: If newCode is a full file (via size or structure), use it.
+    // ideal: The AI should return a flag "isPatch" vs "isFile".
+    // For now, let's assume if it contains 'import ' or is > 50% length of original, it's a replacement.
+    // OTHERWISE, if it's small, it might be a snippet we need to "patch" in?
+    // "God Mode" Cursor style usually expects full file rewrites or smart instruction patches.
+    // Let's assume the AI returns the RELEVANT snippet.
+    // If we want a true Diff, we need to apply the snippet to the original logic first.
+    // BUT window.applyCode is currently triggered by "Apply" button on a code block.
+    // Simplest v1: The user must ask AI to provide the FULL file logic if they want a clean diff.
+    // Complex v2 (Smart Patch): We can't easily guess where a snippet goes without line numbers.
+    // STRATEGY: Treat the AI response as the "New Content". Even if it's just a function, compare it.
+
+    const originalModel = monaco.editor.createModel(originalCode, 'typescript'); // TODO: dynamic lang
+    const modifiedModel = monaco.editor.createModel(newCode, 'typescript');
+
+    diffEditor.setModel({
+        original: originalModel,
+        modified: modifiedModel
+    });
+};
+
+window.acceptDiff = function() {
+    if (!diffEditor || !editor) return;
+    const modifiedModel = diffEditor.getModel().modified;
+    const finalCode = modifiedModel.getValue();
+
+    // Apply to Main Editor
+    editor.setValue(finalCode);
+
+    // Save?
+    if (activeFile) window.saveCurrentFile(activeFile, finalCode);
+
+    // Close Modal
+    document.getElementById('diffModal').classList.add('hidden');
+
+    // Cleanup? Keep instance, dispose models?
+    // diffEditor.getModel().original.dispose();
+    // diffEditor.getModel().modified.dispose();
+};
+
+window.rejectDiff = function() {
+    document.getElementById('diffModal').classList.add('hidden');
+};
+
+window.autoFix = function(cmd, errorMsg) {
+    const prompt = \`I ran command "\${cmd}" and got this error:\\n\\n\${errorMsg}\\n\\nPlease fix the code to resolve this error.\`;
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.value = prompt;
+        window.sendMessage();
+    }
 };
 
 window.formatToken = function(text) {
