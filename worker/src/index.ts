@@ -330,7 +330,9 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
     }
   }
 
-  throw new Error('All AI providers failed. Gemini circuit is open, Ollama unavailable.');
+  // If we reach here, everything failed.
+  // We throw a detailed error to help the user debug (redacted for safety in handler)
+  throw new Error(`All AI providers failed. Gemini: ${env.GEMINI_API_KEY ? 'Active' : 'Missing Key'} (Circuit: ${geminiFailing}), Workers AI: ${env.AI ? 'Bound' : 'Missing'}, Ollama: ${env.OLLAMA_URL ? 'Configured' : 'Missing'}`);
 }
 
 // Chat endpoint (request-scoped, no state)
