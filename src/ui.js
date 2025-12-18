@@ -311,10 +311,7 @@ window.handleImageGeneration = async function(prompt) {
         const data = await res.json();
 
         const id = 'img-' + Date.now();
-        aiDiv.innerHTML = \`<div class="flex flex-col gap-2">
-                <img src="\${data.image}" class="rounded border border-slate-600" id="\${id}">
-                <button onclick="window.saveImage('\${id}', '\${escapeJsString(prompt)}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
-            </div>\`;
+aiDiv.innerHTML = "<div class=\\"flex flex-col gap-2\\">\\n                <img src=\\"" + data.image + "\\" class=\\"rounded border border-slate-600\\" id=\\"" + id + "\\">\\n                <button onclick=\\"window.saveImage('" + id + "', '" + escapeJsString(prompt) + "')\\" class=\\"bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end\\">Save</button>\\n            </div>";
     } catch(e) {
         aiDiv.innerText = 'Generation Failed: ' + escapeJsString(e.message);
     }
@@ -324,7 +321,7 @@ window.saveImage = async function(id, prompt) {
     const img = document.getElementById(id);
     if (!img) return;
     const base64 = img.src.split(',')[1];
-    const name = \`assets/\${prompt.substring(0,10).replace(/\\s/g, '_')}_\${Date.now()}.png\`;
+    const name = "assets/" + prompt.substring(0,10).replace(/\\s/g, '_') + "_" + Date.now() + ".png";
     await fetch('/api/fs/file', {
         method: 'POST',
         body: JSON.stringify({ name, content: base64 })
@@ -343,7 +340,7 @@ window.createNewFile = async function() {
 
 window.addMessage = function(role, text, loading) {
     const div = document.createElement('div');
-    div.className = \`chat-message p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}\`;
+div.className = "chat-message p-3 rounded-lg border " + (role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6');
     if(loading) div.innerHTML = 'Thinking...';
     else div.innerHTML = window.formatToken(text);
     if (chatMessages) {
@@ -387,7 +384,7 @@ window.uploadFile = async function(input) {
 
             if (res.ok) {
                 activeImage = file.name;
-                aiDiv.innerHTML = \`✅ Uploaded <b>\${escapeJsString(file.name)}</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>\`;
+                aiDiv.innerHTML = "✅ Uploaded <b>" + escapeJsString(file.name) + "</b>. <br><span class=\\"text-xs opacity-50\\">Stored in R2. Ready for Vision.</span>";
                 window.refreshFiles();
 
                 if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {

@@ -65,8 +65,12 @@ export default {
       const { IDE_HTML } = await import('./ui');
       const { UI_JS } = await import('./ui.js');
       const finalHtml = IDE_HTML.replace(
-        '<script>\\n        // --- All of your UI Logic will be injected by the worker ---\\n    </script>',
-        `<script>\\n${UI_JS}\\n</script>`
+        `<script>
+        // --- All of your UI Logic will be injected by the worker ---
+    </script>`,
+        `<script>
+${UI_JS}
+</script>`
       );
       return new Response(finalHtml, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' }
