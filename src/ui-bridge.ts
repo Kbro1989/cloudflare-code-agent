@@ -59,13 +59,14 @@ window.refreshFiles = async function() {
         const apiBase = window.getApiBase();
         const res = await fetch(apiBase + '/api/fs/list');
         const uniqueFiles = new Map();
-        (await res.json()).forEach((f) => uniqueFiles.set(f.name, f));
+        const data = await res.json();
+        data.forEach(function(f) { uniqueFiles.set(f.name, f); });
         const files = Array.from(uniqueFiles.values());
 
         fileTree = files;
         window.renderFileList(files);
 
-        if (activeFile === 'loading...' && files.find((f) => f.name === 'src/index.ts')) {
+        if (activeFile === 'loading...' && files.find(function(f) { return f.name === 'src/index.ts'; })) {
             window.loadFile('src/index.ts');
         }
     } catch (e) {
@@ -77,7 +78,7 @@ window.refreshFiles = async function() {
 
 // Override saveCurrentFile to use bridge
 window.saveCurrentFile = async function(name, content) {
-    if (editor && !name.match(/\\.(png|jpg|glb|gltf)$/i)) {
+    if (editor && !name.match(/\\\\.(png|jpg|glb|gltf)$/i)) {
         const model = editor.getModel();
         content = model ? model.getValue() : content;
     }
@@ -85,14 +86,13 @@ window.saveCurrentFile = async function(name, content) {
     const apiBase = window.getApiBase();
     await fetch(apiBase + '/api/fs/file', {
         method: 'POST',
-        body: JSON.stringify({ name, content })
+        body: JSON.stringify({ name: name, content: content })
     });
 };
 
 // Init on page load
-window.addEventListener('load', async () => {
+window.addEventListener('load', async function() {
     await window.detectLocalBridge();
-    // Refresh files after bridge detection
     if (window.refreshFiles) window.refreshFiles();
 });
 `;
