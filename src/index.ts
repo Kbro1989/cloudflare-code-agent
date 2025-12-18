@@ -1,6 +1,6 @@
 import { Ai } from '@cloudflare/ai';
 import Cloudflare from 'cloudflare';
-import UI_JS from './ui.js';
+import { UI_JS } from './ui.js';
 
 export interface Env {
   AI: Ai;
