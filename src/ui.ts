@@ -1218,6 +1218,11 @@ window.sendMessage = async function() {
             body: JSON.stringify(payload)
         });
 
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error('Server Error ' + res.status + ': ' + errText);
+        }
+
         const reader = res.body?.getReader();
         if (!reader) {
             aiDiv.innerText = 'Error: Could not get response reader.';
