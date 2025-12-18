@@ -185,8 +185,7 @@ export const IDE_HTML = `<!DOCTYPE html>
 
 export const UI_JS = `
 function escapeJsString(str) {
-    if (!str) return str;
-    return String(str).replace(/\\\\/g, "\\\\\\\\").replace(/'/g, "\\'");
+    return (str || '').toString();
 }
 
 // Global variables for the IDE state
