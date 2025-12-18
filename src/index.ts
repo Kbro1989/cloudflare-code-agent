@@ -507,6 +507,14 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
     return json({ success: true }, 200, corsHeaders);
   }
 
+  // Delete File
+  if (request.method === 'DELETE' && url.pathname === '/api/fs/file') {
+    const { name } = await request.json();
+    if (!name) return new Response('Missing name', { status: 400 });
+    await env.R2_ASSETS.delete(name);
+    return new Response('Deleted', { status: 200 });
+  }
+
   return new Response('FS Method Not Allowed', { status: 405, headers: corsHeaders });
 }
 

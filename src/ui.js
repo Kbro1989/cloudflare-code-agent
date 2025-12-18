@@ -69,7 +69,23 @@ window.deployProject = async function() {
 }
 
 // --- Monaco Editor Setup ---
-require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+constMONACO_VS_URL = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs';
+require.config({ paths: { vs: MONACO_VS_URL } });
+window.MonacoEnvironment = { getWorkerUrl: () => proxy };
+
+let proxy = URL.createObjectURL(
+  new Blob(
+    [
+      `
+  self.MonacoEnvironment = {
+    baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/'
+  };
+  importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/base/worker/workerMain.js');
+`
+    ],
+    { type: 'text/javascript' }
+  )
+);
 
 require(['vs/editor/editor.main'], function(monacoInstance) {
     window.monaco = monacoInstance; // Expose monaco globally
@@ -105,6 +121,7 @@ require(['vs/editor/editor.main'], function(monacoInstance) {
     });
 
     window.refreshFiles();
+    window.setupResizablePanels();
 });
 
 const modelSelector = document.getElementById('modelSelector');
@@ -155,24 +172,32 @@ window.renderFileList = function(files) {
 
     files.forEach((file) => {
         const div = document.createElement('div');
-        const isImg = file.name.match(new RegExp('\\.(png|jpg|jpeg|gif)$', 'i'));
-        const is3D = file.name.match(new RegExp('\\.(glb|gltf)$', 'i'));
-
+        const isActive = file.name === activeFile;
+        
         let iconClass = 'fa-regular fa-file-code';
-        if (isImg) iconClass = 'fa-regular fa-file-image';
-        if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
+        if (file.name.endsWith('.js')) iconClass = 'fa-brands fa-js-square text-yellow-400';
+        if (file.name.endsWith('.json')) iconClass = 'fa-regular fa-file-alt text-orange-400';
+        if (file.name.match(new RegExp('\\.(png|jpg|jpeg|gif)$', 'i'))) iconClass = 'fa-regular fa-file-image text-cyan-400';
+        if (file.name.match(new RegExp('\\.(glb|gltf)$', 'i'))) iconClass = 'fa-solid fa-cube text-indigo-400';
 
-        div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
-        div.innerHTML = '<div class="flex items-center gap-2 truncate" onclick="window.loadFile(\'' + escapeJsString(file.name) + '\')">' +
-                            '<i class="' + iconClass + ' text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>' +
-                            '<span>' + file.name + '</span>' +
-                        '</div>';
+        div.className = `group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors ${isActive ? 'bg-slate-700' : ''}`;
+        
+        div.innerHTML = `
+            <div class="flex items-center gap-2 truncate" onclick="window.loadFile('${escapeJsString(file.name)}')">
+                <i class="${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>
+                <span>${file.name}</span>
+            </div>
+            <button onclick="event.stopPropagation(); window.deleteFile('${escapeJsString(file.name)}')" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <i class="fa-solid fa-trash-alt"></i>
+            </button>
+        `;
         listEl.appendChild(div);
     });
 };
 
 window.loadFile = async function(name) {
     activeFile = name;
+    window.renderFileList(fileTree); // Re-render to show active file
     const activeFileNameElement = document.getElementById('activeFileName');
     if (activeFileNameElement) {
         activeFileNameElement.innerText = name;
@@ -188,7 +213,7 @@ window.loadFile = async function(name) {
          const url = URL.createObjectURL(blob);
 
          container.innerHTML = '<div class="h-full w-full bg-slate-900 relative">' +
-        '<model-viewer\nsrc="' + url + '"\nid="mv-viewer"\ncamera-controls\nauto-rotate\nshadow-intensity="1"\nstyle="width: 100%; height: 100%;"\nalt="A 3D model"\nbackground-color="#1e293b"\n    ></model-viewer>\n    <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">' +
+        '<model-viewer\nsrc="' + url + '"\nid="mv-viewer"\ncamera-controls\nauto-rotate\nshadow-intensity="1"\nstyle="width: 100%; height: 100%;"\nalt="A 3D model"\nbackground-color="#1e23b"\n    ></model-viewer>\n    <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">' +
         '<span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: ' + name + '</span>' +
             '</div>' +
             '</div>';
@@ -211,8 +236,10 @@ window.loadFile = async function(name) {
 
     // Code/Text
     if (!container.querySelector('.monaco-editor')) {
-        location.reload();
-        return;
+        // This is a soft-reload. Re-initializes editor if not present
+        editor = window.monaco.editor.create(container, {
+            value: '', language: 'typescript', theme: 'vs-dark', automaticLayout: true
+        });
     }
 
     try {
@@ -235,6 +262,21 @@ window.saveCurrentFile = async function(name, content) {
         body: JSON.stringify({ name, content })
     });
     window.refreshFiles();
+};
+
+window.deleteFile = async function(name) {
+    if (confirm(`Are you sure you want to delete ${name}?`)) {
+        await fetch('/api/fs/file', {
+            method: 'DELETE',
+            body: JSON.stringify({ name })
+        });
+        if (activeFile === name) {
+            activeFile = null;
+            document.getElementById('editorContainer').innerHTML = '<div class="p-4 text-slate-500">Select a file</div>';
+            document.getElementById('activeFileName').innerText = 'No file selected';
+        }
+        window.refreshFiles();
+    }
 };
 
 // --- Chat ---
@@ -353,6 +395,8 @@ window.formatToken = function(t) { return t.replace(/\\n/g, '<br>'); };
 
 window.getLanguage = function(n) {
     if(n.endsWith('ts')) return 'typescript';
+    if(n.endsWith('js')) return 'javascript';
+    if(n.endsWith('json')) return 'json';
     if(n.endsWith('html')) return 'html';
     return 'plaintext';
 };
@@ -399,5 +443,55 @@ window.uploadFile = async function(input) {
     catch (e) {
         aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
     }
+};
+
+window.setupResizablePanels = function() {
+    const sidebar = document.getElementById('sidebar');
+    const chatPanel = document.getElementById('chatPanel');
+    const resizerSidebar = document.getElementById('resizer-sidebar');
+    const resizerChat = document.getElementById('resizer-chat');
+
+    // Load saved widths
+    const savedSidebarWidth = localStorage.getItem('sidebarWidth');
+    const savedChatWidth = localStorage.getItem('chatPanelWidth');
+    if (savedSidebarWidth) sidebar.style.width = savedSidebarWidth;
+    if (savedChatWidth) chatPanel.style.width = savedChatWidth;
+
+    let isResizingSidebar = false;
+    resizerSidebar.addEventListener('mousedown', (e) => {
+        isResizingSidebar = true;
+        document.body.style.cursor = 'col-resize';
+    });
+
+    let isResizingChat = false;
+    resizerChat.addEventListener('mousedown', (e) => {
+        isResizingChat = true;
+        document.body.style.cursor = 'col-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isResizingSidebar) {
+            const newWidth = e.clientX;
+            if (newWidth > 150 && newWidth < 500) { // Min/max width
+                sidebar.style.width = `${newWidth}px`;
+            }
+        }
+        if (isResizingChat) {
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth > 200 && newWidth < 600) { // Min/max width
+                chatPanel.style.width = `${newWidth}px`;
+            }
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isResizingSidebar = false;
+        isResizingChat = false;
+        document.body.style.cursor = 'default';
+        
+        // Save final widths
+        localStorage.setItem('sidebarWidth', sidebar.style.width);
+        localStorage.setItem('chatPanelWidth', chatPanel.style.width);
+    });
 };
 `;

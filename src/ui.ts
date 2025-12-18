@@ -5,7 +5,7 @@ export const IDE_HTML = `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hybrid IDE (Cloudflare Code Agent)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -29,7 +29,7 @@ export const IDE_HTML = `<!DOCTYPE html>
         <div class="flex items-center space-x-3">
             <i class="fa-solid fa-cloud-bolt text-indigo-400 text-xl"></i>
             <span class="font-bold text-lg tracking-tight">Hybrid<span class="text-indigo-400">IDE</span></span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v4.2 3D-Engine</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v4.3 Resizable</span>
         </div>
         <div class="flex items-center space-x-4">
             <select id="modelSelector" class="bg-slate-800 text-xs text-slate-300 border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
@@ -55,7 +55,7 @@ export const IDE_HTML = `<!DOCTYPE html>
     <div class="flex-1 flex overflow-hidden">
 
         <!-- Sidebar (File Explorer) -->
-        <aside class="w-64 glass-panel border-r border-slate-700 flex flex-col transition-all duration-300" id="sidebar">
+        <aside class="w-64 glass-panel border-r border-slate-700 flex flex-col" id="sidebar" style="width: 250px;">
             <div class="p-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
                 <span class="text-sm font-semibold text-slate-300">EXPLORER</span>
                 <div class="space-x-1">
@@ -67,6 +67,8 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <div class="animate-pulse flex space-x-2 p-2"><div class="rounded-full bg-slate-700 h-4 w-4"></div><div class="h-4 bg-slate-700 rounded w-3/4"></div></div>
             </div>
         </aside>
+
+        <div id="resizer-sidebar" class="w-1.5 cursor-col-resize bg-slate-700/50 hover:bg-indigo-500 transition-colors"></div>
 
         <!-- Editor Area -->
         <main class="flex-1 relative bg-[#1e1e1e] flex flex-col min-w-0">
@@ -91,8 +93,10 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
         </main>
 
+        <div id="resizer-chat" class="w-1.5 cursor-col-resize bg-slate-700/50 hover:bg-indigo-500 transition-colors"></div>
+
         <!-- Chat Panel -->
-        <aside class="w-80 glass-panel border-l border-slate-700 flex flex-col shadow-xl z-10" id="chatPanel">
+        <aside class="w-80 glass-panel border-l border-slate-700 flex flex-col shadow-xl z-10" id="chatPanel" style="width: 320px;">
             <div class="p-3 border-b border-slate-700/50 bg-slate-800/50 flex justify-between items-center backdrop-blur-md">
                 <span class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-robot text-indigo-400"></i> AI Assistant</span>
                 <span id="providerBadge" class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Llama 3.3</span>
