@@ -18,6 +18,17 @@ id = "53e7b59de4764464bed75a677bf9805c"
 binding = "MEMORY"
 id = "f13368114b6a4d8e9ca2919481f33fdd"
 
+[build]
+command = "npm install && npm run build"
+
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js"]
+
+[[rules]]
+type = "Data"
+globs = ["**/*.html", "**/*.css"]
+
 # R2 Bucket
 [[r2_buckets]]
 bucket_name = "hello-ai-assets"

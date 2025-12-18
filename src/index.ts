@@ -1,5 +1,6 @@
 import { Ai } from '@cloudflare/ai';
 import Cloudflare from 'cloudflare';
+import { UI_JS } from './ui.js';
 
 export interface Env {
   AI: Ai;
@@ -63,7 +64,15 @@ export default {
     // Serve UI
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
-      return new Response(String(IDE_HTML), {
+      const finalHtml = IDE_HTML.replace(
+        `<script>
+        // --- All of your UI Logic will be injected by the worker ---
+    </script>`,
+        `<script>
+${UI_JS}
+</script>`
+      );
+      return new Response(finalHtml, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' }
       });
     }
@@ -71,7 +80,7 @@ export default {
     // Serve ui.js
     if (url.pathname === '/ui.js') {
       // Correctly import and serve the JavaScript file as a string
-      const { UI_JS } = await import('./ui');
+      const { UI_JS } = await import('./ui.js');
       return new Response(UI_JS, {
         headers: { 'Content-Type': 'application/javascript; charset=utf-8' }
       });
@@ -505,6 +514,14 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
 
     await env.R2_ASSETS.put(WORKSPACE_PREFIX + name, body);
     return json({ success: true }, 200, corsHeaders);
+  }
+
+  // Delete File
+  if (request.method === 'DELETE' && url.pathname === '/api/fs/file') {
+    const { name } = await request.json() as { name: string };
+    if (!name) return new Response('Missing name', { status: 400 });
+    await env.R2_ASSETS.delete(WORKSPACE_PREFIX + name);
+    return new Response('Deleted', { status: 200 });
   }
 
   return new Response('FS Method Not Allowed', { status: 405, headers: corsHeaders });
