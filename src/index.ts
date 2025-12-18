@@ -1,5 +1,6 @@
 import { Ai } from '@cloudflare/ai';
 import Cloudflare from 'cloudflare';
+import UI_JS from './ui.js';
 
 export interface Env {
   AI: Ai;
@@ -63,7 +64,6 @@ export default {
     // Serve UI
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
-      const { UI_JS } = await import('./ui.js');
       const finalHtml = IDE_HTML.replace(
         `<script>
         // --- All of your UI Logic will be injected by the worker ---
@@ -509,9 +509,9 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
 
   // Delete File
   if (request.method === 'DELETE' && url.pathname === '/api/fs/file') {
-    const { name } = await request.json();
+    const { name } = await request.json() as { name: string };
     if (!name) return new Response('Missing name', { status: 400 });
-    await env.R2_ASSETS.delete(name);
+    await env.R2_ASSETS.delete(WORKSPACE_PREFIX + name);
     return new Response('Deleted', { status: 200 });
   }
 

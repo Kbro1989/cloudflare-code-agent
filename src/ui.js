@@ -180,17 +180,16 @@ window.renderFileList = function(files) {
         if (file.name.match(new RegExp('\\.(png|jpg|jpeg|gif)$', 'i'))) iconClass = 'fa-regular fa-file-image text-cyan-400';
         if (file.name.match(new RegExp('\\.(glb|gltf)$', 'i'))) iconClass = 'fa-solid fa-cube text-indigo-400';
 
-        div.className = `group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors ${isActive ? 'bg-slate-700' : ''}`;
+        div.className = "group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors " + (isActive ? 'bg-slate-700' : '');
         
-        div.innerHTML = `
-            <div class="flex items-center gap-2 truncate" onclick="window.loadFile('${escapeJsString(file.name)}')">
-                <i class="${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>
-                <span>${file.name}</span>
-            </div>
-            <button onclick="event.stopPropagation(); window.deleteFile('${escapeJsString(file.name)}')" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                <i class="fa-solid fa-trash-alt"></i>
-            </button>
-        `;
+        div.innerHTML = 
+            '<div class="flex items-center gap-2 truncate" onclick="window.loadFile(\'' + escapeJsString(file.name) + '\')">' +
+                '<i class="' + iconClass + ' text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>' +
+                '<span>' + file.name + '</span>' +
+            '</div>' +
+            '<button onclick="event.stopPropagation(); window.deleteFile(\'' + escapeJsString(file.name) + '\')" class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">' +
+                '<i class="fa-solid fa-trash-alt"></i>' +
+            '</button>';
         listEl.appendChild(div);
     });
 };
@@ -265,7 +264,7 @@ window.saveCurrentFile = async function(name, content) {
 };
 
 window.deleteFile = async function(name) {
-    if (confirm(`Are you sure you want to delete ${name}?`)) {
+    if (confirm("Are you sure you want to delete " + name + "?")) {
         await fetch('/api/fs/file', {
             method: 'DELETE',
             body: JSON.stringify({ name })
@@ -473,13 +472,13 @@ window.setupResizablePanels = function() {
         if (isResizingSidebar) {
             const newWidth = e.clientX;
             if (newWidth > 150 && newWidth < 500) { // Min/max width
-                sidebar.style.width = `${newWidth}px`;
+                sidebar.style.width = newWidth + 'px';
             }
         }
         if (isResizingChat) {
             const newWidth = window.innerWidth - e.clientX;
             if (newWidth > 200 && newWidth < 600) { // Min/max width
-                chatPanel.style.width = `${newWidth}px`;
+                chatPanel.style.width = newWidth + 'px';
             }
         }
     });
