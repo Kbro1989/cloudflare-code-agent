@@ -81,7 +81,8 @@ ${UI_JS}
     if (url.pathname === '/ui.js') {
       // Correctly import and serve the JavaScript file as a string
       const { UI_JS } = await import('./ui');
-      return new Response(UI_JS, {
+      const { BRIDGE_INTEGRATION } = await import('./ui-bridge');
+      return new Response(UI_JS + '\\n' + BRIDGE_INTEGRATION, {
         headers: { 'Content-Type': 'application/javascript; charset=utf-8' }
       });
     }
