@@ -1,0 +1,73 @@
+name = "hybrid-ide-production"
+main = "worker/src/index.ts"
+compatibility_date = "2024-12-16"
+
+# Durable Objects (rate limiting only - NO session state)
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+script_name = "hybrid-ide-production"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
+# KV Namespaces (Free: 1000 writes/day per namespace - HARD CAP)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "53e7b59de4764464bed75a677bf9805c"
+
+[[kv_namespaces]]
+binding = "MEMORY"
+id = "f13368114b6a4d8e9ca2919481f33fdd"
+
+# R2 Bucket (Free: 10GB storage, 1M operations/month)
+[[r2_buckets]]
+bucket_name = "hybrid-ide-assets"
+binding = "ASSETS"
+
+# Public Variables (NON-SECRET - safe to commit)
+[vars]
+MAX_FILE_SIZE = 10485760          # 10MB max file size
+MAX_CACHE_SIZE = 524288           # 512KB max cache entry
+KV_BATCH_SIZE = 10                # Batch completions (reduces writes)
+RATE_LIMIT_PER_MINUTE = 15        # Gemini free tier: 15 RPM
+
+# CRITICAL: NO Workers AI binding
+[ai]
+binding = "AI"
+
+# Observability (Free tier: 1% sampling)
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 0.01
+
+[observability.metrics]
+enabled = true
+
+# Placement
+[placement]
+mode = "smart"
+
+# Staging/Prod Environments
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_STAGING_CACHE_ID"
+
+[[env.staging.kv_namespaces]]
+binding = "MEMORY"
+id = "REPLACE_STAGING_MEMORY_ID"
+
+[env.production]
+name = "hybrid-ide-prod"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_PROD_CACHE_ID"
+
+[[env.production.kv_namespaces]]
+binding = "MEMORY"
+id = "REPLACE_PROD_MEMORY_ID"
