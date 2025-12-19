@@ -20,7 +20,7 @@
     },
     {
       "tag": "v5",
-      "new_classes": [
+      "new_sqlite_classes": [
         "RateLimiter"
       ]
     }
