@@ -17,7 +17,6 @@ export interface Env {
   CLOUDFLARE_API_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   WORKERS_AI_KEY?: string;
-  DISPATCHER?: any;
 
   // Public Vars
   MAX_FILE_SIZE: number;
@@ -168,8 +167,6 @@ export default {
           return handleChat(request, env, ctx, corsHeaders);
         case '/api/image':
           return handleImage(request, env, ctx, corsHeaders);
-        case '/api/deploy':
-          return handleDeploy(request, env, corsHeaders);
         case '/api/fs/list':
         case '/api/fs/file':
           return handleFilesystem(request, env, corsHeaders);
@@ -215,32 +212,6 @@ async function handleContextMap(request: Request, env: Env, corsHeaders: any): P
     return json({ tree: textFiles }, 200, corsHeaders);
   } catch (e: any) {
     return json({ error: e.message }, 500, corsHeaders);
-  }
-}
-
-// ----------------------------------------------------------------------------
-// Deployment Handler (Self-Replication)
-// ----------------------------------------------------------------------------
-async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promise<Response> {
-  if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID || !env.DISPATCHER) {
-    return new Response('Deployment secrets missing (API_TOKEN, ACCOUNT_ID, or DISPATCHER)', { status: 500, headers: corsHeaders });
-  }
-
-  const { scriptName, code } = await request.json() as any;
-  if (!scriptName || !code) return new Response('Missing scriptName or code', { status: 400, headers: corsHeaders });
-
-  try {
-    const result = await deploySnippetToNamespace(
-      {
-        namespaceName: "code-agent-dispatcher", // Matches wrangler.toml
-        scriptName,
-        code,
-      },
-      env
-    );
-    return json({ success: true, result }, 200, corsHeaders);
-  } catch (e: any) {
-    return new Response(`Deploy Failed: ${e.message}`, { status: 500, headers: corsHeaders });
   }
 }
 
@@ -336,59 +307,6 @@ async function handleGithub(request: Request, env: Env, corsHeaders: any): Promi
 
 // Helper (Reuse existing if available, or keep this one if unique)
 function info(msg: string) { console.log(msg); }
-
-async function deploySnippetToNamespace(
-  opts: {
-    namespaceName: string;
-    scriptName: string;
-    code: string;
-    bindings?: any[];
-  },
-  env: Env
-) {
-  const { namespaceName, scriptName, code, bindings = [] } = opts;
-
-  const cf = new Cloudflare({
-    apiToken: env.CLOUDFLARE_API_TOKEN,
-  });
-
-  // Ensure dispatch namespace exists
-  try {
-    // @ts-ignore
-    await cf.workersForPlatforms.dispatch.namespaces.get(namespaceName, {
-      account_id: env.CLOUDFLARE_ACCOUNT_ID!,
-    });
-  } catch {
-    // @ts-ignore
-    await cf.workersForPlatforms.dispatch.namespaces.create({
-      account_id: env.CLOUDFLARE_ACCOUNT_ID!,
-      name: namespaceName,
-    });
-  }
-
-  const moduleFileName = `${scriptName}.mjs`;
-
-  // Upload worker to namespace
-  // @ts-ignore
-  await cf.workersForPlatforms.dispatch.namespaces.scripts.update(
-    namespaceName,
-    scriptName,
-    {
-      account_id: env.CLOUDFLARE_ACCOUNT_ID!,
-      metadata: {
-        main_module: moduleFileName,
-        bindings,
-      },
-      files: [
-        new File([code], moduleFileName, {
-          type: "application/javascript+module",
-        }),
-      ],
-    },
-  );
-
-  return { namespace: namespaceName, script: scriptName };
-}
 
 // ... (Rest of existing functions from handleImage downwards)
 
