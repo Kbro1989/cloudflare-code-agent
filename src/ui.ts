@@ -249,9 +249,10 @@ window.deployProject = async function() {
 };
 
 // --- Monaco Setup ---
-if (typeof require !== 'undefined') {
-    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-    require(['vs/editor/editor.main'], function(monacoInstance) {
+if (window.require || typeof require !== 'undefined') {
+    const loader = window.require || require;
+    loader.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+    loader(['vs/editor/editor.main'], function(monacoInstance) {
         window.monaco = monacoInstance;
         monacoInstance.languages.typescript.typescriptDefaults.setCompilerOptions({
             target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
