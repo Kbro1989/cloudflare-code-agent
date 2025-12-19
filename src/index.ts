@@ -26,6 +26,7 @@ export interface Env {
   MAX_CACHE_SIZE: number;
   KV_BATCH_SIZE: number;
   RATE_LIMIT_PER_MINUTE: number;
+  AI_GATEWAY_ID: string;
 }
 
 // Durable Object: Rate limiting only
@@ -140,6 +141,78 @@ async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: str
   }
 }
 
+// --- AI Gateway Helper (Safe Routing Phase 10) ---
+async function runAI(env: Env, model: string, input: any, provider = 'workers-ai'): Promise<any> {
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+  const gatewayId = env.AI_GATEWAY_ID;
+  const cfApiToken = env.CLOUDFLARE_API_TOKEN || env.WORKERS_AI_KEY;
+  const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
+
+  if (accountId && gatewayId && cfApiToken) {
+    try {
+      const providers: Record<string, string> = {
+        'workers-ai': 'workers-ai',
+        'gemini': 'google-ai-studio'
+      };
+
+      const mappedProvider = providers[provider] || provider;
+      let url = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${mappedProvider}`;
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${cfApiToken}`,
+        'Content-Type': 'application/json'
+      };
+
+      if (provider === 'gemini') {
+        // Google AI Studio Gateway pattern: .../google-ai-studio/v1/models/model:method
+        url += `/v1/models/${model}`;
+        if (geminiApiKey) headers['x-goog-api-key'] = geminiApiKey;
+      } else {
+        // Workers AI pattern: .../workers-ai/model
+        url += `/${model}`;
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(input),
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (res.ok) {
+        const data = await res.json() as any;
+        return data.result || data;
+      }
+      console.warn(`Gateway (${provider}) status ${res.status}. Falling back...`);
+    } catch (e) {
+      console.error(`Gateway (${provider}) error:`, e);
+    }
+  }
+
+  // --- DIRECT FALLBACKS ---
+  if (provider === 'workers-ai' && env.AI) {
+    return await env.AI.run(model as any, input);
+  }
+
+  if (provider === 'gemini' && geminiApiKey) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+        signal: AbortSignal.timeout(30000)
+      }
+    );
+    if (res.ok) {
+      return await res.json();
+    }
+    throw new Error(`Direct Gemini failed: ${res.status}`);
+  }
+
+  throw new Error(`AI call failed (both Gateway and Direct) for ${provider}`);
+}
+
 const SYSTEM_PROMPT = `
 You are an advanced AI coding and 3D artistic agent (Omni-Dev Hybrid).
 Primary Directive: Provide immediate, actionable, and correct code or answers.
@@ -224,7 +297,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V19 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V21 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -494,7 +567,7 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
     if (style === 'phoenix') modelId = MODELS.PHOENIX;
 
     // @ts-ignore
-    const result = await env.AI.run(modelId, { prompt });
+    const result = await runAI(env, modelId, { prompt });
 
     const arrayBuffer = await new Response(result as any).arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
@@ -545,7 +618,7 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
       // 5006 error often implies it's trying to validate a JSON schema on a binary input.
 
       // @ts-ignore
-      const response = await env.AI.run(MODELS.STT, {
+      const response = await runAI(env, MODELS.STT, {
         audio: [...audioArray]
       });
       return json(response, 200, corsHeaders);
@@ -553,7 +626,7 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
       try {
         // Fallback: Try passing the Uint8Array directly (some bindings prefer this)
         // @ts-ignore
-        const response = await env.AI.run(MODELS.STT, audioArray);
+        const response = await runAI(env, MODELS.STT, audioArray);
         return json(response, 200, corsHeaders);
       } catch (e2: any) {
         console.error('STT Combined Failure:', e1.message, e2.message);
@@ -573,7 +646,7 @@ async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Pro
 
   try {
     // @ts-ignore
-    const response = await env.AI.run(MODELS.TTS, { text });
+    const response = await runAI(env, MODELS.TTS, { text });
 
     // Return raw audio binary (MP3)
     return new Response(response as any, {
@@ -646,21 +719,10 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
       check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY),
       health: healthTracker.gemini,
       run: async () => {
-        const apiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature, maxOutputTokens: maxTokens }
-            }),
-            signal: AbortSignal.timeout(15000)
-          }
-        );
-        if (!res.ok) throw new Error('Gemini HTTP ' + res.status);
-        const data = await res.json() as any;
+        const data = await runAI(env, 'gemini-1.5-flash:generateContent', {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature, maxOutputTokens: maxTokens }
+        }, 'gemini');
         return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       }
     },
@@ -675,9 +737,9 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
         if (requestedModel === 'gpt-oss') modelId = MODELS.GPT_OSS;
 
         // @ts-ignore
-        const response = await env.AI.run(modelId, { prompt, max_tokens: maxTokens, temperature });
+        const response = await runAI(env, modelId, { prompt, max_tokens: maxTokens, temperature });
         // @ts-ignore
-        return response.response?.trim();
+        return (response.response || response).trim();
       }
     },
     {
