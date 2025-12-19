@@ -22,41 +22,41 @@ export const IDE_HTML = `<!DOCTYPE html>
       localStorage.setItem('tailwind-config-warn', 'false');
     </script>
     <style>
-        body { background: #0f172a; color: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; }
+        body { background: #020617; color: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; position: relative; }
+        body::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% -20%, rgba(34, 211, 238, 0.05), transparent 60%); pointer-events: none; }
         #monacoContainer { height: 100%; border-top: 1px solid #1e293b; }
-        .tab-active { background: #1e293b; border-bottom: 2px solid #6366f1; }
-        .sidebar-item:hover { background: #1e293b; }
+        .tab-active { background: #083344; border-bottom: 2px solid #22d3ee; box-shadow: 0 4px 12px -2px rgba(34, 211, 238, 0.2); }
+        .sidebar-item:hover { background: #083344; color: #22d3ee; }
         #chatMessages::-webkit-scrollbar { width: 4px; }
-        #chatMessages::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
-        .monaco-editor, .monaco-editor .margin, .monaco-editor-background { background-color: #0f172a !important; }
+        #chatMessages::-webkit-scrollbar-thumb { background: #164e63; border-radius: 2px; }
+        .monaco-editor, .monaco-editor .margin, .monaco-editor-background { background-color: #020617 !important; }
         .chat-message p { margin-bottom: 0.5rem; }
-        .chat-message pre { background: #000; padding: 0.5rem; border-radius: 0.25rem; margin: 0.5rem 0; overflow-x: auto; }
-        .chat-message code { font-family: monospace; color: #e2e8f0; }
+        .chat-message pre { background: #000; padding: 0.5rem; border-radius: 0.25rem; margin: 0.5rem 0; overflow-x: auto; border: 1px solid #164e63; }
+        .chat-message code { font-family: monospace; color: #22d3ee; }
         .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; padding: 0.5rem; }
-        .asset-card { background: #1e293b; border-radius: 0.5rem; border: 1px solid #334155; overflow: hidden; position: relative; aspect-ratio: 1/1; cursor: pointer; transition: all 0.2s; }
-        .asset-card:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .asset-card { background: #0f172a; border-radius: 0.5rem; border: 1px solid #1e293b; overflow: hidden; position: relative; aspect-ratio: 1/1; cursor: pointer; transition: all 0.2s; }
+        .asset-card:hover { border-color: #22d3ee; transform: translateY(-2px); box-shadow: 0 0 15px rgba(34, 211, 238, 0.3); }
         .asset-thumb { width: 100%; height: 100%; object-fit: cover; }
         .asset-meta { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8)); padding: 0.25rem 0.5rem; font-size: 8px; color: #94a3b8; pointer-events: none; }
-        .bible-card { background: #1e293b; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.75rem; border: 1px solid #334155; }
-        .kanban-col { background: #0f172a; border-radius: 0.5rem; padding: 0.5rem; min-height: 200px; }
-        .kanban-item { background: #1e293b; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid #6366f1; cursor: pointer; }
+        .glow-text { text-shadow: 0 0 10px rgba(34, 211, 238, 0.4); }
+        .neon-border { border-color: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.2); }
     </style>
 </head>
 <body class="h-screen flex flex-col">
     <!-- Header -->
-    <header class="h-12 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900/50 backdrop-blur-md">
+    <header class="h-12 border-b border-cyan-900/50 flex items-center justify-between px-4 bg-slate-950/80 backdrop-blur-md relative z-20">
         <div class="flex items-center gap-2">
-            <i class="fa-solid fa-cloud-bolt text-indigo-500 text-xl"></i>
-            <span class="font-bold tracking-tight">Cloudflare <span class="text-indigo-400">Code Agent</span></span>
-            <div id="modeIndicator" class="ml-4 text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                 Cloud Mode
+            <i class="fa-solid fa-cloud-bolt text-cyan-400 text-xl glow-text"></i>
+            <span class="font-bold tracking-tight glow-text text-slate-100">Cloudflare <span class="text-cyan-400">Code Agent</span></span>
+            <div id="modeIndicator" class="ml-4 text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_8px_rgba(34,211,238,0.1)]">
+                 Neon Drive
             </div>
         </div>
         <div class="flex items-center gap-3">
-             <button onclick="window.ghClone()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md border border-slate-700 transition flex items-center gap-2">
-                <i class="fa-brands fa-github"></i> Clone
+             <button onclick="window.ghClone()" class="text-xs bg-slate-900 hover:bg-cyan-900/30 px-3 py-1.5 rounded-md border border-cyan-900/50 transition flex items-center gap-2 text-slate-300 hover:text-cyan-400 group">
+                <i class="fa-brands fa-github group-hover:scale-110 transition"></i> Clone
             </button>
-            <button onclick="window.deployProject()" class="text-xs bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 rounded-md font-medium transition shadow-lg shadow-indigo-500/20">
+            <button onclick="window.deployProject()" class="text-xs bg-cyan-600 hover:bg-cyan-500 px-4 py-1.5 rounded-md font-bold transition shadow-lg shadow-cyan-500/20 text-white uppercase tracking-wider">
                 <i class="fa-solid fa-rocket mr-1"></i> Deploy
             </button>
         </div>
@@ -64,189 +64,178 @@ export const IDE_HTML = `<!DOCTYPE html>
 
     <main class="flex-1 flex overflow-hidden">
         <!-- Sidebar -->
-        <aside class="w-64 border-r border-slate-800 flex flex-col bg-slate-900/20">
-            <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Explorer</span>
+        <aside class="w-64 border-r border-cyan-900/50 flex flex-col bg-slate-950/80 transition-all duration-300 ease-in-out group/sidebar overflow-hidden relative z-20">
+            <div class="p-3 border-b border-cyan-900/30 flex justify-between items-center bg-cyan-950/20">
+                <span class="text-[10px] font-bold text-cyan-700 uppercase tracking-widest">Navigation</span>
                 <div class="flex gap-1">
-                    <button onclick="window.toggleExplorerMode()" id="explorerToggle" title="Toggle Gallery" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-table-cells text-sm"></i></button>
-                    <button onclick="window.toggleAudioStudio()" id="audioStudioToggle" title="Sound Studio (AI Voice Gen)" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-microphone-lines text-sm"></i></button>
-                    <button onclick="window.toggleBible()" id="bibleToggle" title="Project Bible (Lore & Tasks)" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-book text-sm"></i></button>
-                    <button onclick="window.createNewFile()" title="New File" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-file-circle-plus text-sm"></i></button>
-                    <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
-                    <label class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer">
+                    <button onclick="window.toggleExplorerMode()" id="explorerToggle" title="Toggle Gallery" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-table-cells text-sm"></i></button>
+                    <button onclick="window.toggleAudioStudio()" id="audioStudioToggle" title="Sound Studio" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-microphone-lines text-sm"></i></button>
+                    <button onclick="window.toggleBible()" id="bibleToggle" title="Project Lore" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-book text-sm"></i></button>
+                    <button onclick="window.createNewFile()" title="New File" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-file-circle-plus text-sm"></i></button>
+                    <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
+                    <label class="p-1 hover:text-cyan-400 text-cyan-900 transition cursor-pointer">
                         <i class="fa-solid fa-upload text-sm"></i>
                         <input type="file" class="hidden" onchange="window.uploadFile(this)">
                     </label>
                 </div>
             </div>
-            <div id="fileList" class="flex-1 overflow-y-auto py-2">
+            <div id="fileList" class="flex-1 overflow-y-auto py-2 bg-slate-950/40">
                 <!-- Files go here -->
             </div>
-            <div id="galleryList" class="flex-1 overflow-y-auto hidden">
+            <div id="galleryList" class="flex-1 overflow-y-auto hidden bg-slate-950/40">
                 <div class="gallery-grid" id="galleryGrid"></div>
             </div>
-            <div id="biblePanel" class="flex-1 overflow-y-auto hidden p-3">
+            <div id="biblePanel" class="flex-1 overflow-y-auto hidden p-3 bg-slate-950/40">
                 <div class="flex gap-2 mb-4">
-                    <button onclick="window.showBibleTab('lore')" class="text-[10px] uppercase font-bold text-indigo-400 border-b border-indigo-500 pb-1">Lore Wiki</button>
-                    <button onclick="window.showBibleTab('tasks')" class="text-[10px] uppercase font-bold text-slate-500 hover:text-slate-300 pb-1">Kanban Tasks</button>
+                    <button onclick="window.showBibleTab('lore')" class="text-[10px] uppercase font-bold text-cyan-400 border-b border-cyan-500 pb-1">Lore</button>
+                    <button onclick="window.showBibleTab('tasks')" class="text-[10px] uppercase font-bold text-cyan-900 hover:text-cyan-600 pb-1">Tasks</button>
                 </div>
-                <div id="bibleContent" class="text-xs text-slate-300">
-                    <div id="loreWiki" class="prose prose-invert prose-xs">Open BIBLE_LORE.md to start world-building.</div>
+                <div id="bibleContent" class="text-xs text-cyan-100/70 font-mono">
+                    <div id="loreWiki" class="prose prose-invert prose-xs">Open BIBLE_LORE.md to begin.</div>
                     <div id="kanbanBoard" class="hidden space-y-4">
-                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-slate-500 mb-2">To Do</h4><div id="todoList"></div></div>
-                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-indigo-500 mb-2">In Progress</h4><div id="doingList"></div></div>
-                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-emerald-500 mb-2">Done</h4><div id="doneList"></div></div>
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-900 mb-2 border-b border-cyan-950 pb-1">Backlog</h4><div id="todoList"></div></div>
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-500 mb-2 border-b border-cyan-900/20 pb-1">Active</h4><div id="doingList"></div></div>
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-700 mb-2 border-b border-cyan-900/10 pb-1">Finalized</h4><div id="doneList"></div></div>
                     </div>
                 </div>
             </div>
-            <div id="audioStudioPanel" class="flex-1 overflow-y-auto hidden p-3">
-                <h3 class="text-[10px] uppercase font-bold text-slate-500 mb-4">Sound Studio</h3>
+            <div id="audioStudioPanel" class="flex-1 overflow-y-auto hidden p-3 bg-slate-950/40">
+                <h3 class="text-[10px] uppercase font-bold text-cyan-700 mb-4 tracking-widest">Vocal Synthesis</h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="text-[10px] text-slate-400 block mb-1">Character Dialogue</label>
-                        <textarea id="audioInput" rows="4" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-2 rounded outline-none focus:border-indigo-500 transition text-slate-200" placeholder="Enter what the character should say..."></textarea>
+                        <textarea id="audioInput" rows="4" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-100 placeholder:text-cyan-900" placeholder="Source Text..."></textarea>
                     </div>
-                    <div>
-                        <label class="text-[10px] text-slate-400 block mb-1">Voice Model</label>
-                        <select id="audioModel" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-1.5 rounded outline-none focus:border-indigo-500 transition text-slate-200">
-                            <option value="aura">Aura (Expressive)</option>
-                            <option value="melo">Melo (High-Speed)</option>
-                        </select>
-                    </div>
-                    <button onclick="window.generateAudio()" id="generateAudioBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2 rounded font-medium transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-wand-sparkles"></i> Generate Voice
+                    <select id="audioModel" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-1.5 rounded outline-none focus:border-cyan-400 transition text-cyan-400">
+                        <option value="aura">Aura (Default)</option>
+                        <option value="melo">Melo (Fast)</option>
+                    </select>
+                    <button onclick="window.generateAudio()" id="generateAudioBtn" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white text-xs py-2 rounded font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10">
+                        <i class="fa-solid fa-wand-sparkles"></i> Synthesize
                     </button>
-                    <div id="audioPreview" class="hidden border-t border-slate-800 pt-4 mt-4">
-                        <p class="text-[10px] text-slate-400 mb-2 font-bold uppercase">Preview</p>
-                        <audio id="previewPlayer" controls class="w-full h-8 mb-4 border border-slate-700 rounded"></audio>
-                        <div class="flex flex-col gap-2">
-                            <label class="text-[8px] text-slate-500 uppercase">Save As</label>
-                            <div class="flex gap-2">
-                                <input id="audioName" type="text" placeholder="character_line.mp3" class="flex-1 bg-slate-800/50 border border-slate-700 text-xs px-2 py-1.5 rounded text-white outline-none focus:border-indigo-500">
-                                <button onclick="window.saveGeneratedAudio()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-1.5 rounded font-bold">SAVE</button>
-                            </div>
+                    <div id="audioPreview" class="hidden border-t border-cyan-900/30 pt-4 mt-4">
+                        <audio id="previewPlayer" controls class="w-full h-8 mb-4 opacity-50"></audio>
+                        <div class="flex gap-2">
+                            <input id="audioName" type="text" placeholder="output.mp3" class="flex-1 bg-slate-900 border border-cyan-900/50 text-xs px-2 py-1.5 rounded text-white italic outline-none focus:border-cyan-400">
+                            <button onclick="window.saveGeneratedAudio()" class="bg-cyan-900/50 hover:bg-cyan-800 text-cyan-400 text-[10px] px-3 py-1.5 rounded font-bold border border-cyan-400/20 uppercase">Save</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- GitHub Settings -->
-            <div class="p-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
-                <div class="flex items-center gap-2 truncate">
-                    <i class="fa-solid fa-code-branch"></i>
-                    <input id="ghRepo" type="text" placeholder="owner/repo" class="bg-transparent border-none outline-none w-full" value="">
+            <div class="p-3 border-t border-cyan-900/50 flex flex-col gap-2 bg-slate-950">
+                <div class="flex items-center justify-between text-[10px] text-cyan-900 font-mono">
+                    <span class="truncate max-w-[100px]" id="ghRepoStatus">Not Linked</span>
+                    <button onclick="window.toggleGithubSettings()" class="hover:text-cyan-400 transition"><i class="fa-solid fa-gear"></i></button>
                 </div>
-                <button onclick="window.toggleGithubSettings()" class="hover:text-slate-300"><i class="fa-solid fa-gear"></i></button>
             </div>
         </aside>
 
         <!-- Editor & Preview -->
-        <section class="flex-1 flex flex-col min-w-0">
+        <section class="flex-1 flex flex-col min-w-0 bg-[#020617]">
             <!-- Tabs -->
-            <div id="tabsContainer" class="h-10 border-b border-slate-800 bg-slate-900/40 flex items-center overflow-x-auto overflow-y-hidden">
-                <!-- Tabs go here -->
-            </div>
+            <div id="tabsContainer" class="h-9 flex bg-slate-950 border-b border-cyan-900/20 overflow-x-auto scrollbar-hide"></div>
 
             <!-- Active Editor / Media Container -->
             <div id="editorContainer" class="flex-1 relative">
                 <div id="monacoContainer"></div>
                 <!-- Media Overlay for images/3D -->
-                <div id="previewContainer" class="absolute inset-0 z-10 bg-slate-900 hidden"></div>
+                <div id="previewContainer" class="absolute inset-0 z-10 bg-slate-950 hidden"></div>
             </div>
 
             <!-- Terminal (Collapsible) -->
-            <div id="terminal" class="h-48 border-t border-slate-800 bg-[#0f171a] flex flex-col">
-                <div class="px-3 py-1.5 border-b border-slate-800/50 flex items-center justify-between bg-black/20">
-                    <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
-                        <i class="fa-solid fa-terminal text-emerald-500"></i>
-                        <span>Terminal</span>
+            <div id="terminal" class="h-48 border-t border-cyan-900/50 bg-[#010409] flex flex-col relative z-20">
+                <div class="px-3 py-1.5 border-b border-cyan-900/10 flex items-center justify-between bg-black/40">
+                    <div class="flex items-center gap-2 text-xs font-mono text-cyan-900">
+                        <i class="fa-solid fa-terminal"></i>
+                        <span class="tracking-widest">Command Interface</span>
                     </div>
                 </div>
-                <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto whitespace-pre-wrap text-slate-300"></div>
-                <div class="p-2 border-t border-slate-800/50 flex">
-                    <span class="text-emerald-500 font-mono text-xs mr-2">$</span>
-                    <input id="terminalInput" type="text" class="flex-1 bg-transparent border-none outline-none font-mono text-xs text-white" placeholder="Run command...">
+                <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto whitespace-pre-wrap text-cyan-700/80"></div>
+                <div class="p-2 border-t border-cyan-900/10 flex bg-black/20">
+                    <span class="text-cyan-600 font-mono text-xs mr-2 animate-pulse">>>></span>
+                    <input id="terminalInput" type="text" class="flex-1 bg-transparent border-none outline-none font-mono text-xs text-cyan-400 placeholder:text-cyan-950" placeholder="System Input...">
                 </div>
             </div>
         </section>
 
         <!-- Chat Panel -->
-        <aside class="w-80 border-l border-slate-800 flex flex-col bg-slate-900/30">
-            <div class="p-3 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between">
+        <aside class="w-80 border-l border-cyan-900/50 flex flex-col bg-slate-950/90 backdrop-blur-sm z-20 shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
+            <div class="p-3 border-b border-cyan-900/50 bg-cyan-950/10 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-sparkles text-indigo-400"></i>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Assistant</span>
+                    <i class="fa-solid fa-sparkles text-cyan-400 glow-text"></i>
+                    <span class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-500">Nova Core v4</span>
                 </div>
-                <div id="providerBadge" class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Llama 3.3</div>
+                <div id="providerBadge" class="text-[8px] bg-cyan-900/30 px-2 py-0.5 rounded border border-cyan-500/10 text-cyan-700 tracking-widest font-mono">LINKED</div>
             </div>
 
             <!-- Model Selector -->
-            <div class="p-2 border-b border-slate-800">
-                <select id="modelSelector" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-1.5 rounded outline-none focus:border-indigo-500 transition">
-                    <optgroup label="Elite Reasoning" class="bg-slate-900 border-none">
+            <div class="p-2 border-b border-cyan-900/20 bg-black/10">
+                <select id="modelSelector" class="w-full bg-slate-950 border border-cyan-900/40 text-[10px] p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-500 font-mono uppercase tracking-wider">
+                    <optgroup label="Neural Reasoning" class="bg-slate-950 text-cyan-400">
                         <option value="gpt_oss">GPT-OSS 120B</option>
                         <option value="llama4_scout">Llama 4 Scout</option>
                         <option value="reasoning">DeepSeek R1</option>
-                        <option value="qwq_32b">QwQ 32B (Reasoning)</option>
+                        <option value="qwq_32b">QwQ 32B (Thinking)</option>
                     </optgroup>
-                    <optgroup label="Coding & Logic" class="bg-slate-800">
-                        <option value="coding" selected>Qwen 2.5 32B (Coding)</option>
-                        <option value="default">Llama 3.3 70B (Fast)</option>
-                        <option value="mistral_small">Mistral Small 3.1</option>
-                        <option value="gemma_3">Gemma 3 12B</option>
+                    <optgroup label="Logic Engines" class="bg-slate-950">
+                        <option value="coding" selected>Qwen 2.5 Coding</option>
+                        <option value="default">Llama 3.3 Turbo</option>
+                        <option value="mistral_small">Mistral Small</option>
+                        <option value="gemma_3">Gemma 3</option>
                     </optgroup>
-                    <optgroup label="External Elite" class="bg-slate-800">
-                        <option value="kimi">Kimi K1.5 (Elite)</option>
-                        <option value="gpt4o">GPT-4o (OpenRouter)</option>
-                        <option value="claude3">Claude 3.5 Sonnet</option>
+                    <optgroup label="External Clusters" class="bg-slate-950">
+                        <option value="kimi">Kimi K1.5</option>
+                        <option value="gpt4o">GPT-4o (Elite)</option>
+                        <option value="claude3">Claude 3.5</option>
                     </optgroup>
                 </select>
             </div>
 
-            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-slate-300">
-                <div class="chat-message p-3 rounded-lg border border-slate-800 bg-slate-800/20">
-                    Hello! I'm your AI coding agent. I can write code, run commands, and generate images.
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs text-cyan-100/60 bg-[#020617]/50 scrollbar-hide">
+                <div class="chat-message p-3 rounded-lg border border-cyan-950 bg-cyan-950/5 text-cyan-700 italic font-mono">
+                    [SYSTEM] Neural link established. Waiting for directive...
                 </div>
             </div>
 
-            <div class="p-4 border-t border-slate-800">
-                <div class="flex items-center gap-2 mb-2 px-1">
+            <div class="p-4 border-t border-cyan-900/50 bg-slate-950">
+                <div class="flex items-center gap-2 mb-3 px-1">
                     <button id="voiceBtn"
                         onmousedown="window.startSpeechToText()"
                         onmouseup="window.stopSpeechToText()"
                         onmouseleave="window.stopSpeechToText()"
                         ontouchstart="event.preventDefault(); window.startSpeechToText()"
                         ontouchend="event.preventDefault(); window.stopSpeechToText()"
-                        class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition"
-                        title="Hold the click to Talk">
-                        <i class="fa-solid fa-microphone"></i>
+                        class="p-2 rounded-full bg-slate-900 hover:bg-cyan-900/40 text-cyan-900 hover:text-cyan-400 border border-cyan-900/20 transition-all shadow-glow"
+                        title="Voice Interface">
+                        <i class="fa-solid fa-microphone-slash"></i>
                     </button>
-                    <button id="audioToggle" onclick="window.toggleAutoAudio()" class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition" title="Auto Spoken Responses">
-                        <i class="fa-solid fa-volume-high"></i>
+                    <button id="audioToggle" onclick="window.toggleAutoAudio()" class="p-2 rounded-full bg-slate-900 hover:bg-cyan-900/40 text-cyan-900 hover:text-cyan-400 border border-cyan-900/20 transition-all" title="Audio Feedback">
+                        <i class="fa-solid fa-satellite-dish"></i>
                     </button>
-                    <div id="voiceStatus" class="hidden text-[10px] text-indigo-400 animate-pulse font-mono">Listening...</div>
+                    <div id="voiceStatus" class="hidden text-[8px] text-cyan-500 animate-pulse font-mono tracking-widest uppercase">Intercepting...</div>
                 </div>
-                <div class="relative">
-                    <textarea id="chatInput" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 pr-12 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none" placeholder="Ask AI anything..." rows="3"></textarea>
-                <button id="chatSendButton" class="absolute bottom-3 right-3 p-2 text-slate-400 hover:text-indigo-400 transition-colors">
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
+                <div class="relative group">
+                    <textarea id="chatInput" class="w-full bg-[#010409] border border-cyan-900/40 rounded p-3 pr-12 text-xs focus:border-cyan-400 outline-none resize-none text-cyan-100 placeholder:text-cyan-900 transition-all shadow-inner font-mono" placeholder="Input directive..." rows="3"></textarea>
+                    <button id="chatSendButton" class="absolute bottom-4 right-3 p-2 text-cyan-900 group-focus-within:text-cyan-400 hover:scale-110 transition-all">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
                 </div>
             </div>
         </aside>
     </main>
 
     <!-- Modals -->
-    <div id="diffModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-8">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-6xl h-full flex flex-col rounded-xl shadow-2xl overflow-hidden">
-            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                <h3 class="font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-code-compare text-indigo-400"></i>
-                    Proposed Changes
+    <div id="diffModal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl hidden flex items-center justify-center p-8">
+        <div class="bg-slate-950 border border-cyan-500/20 w-full max-w-6xl h-full flex flex-col rounded shadow-[0_0_100px_rgba(34,211,238,0.1)] overflow-hidden">
+            <div class="p-4 border-b border-cyan-900/30 flex justify-between items-center bg-cyan-950/20">
+                <h3 class="font-bold flex items-center gap-3 text-cyan-400 tracking-widest uppercase text-xs font-mono">
+                    <i class="fa-solid fa-code-compare animate-pulse"></i>
+                    Merge Consensus Required
                 </h3>
                 <div class="flex gap-2">
-                    <button onclick="window.rejectDiff()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md text-sm transition">Discard</button>
-                    <button onclick="window.acceptDiff()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-bold transition shadow-lg shadow-indigo-500/20">Apply Changes</button>
+                    <button onclick="window.rejectDiff()" class="px-4 py-1.5 bg-slate-900 hover:bg-cyan-900/20 rounded text-[10px] uppercase font-bold text-cyan-900 hover:text-cyan-400 transition border border-cyan-900/30">Abort</button>
+                    <button onclick="window.acceptDiff()" class="px-6 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-[10px] uppercase font-bold text-white transition shadow-lg shadow-cyan-500/20 tracking-widest">Commit</button>
                 </div>
             </div>
             <div id="diffContainer" class="flex-1"></div>
@@ -254,18 +243,18 @@ export const IDE_HTML = `<!DOCTYPE html>
     </div>
 
     <!-- Status Bar -->
-    <footer class="h-6 border-t border-slate-800 bg-slate-900 flex items-center justify-between px-3 text-[10px] text-slate-500">
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-1"><i class="fa-solid fa-code-branch"></i> main</div>
-            <div class="flex items-center gap-1"><i class="fa-solid fa-circle text-emerald-500 text-[6px]"></i> Ready</div>
+    <footer class="h-6 border-t border-cyan-900/50 bg-slate-950 flex items-center justify-between px-3 text-[9px] text-cyan-950 font-mono uppercase tracking-[0.2em] relative z-20">
+        <div class="flex items-center gap-5">
+            <div class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-cyan-900"></i> Local Bridge</div>
+            <div class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-cyan-500 text-[4px] animate-glow"></i> Optimized</div>
         </div>
-        <div class="flex items-center gap-4">
-            <div id="quotaStatus" class="flex items-center gap-2" title="KV Write Quota (1,000/day)">
-                <i class="fa-solid fa-gauge-high"></i>
+        <div class="flex items-center gap-5">
+            <div id="quotaStatus" class="flex items-center gap-1.5 overflow-hidden">
+                <i class="fa-solid fa-battery-half"></i>
                 <span id="quotaPercent">0%</span>
             </div>
-            <div id="cursorPos">Ln <span id="cursorLine">1</span>, Col <span id="cursorCol">1</span></div>
-            <div class="flex items-center gap-1 font-mono uppercase tracking-widest opacity-80">UTF-8</div>
+            <div id="cursorPos">C:[<span id="cursorLine">1</span>:<span id="cursorCol">1</span>]</div>
+            <div class="opacity-30">ENC:NEON-8</div>
         </div>
     </footer>
 </body></html>`;
@@ -1163,26 +1152,26 @@ window.startSpeechToText = async function() {
 
         mediaRecorder.start();
         isRecording = true;
-        document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-red-600 text-white animate-pulse transition';
+        document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-cyan-600 text-white animate-pulse transition shadow-[0_0_15px_rgba(34,211,238,0.5)]';
         document.getElementById('voiceStatus').classList.remove('hidden');
-        document.getElementById('voiceStatus').innerText = 'Listening...';
+        document.getElementById('voiceStatus').innerText = 'Intercepting Audio...';
     } catch (e) { alert('Microphone access denied or not supported'); }
 };
 
 window.stopSpeechToText = function() {
     if (mediaRecorder) mediaRecorder.stop();
     isRecording = false;
-    document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-slate-800 text-slate-400 transition';
+    document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-slate-900 text-slate-500 border border-transparent hover:border-cyan-500/30 transition shadow-sm';
 };
 
 window.addMessage = function(role, text, loading) {
     const container = document.getElementById('chatMessages');
     const div = document.createElement('div');
     const isUser = (role === 'user');
-    div.className = 'p-3 rounded-lg border ' + (isUser ? 'bg-slate-700/50 ml-6 border-slate-600' : 'bg-indigo-900/20 mr-6 border-indigo-900/50');
+    div.className = 'p-3 rounded-lg border ' + (isUser ? 'bg-slate-900/80 ml-6 border-cyan-900/30 text-cyan-100/90' : 'bg-cyan-950/10 mr-6 border-cyan-500/20 text-cyan-50 shadow-[inset_0_0_20px_rgba(34,211,238,0.02)]');
 
     if (loading) {
-        div.innerHTML = '<div class="flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-indigo-400"></i> Thinking...</div>';
+        div.innerHTML = '<div class="flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-cyan-400 glow-text"></i> Processing Input...</div>';
     } else {
         div.innerHTML = window.formatToken(text);
     }
