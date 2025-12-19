@@ -32,6 +32,9 @@ export const IDE_HTML = `<!DOCTYPE html>
         .asset-card:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         .asset-thumb { width: 100%; height: 100%; object-fit: cover; }
         .asset-meta { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8)); padding: 0.25rem 0.5rem; font-size: 8px; color: #94a3b8; pointer-events: none; }
+        .bible-card { background: #1e293b; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.75rem; border: 1px solid #334155; }
+        .kanban-col { background: #0f172a; border-radius: 0.5rem; padding: 0.5rem; min-height: 200px; }
+        .kanban-item { background: #1e293b; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid #6366f1; cursor: pointer; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -60,6 +63,7 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
                 <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Explorer</span>
                 <div class="flex gap-1">
+                    <button onclick="window.toggleBible()" id="bibleToggle" title="Project Bible (Lore & Tasks)" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-book text-sm"></i></button>
                     <button onclick="window.toggleExplorerMode()" id="explorerToggle" title="Toggle Gallery" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-table-cells text-sm"></i></button>
                     <button onclick="window.createNewFile()" title="New File" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-file-circle-plus text-sm"></i></button>
                     <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
@@ -74,6 +78,20 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
             <div id="galleryList" class="flex-1 overflow-y-auto hidden">
                 <div class="gallery-grid" id="galleryGrid"></div>
+            </div>
+            <div id="biblePanel" class="flex-1 overflow-y-auto hidden p-3">
+                <div class="flex gap-2 mb-4">
+                    <button onclick="window.showBibleTab('lore')" class="text-[10px] uppercase font-bold text-indigo-400 border-b border-indigo-500 pb-1">Lore Wiki</button>
+                    <button onclick="window.showBibleTab('tasks')" class="text-[10px] uppercase font-bold text-slate-500 hover:text-slate-300 pb-1">Kanban Tasks</button>
+                </div>
+                <div id="bibleContent" class="text-xs text-slate-300">
+                    <div id="loreWiki" class="prose prose-invert prose-xs">Open BIBLE_LORE.md to start world-building.</div>
+                    <div id="kanbanBoard" class="hidden space-y-4">
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-slate-500 mb-2">To Do</h4><div id="todoList"></div></div>
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-indigo-500 mb-2">In Progress</h4><div id="doingList"></div></div>
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-emerald-500 mb-2">Done</h4><div id="doneList"></div></div>
+                    </div>
+                </div>
             </div>
 
             <!-- GitHub Settings -->
@@ -209,7 +227,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V17 Loaded - Identity Synced");
+console.log("UI_VERSION_HOLD_FIX_V19 Loaded - Project Bible Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -436,11 +454,18 @@ window.renderFileList = function(files) {
     if (explorerMode === 'gallery') {
         listEl.classList.add('hidden');
         galleryEl.classList.remove('hidden');
+        document.getElementById('biblePanel').classList.add('hidden');
         window.renderAssetGallery(files);
+        return;
+    } else if (explorerMode === 'bible') {
+        listEl.classList.add('hidden');
+        galleryEl.classList.add('hidden');
+        document.getElementById('biblePanel').classList.remove('hidden');
         return;
     } else {
         listEl.classList.remove('hidden');
         galleryEl.classList.add('hidden');
+        document.getElementById('biblePanel').classList.add('hidden');
     }
 
     listEl.innerHTML = '';
@@ -461,7 +486,76 @@ window.toggleExplorerMode = function() {
     explorerMode = (explorerMode === 'list') ? 'gallery' : 'list';
     const btn = document.getElementById('explorerToggle');
     if (btn) btn.innerHTML = explorerMode === 'list' ? '<i class="fa-solid fa-table-cells text-sm"></i>' : '<i class="fa-solid fa-list text-sm"></i>';
+    if (explorerMode !== 'list' && explorerMode !== 'gallery') explorerMode = 'list'; // Reset from bible
     window.renderFileList(fileTree);
+};
+
+window.toggleBible = function() {
+    const listEl = document.getElementById('fileList');
+    const galleryEl = document.getElementById('galleryList');
+    const bibleEl = document.getElementById('biblePanel');
+    const btn = document.getElementById('bibleToggle');
+
+    if (explorerMode === 'bible') {
+        explorerMode = 'list';
+        bibleEl.classList.add('hidden');
+        listEl.classList.remove('hidden');
+        btn.classList.replace('text-indigo-400', 'text-slate-500');
+    } else {
+        explorerMode = 'bible';
+        bibleEl.classList.remove('hidden');
+        listEl.classList.add('hidden');
+        galleryEl.classList.add('hidden');
+        btn.classList.replace('text-slate-500', 'text-indigo-400');
+        window.loadBible();
+    }
+};
+
+window.showBibleTab = function(tab) {
+    const lore = document.getElementById('loreWiki');
+    const tasks = document.getElementById('kanbanBoard');
+    if (tab === 'lore') {
+        lore.classList.remove('hidden');
+        tasks.classList.add('hidden');
+    } else {
+        lore.classList.add('hidden');
+        tasks.classList.remove('hidden');
+        window.renderKanban();
+    }
+};
+
+window.loadBible = async function() {
+    try {
+        const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+        const res = await fetch(apiBase + '/api/fs/file?name=BIBLE_LORE.md');
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('loreWiki').innerHTML = window.formatToken(data.content);
+        }
+
+        const tRes = await fetch(apiBase + '/api/fs/file?name=BIBLE_TASKS.json');
+        if (tRes.ok) {
+            const tData = await tRes.json();
+            window.bibleTasks = JSON.parse(tData.content);
+            window.renderKanban();
+        }
+    } catch(e) {}
+};
+
+window.renderKanban = function() {
+    const tasks = window.bibleTasks || [];
+    ['todo', 'doing', 'done'].forEach(status => {
+        const list = document.getElementById(status + 'List');
+        if (!list) return;
+        list.innerHTML = '';
+        tasks.filter(t => t.status === status).forEach(task => {
+            const div = document.createElement('div');
+            div.className = 'kanban-item';
+            div.innerHTML = '<div class="font-bold mb-1">' + task.title + '</div>' +
+                            '<div class="text-[9px] text-slate-500">' + (task.description || '') + '</div>';
+            list.appendChild(div);
+        });
+    });
 };
 
 window.renderAssetGallery = function(files) {

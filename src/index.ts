@@ -224,7 +224,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V17 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V19 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -783,8 +783,18 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   const { message, history = [], model } = await request.json() as any;
 
+  // --- Project Bible Grounding ---
+  let bibleContext = '';
+  try {
+    const loreObj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + 'BIBLE_LORE.md');
+    if (loreObj) bibleContext += `\nProject Lore:\n${await loreObj.text()}\n`;
+
+    const taskObj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + 'BIBLE_TASKS.json');
+    if (taskObj) bibleContext += `\nActive Tasks:\n${await taskObj.text()}\n`;
+  } catch (e) { }
+
   // Use generateCompletion for unified logic
-  const prompt = `Chat History:\n${history.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\nUser: ${message}\nAI:`;
+  const prompt = `${SYSTEM_PROMPT}\n${bibleContext}\nChat History:\n${history.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\nUser: ${message}\nAI:`;
 
   try {
     const result = await generateCompletion(env, prompt, 1024, model, 0.3);
