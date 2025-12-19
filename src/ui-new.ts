@@ -63,8 +63,9 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
                 <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Explorer</span>
                 <div class="flex gap-1">
-                    <button onclick="window.toggleBible()" id="bibleToggle" title="Project Bible (Lore & Tasks)" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-book text-sm"></i></button>
                     <button onclick="window.toggleExplorerMode()" id="explorerToggle" title="Toggle Gallery" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-table-cells text-sm"></i></button>
+                    <button onclick="window.toggleAudioStudio()" id="audioStudioToggle" title="Sound Studio (AI Voice Gen)" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-microphone-lines text-sm"></i></button>
+                    <button onclick="window.toggleBible()" id="bibleToggle" title="Project Bible (Lore & Tasks)" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-book text-sm"></i></button>
                     <button onclick="window.createNewFile()" title="New File" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-file-circle-plus text-sm"></i></button>
                     <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
                     <label class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer">
@@ -90,6 +91,36 @@ export const IDE_HTML = `<!DOCTYPE html>
                         <div class="kanban-col"><h4 class="text-[8px] uppercase text-slate-500 mb-2">To Do</h4><div id="todoList"></div></div>
                         <div class="kanban-col"><h4 class="text-[8px] uppercase text-indigo-500 mb-2">In Progress</h4><div id="doingList"></div></div>
                         <div class="kanban-col"><h4 class="text-[8px] uppercase text-emerald-500 mb-2">Done</h4><div id="doneList"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div id="audioStudioPanel" class="flex-1 overflow-y-auto hidden p-3">
+                <h3 class="text-[10px] uppercase font-bold text-slate-500 mb-4">Sound Studio</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-1">Character Dialogue</label>
+                        <textarea id="audioInput" rows="4" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-2 rounded outline-none focus:border-indigo-500 transition text-slate-200" placeholder="Enter what the character should say..."></textarea>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 block mb-1">Voice Model</label>
+                        <select id="audioModel" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-1.5 rounded outline-none focus:border-indigo-500 transition text-slate-200">
+                            <option value="aura">Aura (Expressive)</option>
+                            <option value="melo">Melo (High-Speed)</option>
+                        </select>
+                    </div>
+                    <button onclick="window.generateAudio()" id="generateAudioBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2 rounded font-medium transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wand-sparkles"></i> Generate Voice
+                    </button>
+                    <div id="audioPreview" class="hidden border-t border-slate-800 pt-4 mt-4">
+                        <p class="text-[10px] text-slate-400 mb-2 font-bold uppercase">Preview</p>
+                        <audio id="previewPlayer" controls class="w-full h-8 mb-4 border border-slate-700 rounded"></audio>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[8px] text-slate-500 uppercase">Save As</label>
+                            <div class="flex gap-2">
+                                <input id="audioName" type="text" placeholder="character_line.mp3" class="flex-1 bg-slate-800/50 border border-slate-700 text-xs px-2 py-1.5 rounded text-white outline-none focus:border-indigo-500">
+                                <button onclick="window.saveGeneratedAudio()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-1.5 rounded font-bold">SAVE</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -449,23 +480,34 @@ window.refreshFiles = async function() {
 window.renderFileList = function(files) {
     const listEl = document.getElementById('fileList');
     const galleryEl = document.getElementById('galleryList');
-    if (!listEl || !galleryEl) return;
+    const bibleEl = document.getElementById('biblePanel');
+    const audioEl = document.getElementById('audioStudioPanel');
+    if (!listEl || !galleryEl || !bibleEl || !audioEl) return;
 
     if (explorerMode === 'gallery') {
         listEl.classList.add('hidden');
         galleryEl.classList.remove('hidden');
-        document.getElementById('biblePanel').classList.add('hidden');
+        bibleEl.classList.add('hidden');
+        audioEl.classList.add('hidden');
         window.renderAssetGallery(files);
         return;
     } else if (explorerMode === 'bible') {
         listEl.classList.add('hidden');
         galleryEl.classList.add('hidden');
-        document.getElementById('biblePanel').classList.remove('hidden');
+        bibleEl.classList.remove('hidden');
+        audioEl.classList.add('hidden');
+        return;
+    } else if (explorerMode === 'audio') {
+        listEl.classList.add('hidden');
+        galleryEl.classList.add('hidden');
+        bibleEl.classList.add('hidden');
+        audioEl.classList.remove('hidden');
         return;
     } else {
         listEl.classList.remove('hidden');
         galleryEl.classList.add('hidden');
-        document.getElementById('biblePanel').classList.add('hidden');
+        bibleEl.classList.add('hidden');
+        audioEl.classList.add('hidden');
     }
 
     listEl.innerHTML = '';
@@ -488,6 +530,99 @@ window.toggleExplorerMode = function() {
     if (btn) btn.innerHTML = explorerMode === 'list' ? '<i class="fa-solid fa-table-cells text-sm"></i>' : '<i class="fa-solid fa-list text-sm"></i>';
     if (explorerMode !== 'list' && explorerMode !== 'gallery') explorerMode = 'list'; // Reset from bible
     window.renderFileList(fileTree);
+};
+
+window.toggleAudioStudio = function() {
+    const listEl = document.getElementById('fileList');
+    const galleryEl = document.getElementById('galleryList');
+    const bibleEl = document.getElementById('biblePanel');
+    const audioEl = document.getElementById('audioStudioPanel');
+    const btn = document.getElementById('audioStudioToggle');
+
+    if (explorerMode === 'audio') {
+        explorerMode = 'list';
+        audioEl.classList.add('hidden');
+        listEl.classList.remove('hidden');
+        btn.classList.replace('text-indigo-400', 'text-slate-500');
+    } else {
+        explorerMode = 'audio';
+        audioEl.classList.remove('hidden');
+        listEl.classList.add('hidden');
+        galleryEl.classList.add('hidden');
+        bibleEl.classList.add('hidden');
+
+        // Reset button states
+        const bibleBtn = document.getElementById('bibleToggle');
+        if (bibleBtn) bibleBtn.classList.replace('text-indigo-400', 'text-slate-500');
+        btn.classList.replace('text-slate-500', 'text-indigo-400');
+    }
+};
+
+window.generateAudio = async function() {
+    const text = document.getElementById('audioInput').value;
+    const model = document.getElementById('audioModel').value;
+    const btn = document.getElementById('generateAudioBtn');
+    if (!text) return alert("Enter dialogue first.");
+
+    const oldText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+    try {
+        const res = await fetch('/api/audio/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, model })
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        const blob = await res.blob();
+        window.lastGeneratedAudioBlob = blob;
+        const url = URL.createObjectURL(blob);
+
+        const preview = document.getElementById('audioPreview');
+        const player = document.getElementById('previewPlayer');
+        preview.classList.remove('hidden');
+        player.src = url;
+        player.play();
+
+        // Suggest a name
+        const suggestedName = text.substring(0, 10).replace(/\\s+/g, '_').toLowerCase() + "_" + Date.now() + ".mp3";
+        document.getElementById('audioName').value = suggestedName;
+
+    } catch (e) {
+        alert("Audio Gen Failed: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+    }
+};
+
+window.saveGeneratedAudio = async function() {
+    const name = document.getElementById('audioName').value;
+    const blob = window.lastGeneratedAudioBlob;
+    if (!name || !blob) return alert("Nothing to save.");
+
+    try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const base64 = reader.result.split(',')[1];
+            const res = await fetch('/api/fs/file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: 'audio/' + name, content: base64, encoding: 'base64' })
+            });
+            if (res.ok) {
+                alert("Saved to audio/" + name);
+                window.refreshFiles();
+            } else {
+                throw new Error(await res.text());
+            }
+        };
+        reader.readAsDataURL(blob);
+    } catch (e) {
+        alert("Save Failed: " + e.message);
+    }
 };
 
 window.toggleBible = function() {
@@ -563,8 +698,8 @@ window.renderAssetGallery = function(files) {
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Filter for media files
-    const mediaFiles = files.filter(f => f.name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i));
+    // Filter for media files (Enhanced for Phase 3)
+    const mediaFiles = files.filter(f => f.name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf|mp3|wav|ogg)$/i));
 
     if (mediaFiles.length === 0) {
         grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 text-xs">No media assets found</div>';
@@ -578,20 +713,27 @@ window.renderAssetGallery = function(files) {
         card.onclick = () => window.loadFile(file.name);
 
         const is3D = file.name.match(/\\.(glb|gltf)$/i);
+        const isAudio = file.name.match(/\\.(mp3|wav|ogg)$/i);
         const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
 
         card.innerHTML = '<div class="flex items-center justify-center h-full"><i class="fa-solid fa-spinner fa-spin text-slate-700"></i></div>' +
                          '<div class="asset-meta truncate">' + file.name + '</div>';
         grid.appendChild(card);
 
-        // Lazy load thumbnail
+        // Lazy load thumbnail or icon
         try {
             const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(file.name));
             if (res.ok) {
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
                 if (is3D) {
-                    card.innerHTML = '<model-viewer src="' + url + '" style="width:100%;height:100%" auto-rotate rotation-per-second="30deg" interaction-prompt="none" shadow-intensity="1"></model-viewer>' +
+                    card.innerHTML = '<model-viewer src="' + url + '" style="width:100%;height:100%" auto-rotate interaction-prompt="none"></model-viewer>' +
+                                     '<div class="asset-meta truncate">' + file.name + '</div>';
+                } else if (isAudio) {
+                    card.innerHTML = '<div class="flex flex-col items-center justify-center h-full bg-slate-800/50">' +
+                                     '<i class="fa-solid fa-file-audio text-3xl text-indigo-400 mb-1"></i>' +
+                                     '<div class="text-[8px] text-slate-400">Audio Clip</div>' +
+                                     '</div>' +
                                      '<div class="asset-meta truncate">' + file.name + '</div>';
                 } else {
                     card.innerHTML = '<img src="' + url + '" class="asset-thumb" onload="window.URL.revokeObjectURL(this.src)">' +

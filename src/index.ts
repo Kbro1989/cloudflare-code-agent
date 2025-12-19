@@ -323,6 +323,8 @@ export default {
           return handleAudioSTT(request, env, corsHeaders);
         case '/api/audio/tts':
           return handleAudioTTS(request, env, corsHeaders);
+        case '/api/audio/generate':
+          return handleAudioGenerate(request, env, corsHeaders);
         case '/api/doctor':
           return handleDoctor(request, env, corsHeaders);
         case '/api/deploy':
@@ -654,6 +656,30 @@ async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Pro
     });
   } catch (e: any) {
     return new Response(`TTS Error: ${e.message}`, { status: 500, headers: corsHeaders });
+  }
+}
+
+async function handleAudioGenerate(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  const { text, model } = await request.json() as any;
+  if (!text) return new Response('Missing text', { status: 400, headers: corsHeaders });
+
+  try {
+    const modelId = (model === 'aura') ? MODELS.AURA : MODELS.TTS;
+    const response = await runAI(env, modelId, { text });
+
+    // Aura returns an Object with {audio: ...} in some cases or raw binary
+    // Melo returns raw binary
+    const audioData = response.audio || response;
+
+    return new Response(audioData as any, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'audio/mpeg',
+        'X-Audio-Provider': modelId
+      }
+    });
+  } catch (e: any) {
+    return new Response(`Audio Gen Failed: ${e.message}`, { status: 500, headers: corsHeaders });
   }
 }
 
