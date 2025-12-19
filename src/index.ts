@@ -219,7 +219,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V7 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V8 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -528,6 +528,7 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     const audioArray = new Uint8Array(audioBuffer);
 
     console.log(`🎙️ STT Request: ${audioArray.byteLength} bytes`);
+    console.log("UI_VERSION_HOLD_FIX_V8 Loaded");
 
     if (audioArray.byteLength < 100) {
       return new Response('Audio buffer too small', { status: 400, headers: corsHeaders });
@@ -858,9 +859,6 @@ async function handleDoctor(request: Request, env: Env, corsHeaders: any): Promi
   }, 200, corsHeaders);
 }
 
-// ----------------------------------------------------------------------------
-// Filesystem Handler (R2)
-// ----------------------------------------------------------------------------
 const WORKSPACE_PREFIX = 'projects/default/';
 
 async function handleFilesystem(request: Request, env: Env, corsHeaders: any): Promise<Response> {
@@ -870,16 +868,11 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
   if (request.method === 'GET' && url.pathname === '/api/fs/list') {
     try {
       const list = await env.R2_ASSETS.list({ prefix: WORKSPACE_PREFIX });
-      let files = list.objects.map(o => ({
+      const files = list.objects.map(o => ({
         name: o.key.replace(WORKSPACE_PREFIX, ''),
         size: o.size,
         uploaded: o.uploaded
       })).filter(f => f.name !== '');
-
-      if (files.length === 0) {
-        // Init default for clarity
-        files = [{ name: 'readme.md', size: 0, uploaded: new Date() }];
-      }
       return json(files, 200, corsHeaders);
     } catch (e: any) {
       return new Response(e.message, { status: 500, headers: corsHeaders });
@@ -894,28 +887,20 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
     const obj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + name);
     if (!obj) return new Response('Not found', { status: 404, headers: corsHeaders });
 
-    // Determine content type (Primitive)
     const isBinary = name.match(/\.(png|jpg|jpeg|glb|gltf|gif|webp)$/i);
-
     if (isBinary) {
-      // Serve binary directly for browser download/display
-      const headers = new Headers(corsHeaders);
-      obj.writeHttpMetadata(headers as any);
-      return new Response(obj.body, { headers });
-    } else {
-      // Text for editor
-      const text = await obj.text();
-      return json({ content: text }, 200, corsHeaders);
+      return new Response(obj.body, { headers: { ...corsHeaders, 'Content-Type': 'application/octet-stream' } });
     }
+    const content = await obj.text();
+    return json({ content }, 200, corsHeaders);
   }
 
   // Save File
   if (request.method === 'POST' && url.pathname === '/api/fs/file') {
-    const { name, content, encoding } = await request.json() as any;
+    const { name, content, encoding } = await request.json() as { name: string, content: string, encoding?: string };
+    if (!name) return new Response('Missing name', { status: 400 });
 
     let body: any = content;
-
-    // Handle Base64 uploads (from Image Gen)
     if (encoding === 'base64') {
       const binString = atob(content);
       body = Uint8Array.from(binString, c => c.charCodeAt(0));
