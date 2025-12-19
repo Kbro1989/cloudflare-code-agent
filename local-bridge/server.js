@@ -67,7 +67,7 @@ app.get('/api/fs/file', async (req, res) => {
 // Save File
 app.post('/api/fs/file', async (req, res) => {
   try {
-    const { name, content } = req.body;
+    const { name, content, encoding } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing name' });
 
     const filePath = path.join(WORKSPACE_ROOT, name);
@@ -79,7 +79,14 @@ app.post('/api/fs/file', async (req, res) => {
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, content || '', 'utf-8');
+
+    // Support base64 for images/binary
+    if (encoding === 'base64') {
+      const buffer = Buffer.from(content, 'base64');
+      await fs.writeFile(filePath, buffer);
+    } else {
+      await fs.writeFile(filePath, content || '', 'utf-8');
+    }
 
     res.json({ success: true });
   } catch (error) {

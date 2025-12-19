@@ -84,10 +84,27 @@ window.syncCloudToLocal = async function() {
     const unsynced = cloudFiles.filter(cf => !bridgeFiles.some(bf => bf.name === cf.name));
     if (unsynced.length > 0 && confirm('Sync ' + unsynced.length + ' cloud files to local?')) {
       for (const file of unsynced) {
-        const content = await fetch('/api/fs/file?name=' + encodeURIComponent(file.name)).then(r => r.json());
+        const isBinary = file.name.match(/\\.(png|jpg|jpeg|glb|gltf|gif|webp)$/i);
+        const res = await fetch('/api/fs/file?name=' + encodeURIComponent(file.name));
+
+        let payload;
+        if (isBinary) {
+          const blob = await res.blob();
+          const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(blob);
+          });
+          payload = { name: file.name, content: base64, encoding: 'base64' };
+        } else {
+          const data = await res.json();
+          payload = { name: file.name, content: data.content };
+        }
+
         await fetch(BRIDGE_URL + '/api/fs/file', {
           method: 'POST',
-          body: JSON.stringify({ name: file.name, content: content.content })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
       }
       window.refreshFiles();

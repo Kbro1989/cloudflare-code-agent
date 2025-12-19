@@ -200,7 +200,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V6 Loaded");
+console.log("UI_VERSION_HOLD_FIX_V7 Loaded");
 
 let chatHistory = [];
 let activeFile = null;
