@@ -166,6 +166,10 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="flex items-center gap-1"><i class="fa-solid fa-circle text-emerald-500 text-[6px]"></i> Ready</div>
         </div>
         <div class="flex items-center gap-4">
+            <div id="quotaStatus" class="flex items-center gap-2" title="KV Write Quota (1,000/day)">
+                <i class="fa-solid fa-gauge-high"></i>
+                <span id="quotaPercent">0%</span>
+            </div>
             <div id="cursorPos">Ln <span id="cursorLine">1</span>, Col <span id="cursorCol">1</span></div>
             <div class="flex items-center gap-1 font-mono uppercase tracking-widest opacity-80">UTF-8</div>
         </div>
@@ -174,11 +178,15 @@ export const IDE_HTML = `<!DOCTYPE html>
 
 
 export const UI_JS = `
-// Global variables for the IDE state
-let activeFile = null; // Currently active file name
-let openTabs = []; // Array of file names
-let fileTree = []; // Array representing the file system tree
-let activeImage = null; // Track image context for Vision
+// Use hex escape for backticks to avoid terminating the outer template literal
+const BACKTICK = "\\x60";
+const DOLLAR = "$";
+
+// Global state
+let activeFile = null;
+let openTabs = [];
+let fileTree = [];
+let activeImage = null;
 let editor = null;
 let currentCode = '';
 let diffEditor = null;
@@ -186,10 +194,15 @@ let diffEditor = null;
 // Helper: Escape string for JS inclusion
 function escapeJsString(str) {
     if (!str) return '';
-    return str.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/"/g, '\\\\"').replace(/\\n/g, '\\\\n').replace(/\\r/g, '\\\\r');
+    return str.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/"/g, '\\\\"').replace(/\\\\n/g, '\\\\n').replace(/\\\\r/g, '\\\\r');
 }
 
-// --- Deployment Logic ---
+window.escapeHtml = function(text) {
+    if (!text) return text;
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+};
+
+// Deployment logic
 window.deployProject = async function() {
     const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");
     if (!scriptName) return;
@@ -203,13 +216,11 @@ window.deployProject = async function() {
     try {
         let codeToDeploy = currentCode;
         if (!activeFile?.endsWith('.ts') && !activeFile?.endsWith('.js')) {
-             try {
-                const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
-                if(res.ok) {
-                    const d = await res.json();
-                    codeToDeploy = d.content;
-                }
-             } catch(e) {}
+            const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
+            if(res.ok) {
+                const d = await res.json();
+                codeToDeploy = d.content;
+            }
         }
 
         if (!codeToDeploy) {
@@ -224,9 +235,9 @@ window.deployProject = async function() {
         const result = await res.json();
 
         if (res.ok) {
-            alert(\`🚀 Success! Deployed to namespace '\${escapeJsString(result.result.namespace)}'.\\nScript: \${escapeJsString(result.result.script)}\`);
+            alert("🚀 Success! Deployed to namespace " + result.result.namespace + "\\nScript: " + result.result.script);
         } else {
-             alert('Deployment Failed: ' + escapeJsString(result.error || 'Unknown Error'));
+             alert('Deployment Failed: ' + (result.error || 'Unknown Error'));
         }
     } catch (e) {
         alert('Deployment Error: ' + e.message);
@@ -236,7 +247,7 @@ window.deployProject = async function() {
     }
 };
 
-// --- Monaco Editor Setup ---
+// Monaco setup
 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
 require(['vs/editor/editor.main'], function(monacoInstance) {
     window.monaco = monacoInstance;
@@ -252,10 +263,13 @@ require(['vs/editor/editor.main'], function(monacoInstance) {
     });
 
     editor.onDidChangeCursorPosition((e) => {
-        document.getElementById('cursorLine').innerText = e.position.lineNumber;
-        document.getElementById('cursorCol').innerText = e.position.column;
+        const ln = document.getElementById('cursorLine');
+        const cl = document.getElementById('cursorCol');
+        if (ln) ln.innerText = e.position.lineNumber;
+        if (cl) cl.innerText = e.position.column;
     });
 
+    // Ctrl+S to save
     editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
         if (activeFile) window.saveCurrentFile(activeFile, editor.getValue());
     });
@@ -263,7 +277,7 @@ require(['vs/editor/editor.main'], function(monacoInstance) {
     window.refreshFiles();
 });
 
-// --- Terminal Logic ---
+// Terminal
 const termInput = document.getElementById('terminalInput');
 termInput?.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
@@ -292,12 +306,7 @@ termInput?.addEventListener('keydown', async (e) => {
     }
 });
 
-window.escapeHtml = function(text) {
-    if (!text) return text;
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-};
-
-// --- GitHub Logic ---
+// GitHub
 window.toggleGithubSettings = function() {
     const current = localStorage.getItem('gh_token') || '';
     const token = prompt("Enter GitHub PAT:", current);
@@ -315,7 +324,9 @@ window.ghClone = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
     try {
-        const [owner, name] = repo.split('/');
+        const parts = repo.split('/');
+        const owner = parts[0];
+        const name = parts[1];
         const res = await fetch('/api/github/clone', { method: 'POST', body: JSON.stringify({ token, owner, repo: name }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -326,7 +337,7 @@ window.ghClone = async function() {
     } finally { btn.innerHTML = oldText; }
 };
 
-// --- File Operations ---
+// Files
 window.refreshFiles = async function() {
     const listEl = document.getElementById('fileList');
     if (listEl) listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
@@ -335,7 +346,10 @@ window.refreshFiles = async function() {
         const files = await res.json();
         fileTree = files;
         window.renderFileList(files);
-        if (!activeFile && files.length > 0) window.loadFile(files[0].name);
+        if (!activeFile && files.length > 0) {
+            const indexFile = files.find(f => f.name === 'src/index.ts') || files[0];
+            window.loadFile(indexFile.name);
+        }
     } catch (e) { if (listEl) listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>'; }
 };
 
@@ -346,11 +360,12 @@ window.renderFileList = function(files) {
     files.forEach(file => {
         const div = document.createElement('div');
         div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md';
-        div.innerHTML = \`<div class="flex items-center gap-2 truncate flex-1" onclick="window.loadFile('\${escapeJsString(file.name)}')">
-                            <i class="fa-regular fa-file-code text-slate-500 group-hover:text-indigo-400"></i>
-                            <span>\${file.name}</span>
-                        </div>
-                        <button class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400" onclick="event.stopPropagation(); window.deleteFile('\${escapeJsString(file.name)}')"><i class="fa-solid fa-trash text-xs"></i></button>\`;
+        const safeName = escapeJsString(file.name);
+        div.innerHTML = '<div class="flex items-center gap-2 truncate flex-1" onclick="window.loadFile(\\'' + safeName + '\\')">' +
+                        '<i class="fa-regular fa-file-code text-slate-500 group-hover:text-indigo-400"></i>' +
+                        '<span>' + file.name + '</span>' +
+                        '</div>' +
+                        '<button class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400" onclick="event.stopPropagation(); window.deleteFile(\\'' + safeName + '\\')"><i class="fa-solid fa-trash text-xs"></i></button>';
         listEl.appendChild(div);
     });
 };
@@ -365,21 +380,19 @@ window.deleteFile = async function(name) {
 
 window.loadFile = async function(name) {
     activeFile = name;
-    document.getElementById('activeFileName') ? document.getElementById('activeFileName').innerText = name : null;
-    const container = document.getElementById('editorContainer');
     const previewContainer = document.getElementById('previewContainer');
+    const isMedia = name.match(/\\.(png|jpg|glb|gltf)$/i);
 
-    const isMedia = name.match(/\\\\.(png|jpg|glb|gltf)$/i);
     if (isMedia) {
         previewContainer.style.display = 'block';
         previewContainer.innerHTML = 'Loading...';
         const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-        if (name.match(/\\\\.(glb|gltf)$/i)) {
+        if (name.match(/\\.(glb|gltf)$/i)) {
             const url = URL.createObjectURL(await res.blob());
-            previewContainer.innerHTML = \`<model-viewer src="\${url}" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>\`;
+            previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
         } else {
             const d = await res.json();
-            previewContainer.innerHTML = \`<div class="flex items-center justify-center h-full bg-slate-900"><img src="\${d.content.startsWith('http') ? d.content : 'data:image/png;base64,' + d.content}" class="max-w-full max-h-full"></div>\`;
+            previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900"><img src="' + (d.content.startsWith('http') ? d.content : 'data:image/png;base64,' + d.content) + '" class="max-w-full max-h-full"></div>';
         }
     } else {
         previewContainer.style.display = 'none';
@@ -398,15 +411,17 @@ window.loadFile = async function(name) {
 };
 
 window.renderTabs = function() {
-    if (!openTabs.includes(activeFile) && activeFile) openTabs.push(activeFile);
+    if (activeFile && !openTabs.includes(activeFile)) openTabs.push(activeFile);
     const container = document.getElementById('tabsContainer');
     if (!container) return;
     container.innerHTML = '';
     openTabs.forEach(t => {
         const div = document.createElement('div');
-        div.className = \`px-3 py-2 text-xs flex items-center gap-2 cursor-pointer \${t === activeFile ? 'bg-slate-800 border-t-2 border-indigo-500 text-slate-200' : 'bg-slate-900/50 text-slate-500'}\`;
+        const isActive = (t === activeFile);
+        div.className = 'px-3 py-2 text-xs flex items-center gap-2 cursor-pointer ' + (isActive ? 'bg-slate-800 border-t-2 border-indigo-500 text-slate-200' : 'bg-slate-900/50 text-slate-500');
         div.onclick = () => window.loadFile(t);
-        div.innerHTML = \`<span>\${t}</span><i class="fa-solid fa-times hover:text-red-400" onclick="event.stopPropagation(); window.closeTab('\${escapeJsString(t)}')"></i>\`;
+        const safeTab = escapeJsString(t);
+        div.innerHTML = '<span>' + t + '</span><i class="fa-solid fa-times hover:text-red-400" onclick="event.stopPropagation(); window.closeTab(\\'' + safeTab + '\\')"></i>';
         container.appendChild(div);
     });
 };
@@ -419,11 +434,11 @@ window.closeTab = function(name) {
 };
 
 window.saveCurrentFile = async function(name, content) {
-    if (editor && !name.match(/\\\\.(png|jpg|glb|gltf)$/i)) content = editor.getValue();
+    if (editor && !name.match(/\\.(png|jpg|glb|gltf)$/i)) content = editor.getValue();
     await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content }) });
 };
 
-// --- AI Assistant ---
+// AI assistant
 window.sendMessage = async function() {
     const input = document.getElementById('chatInput');
     const text = input?.value.trim();
@@ -459,25 +474,28 @@ window.sendMessage = async function() {
 window.addMessage = function(role, text, loading) {
     const container = document.getElementById('chatMessages');
     const div = document.createElement('div');
-    div.className = \`p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6 border-slate-600' : 'bg-indigo-900/20 mr-6 border-indigo-900/50'}\`;
+    const isUser = (role === 'user');
+    div.className = 'p-3 rounded-lg border ' + (isUser ? 'bg-slate-700/50 ml-6 border-slate-600' : 'bg-indigo-900/20 mr-6 border-indigo-900/50');
     div.innerHTML = loading ? 'Thinking...' : window.formatToken(text);
     container?.appendChild(div);
-    container ? container.scrollTop = container.scrollHeight : null;
+    if (container) container.scrollTop = container.scrollHeight;
     return div;
 };
 
 window.formatToken = function(text) {
-    const pattern = /\\\\x60\\\\x60\\\\x60(\\\\w+)?\\\\n(?:\\\\/\\\\/\\\\s*file:\\\\s*([^\\\\n\\\\r]+)\\\\n)?([\\\\s\\\\S]*?)\\\\x60\\\\x60\\\\x60/g;
+    // pattern matches triple backticks for code blocks
+    const pattern = /\\x60\\x60\\x60(\\w+)?\\n(?:\\/\\/\\s*file:\\s*([^\\n\\r]+)\\n)?([\\s\\S]*?)\\x60\\x60\\x60/g;
     return text.replace(pattern, (m, lang, file, code) => {
         const encoded = encodeURIComponent(code);
-        return \`<div class="bg-black/40 rounded p-2 my-2 border border-slate-700 relative group">
-            <div class="flex justify-between text-[10px] text-slate-500 mb-1 uppercase">
-                <span>\${file || lang || 'code'}</span>
-                <button onclick="window.applyCode('\${encoded}', '\${file ? encodeURIComponent(file) : ''}')" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>
-            </div>
-            <pre class="text-xs overflow-x-auto">\${window.escapeHtml(code)}</pre>
-        </div>\`;
-    }).replace(/\\\\n/g, '<br>');
+        const safeFile = file ? encodeURIComponent(file) : '';
+        return '<div class="bg-black/40 rounded p-2 my-2 border border-slate-700 relative group">' +
+            '<div class="flex justify-between text-[10px] text-slate-500 mb-1 uppercase">' +
+                '<span>' + (file || lang || 'code') + '</span>' +
+                '<button onclick="window.applyCode(\\'' + encoded + '\\', \\'' + safeFile + '\\')" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>' +
+            '</div>' +
+            '<pre class="text-xs overflow-x-auto">' + window.escapeHtml(code) + '</pre>' +
+        '</div>';
+    }).replace(/\\n/g, '<br>');
 };
 
 window.applyCode = async function(encodedCode, file) {
@@ -488,10 +506,13 @@ window.applyCode = async function(encodedCode, file) {
     const modal = document.getElementById('diffModal');
     modal?.classList.remove('hidden');
     if (!diffEditor) {
+        // @ts-ignore
         diffEditor = monaco.editor.createDiffEditor(document.getElementById('diffContainer'), { theme: 'vs-dark', automaticLayout: true });
     }
     diffEditor.setModel({
+        // @ts-ignore
         original: monaco.editor.createModel(editor.getValue(), 'typescript'),
+        // @ts-ignore
         modified: monaco.editor.createModel(code, 'typescript')
     });
 };
@@ -521,10 +542,61 @@ window.uploadFile = async function(input) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (e) => {
+        // @ts-ignore
         const base64 = e.target.result.split(',')[1];
         await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name: file.name, content: base64, encoding: 'base64' }) });
         window.refreshFiles();
     };
     reader.readAsDataURL(file);
 };
+
+// Health & Quota Polling
+async function updateHealthStatus() {
+    try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+            const data = await res.json();
+            const quotaPercent = data.kvWriteQuota || 0;
+            const quotaElem = document.getElementById('quotaPercent');
+            if (quotaElem) {
+                quotaElem.innerText = quotaPercent + '%';
+                const quotaParent = document.getElementById('quotaStatus');
+                if (quotaPercent > 90) {
+                    quotaParent.className = 'flex items-center gap-2 text-red-500 font-bold animate-pulse';
+                } else if (quotaPercent > 70) {
+                    quotaParent.className = 'flex items-center gap-2 text-yellow-500';
+                } else {
+                    quotaParent.className = 'flex items-center gap-2 text-slate-500';
+                }
+            }
+
+            // Update Provider Badge
+            const primary = data.providers.find(p => p.tier === 'primary');
+            if (primary && primary.status === 'available') {
+                document.getElementById('providerBadge').innerText = 'Gemini 1.5 Flash';
+            } else {
+                 const secondary = data.providers.find(p => p.tier === 'secondary');
+                 if (secondary) document.getElementById('providerBadge').innerText = 'Workers AI';
+            }
+        }
+    } catch (e) {}
+}
+
+setInterval(updateHealthStatus, 60000);
+document.addEventListener('DOMContentLoaded', updateHealthStatus);
+
+// Window function mapping
+window.acceptDiff = window.acceptDiff || acceptDiff;
+window.rejectDiff = window.rejectDiff || rejectDiff;
+window.ghClone = window.ghClone || ghClone;
+window.deployProject = window.deployProject || deployProject;
+window.sendMessage = window.sendMessage || sendMessage;
+window.uploadFile = window.uploadFile || uploadFile;
+window.saveCurrentFile = window.saveCurrentFile || saveCurrentFile;
+window.refreshFiles = window.refreshFiles || refreshFiles;
+window.createNewFile = window.createNewFile || createNewFile;
+window.toggleGithubSettings = window.toggleGithubSettings || toggleGithubSettings;
+window.formatToken = window.formatToken || formatToken;
+window.applyCode = window.applyCode || applyCode;
+window.updateHealthStatus = updateHealthStatus;
 `;

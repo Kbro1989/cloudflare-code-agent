@@ -3,10 +3,24 @@
   "main": "src/index.ts",
   "compatibility_date": "2024-12-16",
   "account_id": "6872653edcee9c791787c1b783173793",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimiter"
+      }
+    ]
+  },
   "migrations": [
     {
       "tag": "v4",
       "deleted_classes": [
+        "RateLimiter"
+      ]
+    },
+    {
+      "tag": "v5",
+      "new_classes": [
         "RateLimiter"
       ]
     }
@@ -30,11 +44,18 @@
   "vars": {
     "MAX_FILE_SIZE": 10485760,
     "MAX_CACHE_SIZE": 524288,
-    "KV_BATCH_SIZE": 10
+    "KV_BATCH_SIZE": 10,
+    "RATE_LIMIT_PER_MINUTE": 15
   },
   "ai": {
     "binding": "AI"
   },
+  "dispatch_namespaces": [
+    {
+      "binding": "DISPATCHER",
+      "namespace": "code-agent-dispatcher"
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": {
