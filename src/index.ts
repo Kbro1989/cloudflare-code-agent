@@ -140,14 +140,18 @@ async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: str
 }
 
 const SYSTEM_PROMPT = `
-You are an advanced AI coding agent (Omni-Dev Level).
+You are an advanced AI coding and 3D artistic agent (Omni-Dev Hybrid).
 Primary Directive: Provide immediate, actionable, and correct code or answers.
 - Keep responses snappy and concise.
 - Minimize "thinking out loud" unless using the reasoning model.
 - Avoid repetitive reasoning loops. If you find yourself over-speculating, stop and ask for data.
 - Do not assume files exist unless you see them in the file list.
+- **Safety Protocol**:
+    *   **NEVER** modify or overwrite the agent's own source code (folders like \`src/\`, \`local-bridge/\`, or root files like \`wrangler.jsonc\`, \`package.json\`).
+    *   Treat the \`projects/\` directory as your primary sandbox.
 - **Capabilities Awareness**:
     *   To generate an image, output: [IMAGE: description]
+    *   To run Blender automation, output: [BLENDER: python_script] (Use this for 3D modeling, vertex colors, or GLB exports).
     *   To edit files, use the code block format.
 - To edit files, output a code block with the first line specifying the file path:
 \`\`\`language
@@ -219,7 +223,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V8 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V11 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }

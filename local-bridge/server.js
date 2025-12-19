@@ -132,6 +132,52 @@ app.post('/api/terminal', async (req, res) => {
   }
 });
 
+// Blender Configuration
+const BLENDER_EXECUTABLE = process.env.BLENDER_PATH || "C:\\Program Files\\Blender Foundation\\Blender 5.0\\blender.exe";
+
+// Blender Script Execution (Background Mode)
+app.post('/api/blender/run', async (req, res) => {
+  try {
+    const { script, args = [] } = req.body;
+    if (!script) return res.status(400).json({ error: 'Missing python script' });
+
+    // Save script to temp file in workspace
+    const tempScriptPath = path.join(WORKSPACE_ROOT, '.blender_temp_script.py');
+    await fs.writeFile(tempScriptPath, script);
+
+    // Build command: blender -b -P script.py -- args
+    // -b: Background mode
+    // -P: Run python script
+    const blenderCmd = `"${BLENDER_EXECUTABLE}" -b -P "${tempScriptPath}" -- ${args.join(' ')}`;
+
+    console.log(`🎬 Running Blender Task...`);
+
+    const { stdout, stderr } = await execAsync(blenderCmd, {
+      cwd: WORKSPACE_ROOT,
+      timeout: 120000 // 2 minute timeout for 3D tasks
+    });
+
+    // Cleanup
+    await fs.unlink(tempScriptPath).catch(() => { });
+
+    res.json({
+      success: true,
+      output: stdout,
+      errors: stderr
+    });
+  } catch (error) {
+    // Attempt cleanup
+    const tempScriptPath = path.join(WORKSPACE_ROOT, '.blender_temp_script.py');
+    await fs.unlink(tempScriptPath).catch(() => { });
+
+    res.status(500).json({
+      error: error.message,
+      output: error.stdout,
+      stderr: error.stderr
+    });
+  }
+});
+
 // Helper: List files recursively
 async function listFilesRecursive(dir, baseDir = dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -163,7 +209,8 @@ async function listFilesRecursive(dir, baseDir = dir) {
 function shouldIgnore(name) {
   const ignorePatterns = [
     'node_modules', '.git', 'dist', 'build', '.next',
-    '.env', '.DS_Store', 'Thumbs.db'
+    '.env', '.DS_Store', 'Thumbs.db', 'src', 'local-bridge',
+    'wrangler.toml', 'wrangler.jsonc', 'package.json', 'package-lock.json'
   ];
   return ignorePatterns.includes(name) || name.startsWith('.');
 }

@@ -122,28 +122,94 @@ window.refreshFiles = async function() {
         const apiBase = window.getApiBase();
         const res = await fetch(apiBase + '/api/fs/list');
         const data = await res.json();
-        const uniqueFiles = new Map();
-        data.forEach(f => uniqueFiles.set(f.name, f));
-        const files = Array.from(uniqueFiles.values());
 
-        fileTree = files;
-        window.renderFileList(files);
+        fileTree = data;
+        window.renderFileList(data);
     } catch (e) {
         if (listEl) listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
     }
 };
 
+// Override loadFile to use bridge
+window.loadFile = async function(name) {
+    activeFile = name;
+    const previewContainer = document.getElementById('previewContainer');
+    const isMedia = name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i);
+    const apiBase = window.getApiBase();
+
+    if (isMedia) {
+        previewContainer.style.display = 'block';
+        previewContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Media...</div>';
+        try {
+            const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(name));
+            if (!res.ok) throw new Error('Failed to load media');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            if (name.match(/\\.(glb|gltf)$/i)) {
+                previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
+            } else {
+                previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900/50 backdrop-blur-sm p-4">' +
+                    '<img src="' + url + '" class="max-w-full max-h-full shadow-2xl rounded-lg border border-white/10" onload="window.URL.revokeObjectURL(this.src)">' +
+                    '</div>';
+            }
+        } catch (e) {
+            previewContainer.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-red-400 gap-2">' +
+                '<i class="fa-solid fa-circle-exclamation text-2xl"></i>' +
+                '<span class="text-xs font-mono">' + e.message + '</span>' +
+                '</div>';
+        }
+    } else {
+        previewContainer.style.display = 'none';
+        try {
+            const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(name));
+            const d = await res.json();
+            currentCode = d.content;
+            if (editor) {
+                const model = editor.getModel();
+                monaco.editor.setModelLanguage(model, window.getLanguage(name));
+                editor.setValue(d.content);
+            }
+        } catch(e){}
+    }
+    window.renderTabs();
+};
+
 // Override saveCurrentFile to use bridge
-window.saveCurrentFile = async function(name, content) {
-    if (window.editor && !name.match(/\\.(png|jpg|glb|gltf)$/i)) {
+window.saveCurrentFile = async function(name, content, encoding) {
+    if (window.editor && !name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i)) {
         content = window.editor.getValue();
     }
 
     const apiBase = window.getApiBase();
     await fetch(apiBase + '/api/fs/file', {
         method: 'POST',
-        body: JSON.stringify({ name: name, content: content })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, content, encoding })
     });
+};
+
+// Override create/delete for bridge safety
+window.createNewFile = async function() {
+    const name = prompt("Filename:");
+    if (name) {
+        const apiBase = window.getApiBase();
+        await fetch(apiBase + '/api/fs/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, content: '' }) });
+        window.refreshFiles();
+    }
+};
+
+window.deleteFile = async function(name) {
+    if (!confirm('Delete ' + name + '?')) return;
+    try {
+        const apiBase = window.getApiBase();
+        await fetch(apiBase + '/api/fs/file', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        window.refreshFiles();
+    } catch(e) { alert('Failed'); }
 };
 
 // Init on page load

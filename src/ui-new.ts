@@ -200,7 +200,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V7 Loaded");
+console.log("UI_VERSION_HOLD_FIX_V11 Loaded");
 
 let chatHistory = [];
 let activeFile = null;
@@ -319,7 +319,12 @@ termInput?.addEventListener('keydown', async (e) => {
         out.appendChild(line);
 
         try {
-            const res = await fetch('/api/terminal', { method: 'POST', body: JSON.stringify({ command: cmd }) });
+            const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+            const res = await fetch(apiBase + '/api/terminal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: cmd })
+            });
             const d = await res.json();
             const respLine = document.createElement('pre');
             respLine.className = 'text-slate-300 whitespace-pre-wrap ml-4';
@@ -344,22 +349,53 @@ window.toggleGithubSettings = function() {
 
 window.ghClone = async function() {
     const repoInput = document.getElementById('ghRepo');
-    const repo = repoInput?.value;
+    const repoRaw = repoInput?.value;
     const token = localStorage.getItem('gh_token');
-    if (!repo || !token) return alert("Missing Repo or Token");
+    if (!repoRaw || !token) return alert("Missing Repo (owner/repo) or Token (set in gear icon)");
 
     const btn = document.querySelector('button[onclick="window.ghClone()"]');
     const oldText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
 
     try {
-        const parts = repo.split('/');
+        const parts = repoRaw.split('/');
         const owner = parts[0];
-        const name = parts[1];
-        const res = await fetch('/api/github/clone', { method: 'POST', body: JSON.stringify({ token, owner, repo: name }) });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        alert('Cloned successfully');
+        const repo = parts[1];
+
+        // 1. Get file list
+        const listRes = await fetch('/api/github/clone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, owner, repo })
+        });
+        const listData = await listRes.json();
+        if (listData.error) throw new Error(listData.error);
+
+        const files = listData.files || [];
+        const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+
+        // 2. Fetch and save each file
+        for (const file of files) {
+            const contentRes = await fetch('/api/github/content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, owner, repo, path: file.path })
+            });
+            const contentData = await contentRes.json();
+
+            // Save to R2 or Local Bridge
+            await fetch(apiBase + '/api/fs/file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: file.path,
+                    content: contentData.content,
+                    encoding: contentData.encoding // Handles base64 from GH
+                })
+            });
+        }
+
+        alert('Successfully synced ' + files.length + ' files!');
         window.refreshFiles();
     } catch (e) {
         alert("Clone Failed: " + e.message);
@@ -545,6 +581,7 @@ window.sendMessage = async function() {
         chatHistory.push({ role: 'assistant', content: fullText });
 
         // Omni-Aware: Auto Image Trigger
+        // Omni-Aware Art Triggers
         const imageMatch = fullText.match(/\[IMAGE:\s*(.*?)\]/i);
         if (imageMatch && imageMatch[1]) {
             const prompt = imageMatch[1];
@@ -558,6 +595,29 @@ window.sendMessage = async function() {
                 window.addMessage('ai', '<img src="' + imgData.image + '" class="rounded-lg cursor-pointer" onclick="window.loadFile(\\'' + imgData.filename + '\\')">');
                 window.refreshFiles();
             }
+        }
+
+        // Detect Blender Automation
+        const blenderMatch = fullText.match(/\[BLENDER: ([\s\S]*?)\]/);
+        if (blenderMatch && window.getApiBase()) {
+            const script = blenderMatch[1];
+            window.addMessage('ai', '🎬 *Running Blender Automation...*', true);
+            fetch(window.getApiBase() + '/api/blender/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ script })
+            }).then(r => r.json()).then(bData => {
+                if (bData.success) {
+                    const output = bData.output ? bData.output.slice(-500) : 'Done';
+                    window.addMessage('ai', '✅ *Blender Task Complete!* \n' + BACKTICK + BACKTICK + BACKTICK + '\n' + output + '\n' + BACKTICK + BACKTICK + BACKTICK);
+                    window.refreshFiles();
+                } else {
+                    const errText = bData.error || 'Unknown error';
+                    window.addMessage('ai', '❌ *Blender Error:* \n' + BACKTICK + errText + BACKTICK);
+                }
+            }).catch(err => {
+                window.addMessage('ai', '❌ *Bridge Error:* \n' + BACKTICK + err.message + BACKTICK);
+            });
         }
 
         if (autoAudio) window.speakResponse(fullText);
@@ -701,7 +761,16 @@ window.acceptDiff = function() {
 };
 
 window.rejectDiff = () => document.getElementById('diffModal')?.classList.add('hidden');
-window.getLanguage = (n) => n.endsWith('ts') ? 'typescript' : (n.endsWith('html') ? 'html' : 'plaintext');
+window.getLanguage = (n) => {
+    if (n.endsWith('.ts')) return 'typescript';
+    if (n.endsWith('.js')) return 'javascript';
+    if (n.endsWith('.html')) return 'html';
+    if (n.endsWith('.css')) return 'css';
+    if (n.endsWith('.json') || n.endsWith('.jsonc')) return 'json';
+    if (n.endsWith('.md')) return 'markdown';
+    if (n.endsWith('.py')) return 'python';
+    return 'plaintext';
+};
 
 window.createNewFile = async function() {
     const name = prompt("Filename:");
