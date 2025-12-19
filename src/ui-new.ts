@@ -258,7 +258,7 @@ export const UI_JS = `
 // Safe definition of backtick to avoid template literal collisions
 const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V27.4 Loaded - Bridge Reliability Patch Active");
+console.log("UI_VERSION_HOLD_FIX_V27.6 Loaded - Deployment Stability Patch Active");
 
 let explorerMode = 'list';
 let chatHistory = [];

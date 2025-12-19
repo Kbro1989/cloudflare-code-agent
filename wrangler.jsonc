@@ -51,10 +51,6 @@
   "ai": {
     "binding": "AI"
   },
-  "assets": {
-    "directory": "./src",
-    "binding": "ASSETS"
-  },
   "observability": {
     "enabled": true,
     "logs": {
