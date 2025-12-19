@@ -63,14 +63,19 @@ export class RateLimiter {
 // Model Registry - The Brains & Artists
 // ----------------------------------------------------------------------------
 const MODELS = {
-  // Text / Coding
+  // Text / Coding / Reasoning
   DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  CODING: '@cf/meta/llama-3.1-8b-instruct',
 
   // Image Gen
   FLUX: '@cf/black-forest-labs/flux-1-schnell',
   SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
   DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
+
+  // Audio (Hands-Free)
+  STT: '@cf/openai/whisper-large-v3-turbo',
+  TTS: '@cf/myshell-ai/melotts',
 
   // Vision
   LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
@@ -168,6 +173,10 @@ export default {
           return handleChat(request, env, ctx, corsHeaders);
         case '/api/image':
           return handleImage(request, env, ctx, corsHeaders);
+        case '/api/audio/stt':
+          return handleAudioSTT(request, env, corsHeaders);
+        case '/api/audio/tts':
+          return handleAudioTTS(request, env, corsHeaders);
         case '/api/deploy':
           return handleDeploy(request, env, corsHeaders);
         case '/api/fs/list':
@@ -393,7 +402,7 @@ async function deploySnippetToNamespace(
 // ... (Rest of existing functions from handleImage downwards)
 
 // ----------------------------------------------------------------------------
-// Image Generation Router
+// Image Generation Runner (Hardened with R2 Persistence)
 // ----------------------------------------------------------------------------
 async function handleImage(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (!env.AI) return new Response('Workers AI binding missing', { status: 500, headers: corsHeaders });
@@ -402,45 +411,76 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
   if (!prompt) return new Response('Missing prompt', { status: 400, headers: corsHeaders });
 
   try {
-    // Select Model based on Style
-    let modelId = MODELS.FLUX; // Default
-    let steps = 4; // Flux default
-
-    if (style === 'realism') {
-      modelId = MODELS.SDXL;
-      steps = 8; // SDXL Lightning good around 4-8
-    } else if (style === 'artistic') {
-      modelId = MODELS.DREAMSHAPER;
-      steps = 6; // Dreamshaper LCM is fast
-    }
+    const modelId = style === 'realism' ? MODELS.SDXL : (style === 'artistic' ? MODELS.DREAMSHAPER : MODELS.FLUX);
+    const steps = style === 'realism' ? 8 : (style === 'artistic' ? 6 : 4);
 
     // @ts-ignore
-    const inputs = { prompt: prompt, num_steps: steps };
+    const result = await env.AI.run(modelId, { prompt, num_steps: steps });
 
-    // @ts-ignore
-    const response = await env.AI.run(modelId, inputs);
-
-    // Convert binary stream to base64 (Optimized for large files)
-    // @ts-ignore
-    const arrayBuffer = await new Response(response as any).arrayBuffer();
-
-    // Use smaller chunks to avoid stack overflow
+    // Use Response for stream handling
+    const arrayBuffer = await new Response(result as any).arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
+
+    // PERSIST TO R2: Makes the image accessible via file explorer
+    const filename = `generated_${Date.now()}.png`;
+    await env.R2_ASSETS.put(WORKSPACE_PREFIX + filename, arrayBuffer, {
+      httpMetadata: { contentType: 'image/png' }
+    });
+
+    // Return reference and base64 for immediate UI feedback
     let binary = '';
-    const len = bytes.byteLength;
-    const chunkSize = 0x8000; // 32KB chunks
-
-    for (let i = 0; i < len; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
-      binary += String.fromCharCode(...chunk);
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.byteLength)));
     }
-
     const base64 = btoa(binary);
-    const dataUrl = `data:image/png;base64,${base64}`;
 
-    return json({ image: dataUrl, provider: modelId, style: style || 'speed' }, 200, corsHeaders);
+    return json({
+      image: `data:image/png;base64,${base64}`,
+      filename,
+      provider: modelId
+    }, 200, corsHeaders);
   } catch (e: any) {
-    return new Response(`Image Gen Failed: ${e.message}`, { status: 500, headers: corsHeaders });
+    return new Response(`Art Gen Failed: ${e.message}`, { status: 500, headers: corsHeaders });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Audio Handlers (Hands-Free Interaction)
+// ----------------------------------------------------------------------------
+
+async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (!env.AI) return new Response('AI binding missing', { status: 500, headers: corsHeaders });
+
+  try {
+    const audioBlob = await request.arrayBuffer();
+    // @ts-ignore
+    const response = await env.AI.run(MODELS.STT, {
+      audio: [...new Uint8Array(audioBlob)]
+    });
+
+    return json(response, 200, corsHeaders);
+  } catch (e: any) {
+    return new Response(`STT Error: ${e.message}`, { status: 500, headers: corsHeaders });
+  }
+}
+
+async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (!env.AI) return new Response('AI binding missing', { status: 500, headers: corsHeaders });
+
+  const { text } = await request.json() as any;
+  if (!text) return new Response('Missing text', { status: 400, headers: corsHeaders });
+
+  try {
+    // @ts-ignore
+    const response = await env.AI.run(MODELS.TTS, { text });
+
+    // Return raw audio binary (MP3)
+    return new Response(response as any, {
+      headers: { ...corsHeaders, 'Content-Type': 'audio/mpeg' }
+    });
+  } catch (e: any) {
+    return new Response(`TTS Error: ${e.message}`, { status: 500, headers: corsHeaders });
   }
 }
 
@@ -500,10 +540,30 @@ async function handleHealth(request: Request, env: Env, corsHeaders: any): Promi
 }
 
 // ----------------------------------------------------------------------------
-// AI Common Core: generateCompletion (Priority Fallback logic)
+// AI Common Core: generateCompletion (Priority Fallback + Explicit Model logic)
 // ----------------------------------------------------------------------------
-async function generateCompletion(env: Env, prompt: string, maxTokens: number): Promise<{ completion: string, provider: string }> {
-  // 1. Gemini Flash (Primary)
+async function generateCompletion(env: Env, prompt: string, maxTokens: number, requestedModel?: string): Promise<{ completion: string, provider: string }> {
+
+  // 1. Explicit Workers AI Model (if requested and available)
+  if (requestedModel && env.AI) {
+    let modelId = MODELS.DEFAULT;
+    if (requestedModel === 'thinking') modelId = MODELS.REASONING;
+    if (requestedModel === 'coding') modelId = MODELS.CODING;
+
+    try {
+      // @ts-ignore
+      const response = await env.AI.run(modelId, { prompt, max_tokens: maxTokens });
+      // @ts-ignore
+      if (response && response.response) {
+        // @ts-ignore
+        return { completion: response.response.trim(), provider: 'workers-ai' };
+      }
+    } catch (e) {
+      // If explicit model fails, fall through to default logic
+    }
+  }
+
+  // 2. Gemini Flash (Primary Fallback)
   const geminiFailing = await env.CACHE.get('geminiCircuitBreaker') === 'true';
 
   if (!geminiFailing && env.GEMINI_API_KEY) {
@@ -531,11 +591,11 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
     }
   }
 
-  // 2. Workers AI (Secondary Fallback)
+  // 3. Workers AI (Secondary Fallback)
   if (env.AI) {
     try {
       // @ts-ignore
-      const response = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+      const response = await env.AI.run(MODELS.DEFAULT, {
         prompt,
         max_tokens: maxTokens
       });
@@ -582,22 +642,13 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number): 
 async function handleComplete(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   const { fileId, code, cursor, language, prompt, model } = await request.json() as any;
 
-  // Use deepseek if explicitly requested, otherwise use unified fallback
-  if (model === 'thinking' && env.AI) {
-    const stream: any = await (env.AI as any).run(MODELS.REASONING, {
-      prompt: prompt || `Complete this ${language} code:\n${code}`,
-      max_tokens: 1024
-    }, { returnRawResponse: true });
-    return new Response(stream, { headers: { ...corsHeaders, 'Content-Type': 'text/event-stream', 'X-AI-Provider': 'deepseek-r1' } });
-  }
-
-  // Normal path: Gemini -> Workers AI -> Ollama
+  // Normal path: Unified generateCompletion handles logic/model routing
   const before = code ? code.substring(Math.max(0, cursor - 1500), cursor) : '';
   const after = code ? code.substring(cursor, Math.min(code.length, cursor + 500)) : '';
   const finalPrompt = prompt || `Complete this ${language} code:\n${before}<CURSOR>${after}\n\nOutput ONLY the completion:`;
 
   try {
-    const result = await generateCompletion(env, finalPrompt, 256);
+    const result = await generateCompletion(env, finalPrompt, 256, model);
 
     // Quota increment if success
     ctx.waitUntil(incrementKVQuota(env));
@@ -626,7 +677,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
   const prompt = `Chat History:\n${history.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\nUser: ${message}\nAI:`;
 
   try {
-    const result = await generateCompletion(env, prompt, 1024);
+    const result = await generateCompletion(env, prompt, 1024, model);
     ctx.waitUntil(incrementKVQuota(env));
 
     const encoder = new TextEncoder();
@@ -654,7 +705,7 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
   const prompt = `Explain this ${language} code concisely:\n\`\`\`${language}\n${code}\n\`\`\`\n\nExplanation:`;
 
   try {
-    const result = await generateCompletion(env, prompt, 512);
+    const result = await generateCompletion(env, prompt, 512, 'coding');
     ctx.waitUntil(incrementKVQuota(env));
     return json({ explanation: result.completion, provider: result.provider }, 200, corsHeaders);
   } catch (e: any) {
@@ -699,11 +750,11 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
     if (!obj) return new Response('Not found', { status: 404, headers: corsHeaders });
 
     // Determine content type (Primitive)
-    const isBinary = name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.glb');
+    const isBinary = name.match(/\.(png|jpg|jpeg|glb|gltf|gif|webp)$/i);
 
     if (isBinary) {
       // Serve binary directly for browser download/display
-      const headers = { ...corsHeaders };
+      const headers = new Headers(corsHeaders);
       obj.writeHttpMetadata(headers as any);
       return new Response(obj.body, { headers });
     } else {

@@ -121,8 +121,10 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="p-2 border-b border-slate-800">
                 <select id="modelSelector" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-1.5 rounded outline-none focus:border-indigo-500 transition">
                     <option value="default">Fast (Llama 3.3)</option>
-                    <option value="thinking">Thinking (DeepSeek R1)</option>
-                    <option value="flux">Image (FLUX.1)</option>
+                    <option value="thinking">Reasoning (DeepSeek R1)</option>
+                    <option value="coding">Precision (Llama 3.1 8B)</option>
+                    <option value="flux">Fast Art (FLUX.1)</option>
+                    <option value="sdxl">High-Res Art (SDXL Lightning)</option>
                 </select>
             </div>
 
@@ -133,6 +135,15 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
 
             <div class="p-4 border-t border-slate-800">
+                <div class="flex items-center gap-2 mb-2 px-1">
+                    <button id="voiceBtn" onclick="window.toggleVoice()" class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition" title="Voice Input">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                    <button id="audioToggle" onclick="window.toggleAutoAudio()" class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition" title="Auto Spoken Responses">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <div id="voiceStatus" class="hidden text-[10px] text-indigo-400 animate-pulse font-mono">Listening...</div>
+                </div>
                 <div class="relative">
                     <textarea id="chatInput" rows="3" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-xs outline-none focus:border-indigo-500 transition resize-none pr-10" placeholder="Type a message or /image..."></textarea>
                     <button onclick="window.sendMessage()" class="absolute bottom-3 right-3 text-indigo-400 hover:text-indigo-300 transition">
@@ -191,6 +202,10 @@ let activeImage = null;
 let editor = null;
 let currentCode = '';
 let diffEditor = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let autoAudio = false;
 
 // Helper: Escape string for JS inclusion
 function escapeJsString(str) {
@@ -391,14 +406,25 @@ window.loadFile = async function(name) {
 
     if (isMedia) {
         previewContainer.style.display = 'block';
-        previewContainer.innerHTML = 'Loading...';
-        const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-        if (name.match(/\\.(glb|gltf)$/i)) {
-            const url = URL.createObjectURL(await res.blob());
-            previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
-        } else {
-            const d = await res.json();
-            previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900"><img src="' + (d.content.startsWith('http') ? d.content : 'data:image/png;base64,' + d.content) + '" class="max-w-full max-h-full"></div>';
+        previewContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Media...</div>';
+        try {
+            const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+            if (!res.ok) throw new Error('Failed to load media');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            if (name.match(/\\.(glb|gltf)$/i)) {
+                previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
+            } else {
+                previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900/50 backdrop-blur-sm p-4">' +
+                    '<img src="' + url + '" class="max-w-full max-h-full shadow-2xl rounded-lg border border-white/10" onload="URL.revokeObjectURL(this.src)">' +
+                    '</div>';
+            }
+        } catch (e) {
+            previewContainer.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-red-400 gap-2">' +
+                '<i class="fa-solid fa-circle-exclamation text-2xl"></i>' +
+                '<span class="text-xs font-mono">' + e.message + '</span>' +
+                '</div>';
         }
     } else {
         previewContainer.style.display = 'none';
@@ -455,26 +481,125 @@ window.sendMessage = async function() {
 
     try {
         const model = document.getElementById('modelSelector')?.value;
-        const res = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: text, model, image: activeImage }) });
+        const endpoint = model === 'flux' || model === 'sdxl' ? '/api/image' : '/api/chat';
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+                message: text,
+                prompt: text, // For image gen
+                style: model === 'sdxl' ? 'realism' : 'speed',
+                model,
+                image: activeImage
+            })
+        });
+
         if (!res.ok) throw new Error('Status ' + res.status);
+
+        if (endpoint === '/api/image') {
+            const data = await res.json();
+            aiDiv.innerHTML = '<div class="flex flex-col gap-2">' +
+                '<img src="' + data.image + '" class="rounded-lg shadow-xl cursor-pointer" onclick="window.loadFile(\\'' + data.filename + '\\')">' +
+                '<span class="text-[10px] text-slate-500 italic">Saved as ' + data.filename + '</span>' +
+                '</div>';
+            window.refreshFiles();
+            return;
+        }
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         aiDiv.innerHTML = '';
+        let fullText = '';
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value);
-            const lines = chunk.split('\\\\n\\\\n');
+            const lines = chunk.split('\\n\\n');
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
-                        if (data.token) aiDiv.innerHTML += window.formatToken(data.token);
+                        if (data.token) {
+                            fullText += data.token;
+                            aiDiv.innerHTML = window.formatToken(fullText);
+                        }
                     } catch(e){}
                 }
             }
         }
+
+        if (autoAudio) window.speakResponse(fullText);
+
     } catch(e) { aiDiv.innerText = 'Error: ' + e.message; }
+};
+
+// --- Audio / Voice Logic ---
+window.toggleAutoAudio = function() {
+    autoAudio = !autoAudio;
+    const btn = document.getElementById('audioToggle');
+    btn.className = 'p-1.5 rounded-full transition ' + (autoAudio ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400');
+};
+
+window.speakResponse = async function(text) {
+    try {
+        const res = await fetch('/api/audio/tts', {
+            method: 'POST',
+            body: JSON.stringify({ text: text.substring(0, 1000) }) // Limit for stability
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.play();
+    } catch(e) { console.error('TTS Failed', e); }
+};
+
+window.toggleVoice = async function() {
+    if (isRecording) {
+        window.stopSpeechToText();
+    } else {
+        window.startSpeechToText();
+    }
+};
+
+window.startSpeechToText = async function() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const status = document.getElementById('voiceStatus');
+            status.innerText = 'Transcribing...';
+
+            try {
+                const res = await fetch('/api/audio/stt', {
+                    method: 'POST',
+                    body: audioBlob
+                });
+                const data = await res.json();
+                if (data.text) {
+                    const input = document.getElementById('chatInput');
+                    input.value = (input.value ? input.value + ' ' : '') + data.text;
+                }
+            } catch(e) { console.error('STT Failed', e); }
+            status.classList.add('hidden');
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-red-600 text-white animate-pulse transition';
+        document.getElementById('voiceStatus').classList.remove('hidden');
+        document.getElementById('voiceStatus').innerText = 'Listening...';
+    } catch (e) { alert('Microphone access denied or not supported'); }
+};
+
+window.stopSpeechToText = function() {
+    if (mediaRecorder) mediaRecorder.stop();
+    isRecording = false;
+    document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-slate-800 text-slate-400 transition';
 };
 
 window.addMessage = function(role, text, loading) {
