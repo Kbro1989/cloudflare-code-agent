@@ -18,7 +18,7 @@ export const IDE_HTML = `<!DOCTYPE html>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.1.1/model-viewer.min.js"></script>
     <script>
       // Silence Tailwind Production Warning
-      window.tailwind = { config: { } };
+      window.tailwind = { config: { silent: true } };
       localStorage.setItem('tailwind-config-warn', 'false');
     </script>
     <style>
@@ -183,11 +183,23 @@ export const IDE_HTML = `<!DOCTYPE html>
             <!-- Model Selector -->
             <div class="p-2 border-b border-slate-800">
                 <select id="modelSelector" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-1.5 rounded outline-none focus:border-indigo-500 transition">
-                    <option value="default">Fast (Llama 3.3)</option>
-                    <option value="thinking">Reasoning (DeepSeek R1)</option>
-                    <option value="coding">Precision (Llama 3.1 8B)</option>
-                    <option value="flux">Fast Art (FLUX.1)</option>
-                    <option value="sdxl">High-Res Art (SDXL Lightning)</option>
+                    <optgroup label="Elite Reasoning" class="bg-slate-900 border-none">
+                        <option value="gpt_oss">GPT-OSS 120B</option>
+                        <option value="llama4_scout">Llama 4 Scout</option>
+                        <option value="reasoning">DeepSeek R1</option>
+                        <option value="qwq_32b">QwQ 32B (Reasoning)</option>
+                    </optgroup>
+                    <optgroup label="Coding & Logic" class="bg-slate-800">
+                        <option value="coding" selected>Qwen 2.5 32B (Coding)</option>
+                        <option value="default">Llama 3.3 70B (Fast)</option>
+                        <option value="mistral_small">Mistral Small 3.1</option>
+                        <option value="gemma_3">Gemma 3 12B</option>
+                    </optgroup>
+                    <optgroup label="External Elite" class="bg-slate-800">
+                        <option value="kimi">Kimi K1.5 (Elite)</option>
+                        <option value="gpt4o">GPT-4o (OpenRouter)</option>
+                        <option value="claude3">Claude 3.5 Sonnet</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -909,7 +921,7 @@ window.sendMessage = async function() {
             if (done) break;
             const chunk = decoder.decode(value);
             // DEBUG: console.log('Chunk received:', chunk);
-            const lines = chunk.split('\n\n');
+            const lines = chunk.split('\\n\\n');
             for (const line of lines) {
                 const trimmed = line.trim();
                 if (!trimmed) continue;
@@ -1084,10 +1096,18 @@ window.toggleAutoAudio = function() {
 };
 
 window.speakResponse = async function(text) {
-    try {
-        // Strip code blocks and markdown for cleaner speech
-        const cleanText = text.replace(/BACKTICK{3}[\\s\\S]*?BACKTICK{3}/g, '').replace(/[*_#]/g, '').substring(0, 1000);
-        if (!cleanText.trim()) return;
+        // Strip all code blocks, backticks, bold/italic, and URLs for clean speech
+        // Strip all code blocks, backticks, bold/italic, and URLs for clean speech
+        const cleanText = text
+            .replace(new RegExp(BACKTICK.repeat(3) + '[\\\\s\\\\S]*?' + BACKTICK.repeat(3), 'g'), ' [code block] ')
+            .replace(new RegExp(BACKTICK + '[\\\\s\\\\S]*?' + BACKTICK, 'g'), '')
+            .replace(/[*_#~]/g, '')
+            .replace(/\\[.*?\\]\\(.*?\\)/g, '')
+            .replace(/https?:\\/\\/\\S+/g, '')
+            .trim()
+            .substring(0, 1000);
+
+        if (!cleanText || cleanText === '[code block]') return;
 
         const res = await fetch('/api/audio/tts', {
             method: 'POST',

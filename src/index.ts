@@ -19,6 +19,9 @@ export interface Env {
   CLOUDFLARE_API_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   WORKERS_AI_KEY?: string;
+  FIREWORKS_API_KEY?: string;
+  OPENROUTER_API_KEY?: string;
+  HUGGINGFACE_API_KEY?: string;
   DISPATCHER?: any;
 
   // Public Vars
@@ -66,36 +69,50 @@ export class RateLimiter {
 // Model Registry - The Brains & Artists
 // ----------------------------------------------------------------------------
 const MODELS = {
-  // Text / Coding / Reasoning
-  DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
-  CODING: '@cf/qwen/qwen2.5-coder-32b-instruct',
+  // --- High-Performance Reasoning & Production ---
   GPT_OSS: '@cf/openai/gpt-oss-120b',
-  Llama4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
+  LLAMA4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
+  REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  QWQ_32B: '@cf/qwen/qwq-32b',
 
-  // Image Gen (Enhanced List)
-  FLUX: '@cf/black-forest-labs/flux-1-schnell',
+  // --- Standard Logic & Coding ---
+  DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  CODING: '@cf/qwen/qwen2.5-coder-32b-instruct',
+  DEEPSEEK_CODER: '@cf/thebloke/deepseek-coder-6.7b-instruct-awq',
+  MISTRAL_SMALL: '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  GEMMA_3: '@cf/google/gemma-3-12b-it',
+  QWEN3_30B: '@cf/qwen/qwen3-30b-a3b-fp8',
+
+  // --- External Elite (API-driven) ---
+  KIMI: 'fireworks/kimi-k1.5',
+  GPT4O: 'openrouter/openai/gpt-4o',
+  CLAUDE3: 'openrouter/anthropic/claude-3.5-sonnet',
+
+  // --- Visual Arts (Image Generation) ---
   FLUX_DEV: '@cf/black-forest-labs/flux-2-dev',
+  FLUX: '@cf/black-forest-labs/flux-1-schnell',
   SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
   DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
   LUCID: '@cf/leonardo/lucid-origin',
   PHOENIX: '@cf/leonardo/phoenix-1.0',
 
-  // Audio (Hands-Free)
+  // --- Audio Pipeline ---
   STT: '@cf/openai/whisper-large-v3-turbo',
   TTS: '@cf/myshell-ai/melotts',
   AURA: '@cf/deepgram/aura-2-en',
+  AURA_ES: '@cf/deepgram/aura-2-es',
 
-  // Vision
+  // --- Vision & Perception ---
   LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
   RESNET: '@cf/microsoft/resnet-50'
 };
 
 const MODEL_GROUPS = [
-  { name: 'Language & Logic', models: ['DEFAULT', 'REASONING', 'CODING', 'GPT_OSS', 'Llama4_SCOUT'] },
-  { name: 'Visual Arts', models: ['FLUX', 'FLUX_DEV', 'SDXL', 'DREAMSHAPER', 'LUCID', 'PHOENIX'] },
-  { name: 'Audio Pipeline', models: ['STT', 'TTS', 'AURA'] },
-  { name: 'Vision & Perception', models: ['LLAVA', 'RESNET'] }
+  { name: 'Elite Reasoning', models: ['GPT_OSS', 'LLAMA4_SCOUT', 'REASONING', 'QWQ_32B'] },
+  { name: 'Coding & Logic', models: ['CODING', 'DEEPSEEK_CODER', 'DEFAULT', 'MISTRAL_SMALL', 'GEMMA_3'] },
+  { name: 'External Elite', models: ['KIMI', 'GPT4O', 'CLAUDE3'] },
+  { name: 'Visual Studio', models: ['FLUX_DEV', 'FLUX', 'SDXL', 'LUCID', 'PHOENIX'] },
+  { name: 'Audio & Vision', models: ['AURA', 'STT', 'TTS', 'LLAVA'] }
 ];
 
 // --- Recommendation 6: Provider Health Tracking ---
@@ -118,7 +135,9 @@ class ProviderHealth {
 const healthTracker = {
   gemini: new ProviderHealth(),
   workersAi: new ProviderHealth(),
-  ollama: new ProviderHealth()
+  ollama: new ProviderHealth(),
+  fireworks: new ProviderHealth(),
+  openrouter: new ProviderHealth()
 };
 
 // --- Recommendation 4: Adaptive Memory Batching ---
@@ -152,7 +171,7 @@ async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: str
 async function runAI(env: Env, model: string, input: any, provider = 'workers-ai'): Promise<any> {
   const accountId = env.CLOUDFLARE_ACCOUNT_ID;
   const gatewayId = env.AI_GATEWAY_ID;
-  const cfApiToken = env.CLOUDFLARE_API_TOKEN || env.WORKERS_AI_KEY;
+  const cfApiToken = env.WORKERS_AI_KEY || env.CLOUDFLARE_API_TOKEN;
   const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
 
   if (accountId && gatewayId && cfApiToken) {
@@ -217,37 +236,61 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
     throw new Error(`Direct Gemini failed: ${res.status}`);
   }
 
+  if (provider === 'fireworks' && env.FIREWORKS_API_KEY) {
+    const res = await fetch(`https://api.fireworks.ai/inference/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.FIREWORKS_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ model, messages: input.messages || [{ role: 'user', content: input.prompt }], max_tokens: input.max_tokens }),
+      signal: AbortSignal.timeout(30000)
+    });
+    if (res.ok) return await res.json();
+  }
+
+  if (provider === 'openrouter' && env.OPENROUTER_API_KEY) {
+    const res = await fetch(`https://openrouter.ai/api/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://cloudflare-code-agent.com',
+        'X-Title': 'Cloudflare Code Agent'
+      },
+      body: JSON.stringify({ model, messages: input.messages || [{ role: 'user', content: input.prompt }], max_tokens: input.max_tokens }),
+      signal: AbortSignal.timeout(30000)
+    });
+    if (res.ok) return await res.json();
+  }
+
   throw new Error(`AI call failed (both Gateway and Direct) for ${provider}`);
 }
 
 const SYSTEM_PROMPT = `
-You are an advanced AI coding and 3D artistic agent (Omni-Dev Hybrid).
-Primary Directive: Provide immediate, actionable, and correct code or answers.
-- Keep responses snappy and concise.
-- Minimize "thinking out loud" unless using the reasoning model.
-- Avoid repetitive reasoning loops. If you find yourself over-speculating, stop and ask for data.
-- Do not assume files exist unless you see them in the file list.
-- **Safety Protocol**:
-    *   **NEVER** modify or overwrite the agent's own source code (folders like \`src/\`, \`local-bridge/\`, or root files like \`wrangler.jsonc\`, \`package.json\`).
-    *   Treat the \`projects/\` directory as your primary sandbox.
-- **Capabilities Awareness**:
-    *   To generate an image, output: [IMAGE: description]
-    *   To run Blender automation, output: [BLENDER: python_script]
-    *   To execute local terminal commands, output: [TERM: command]
-    *   To push to GitHub, output: [GITHUB: push owner/repo:branch:message]
-    *   **To search for code**, output: [SEARCH: search_pattern] (Prioritize this to explore unknown codebases).
-    *   **To read a file**, output: [READ: file_path] (Use this to pull specific context into your session).
-    *   **To start a new project**, output: [PROJECT-INIT: brief_description] (e.g., [PROJECT-INIT: React + Tailwind dashboard]). After this, **design the file structure and write the files individually** using code blocks.
-- **Workflow Optimization**:
-    *   If the user asks to "fix" something, [SEARCH] for the error or variable first.
-    *   Do not hallucinate file contents; use [READ] to verify.
+You are a High-Reasoning AI Agent (Omni-Dev Hybrid).
+Your brain is powered by elite models like GPT-OSS, Llama 4 Scout, and DeepSeek R1.
+Primary Directive: Deliver production-ready code, 3D assets, and architectural decisions.
+
+- **Concision**: Output only what is necessary. No fluff.
+- **Voice Mediation**:
+    * If a user message starts with \`[VOICE_COMMAND]\`, prioritize a concise, spoken-friendly summary first, then the code/data below it.
+    * Act as a bridge: if you generate code, mention it briefly ("I've written the script for you") instead of reading it out.
+- **Tools**:
+    * [IMAGE: prompt] -> Generate high-fidelity art (FLUX.2 Dev).
+    * [BLENDER: script] -> Execute 3D automation.
+    * [TERM: cmd] -> Direct terminal access.
+    * [SEARCH: pattern] -> Scan codebase for logic.
+    * [READ: path] -> Import file context.
+    * [GITHUB: push owner/repo:branch:msg] -> Ship to production.
+- **Design Pattern**:
+    * For new projects ([PROJECT-INIT]), provide a full file tree design, then implement files sequentially.
+    * Always verify file contents with [READ] before proposing major refactors.
 \`\`\`language
 // file: path/to/file.ext
 ... code ...
 \`\`\`
-Always specify the full relative path.
-Output JSON tool calls wrapped in \`\`\`json blocks only if asked specific questions about filesystem data.
-For edits, prefer providing the code block directly.
+Use [SEARCH] immediately if asked to fix unfamiliar bugs.
 `;
 
 export default {
@@ -629,17 +672,19 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
   if (!prompt) return errorResponse('Missing prompt', 400, corsHeaders);
 
   try {
-    let modelId = MODELS.FLUX;
-    if (style === 'realism') modelId = MODELS.SDXL;
-    if (style === 'artistic') modelId = MODELS.DREAMSHAPER;
-    if (style === 'high-res') modelId = MODELS.FLUX_DEV;
-    if (style === 'lucid') modelId = MODELS.LUCID;
-    if (style === 'phoenix') modelId = MODELS.PHOENIX;
+    let modelId = MODELS.FLUX_DEV; // Default to Dev for high precision
+    if (style === 'sdxl') modelId = MODELS.SDXL;
+    else if (style === 'lucid') modelId = MODELS.LUCID;
+    else if (style === 'phoenix') modelId = MODELS.PHOENIX;
+    else if (style === 'flux') modelId = MODELS.FLUX; // schnell
 
     // @ts-ignore
-    const result = await runAI(env, modelId, { prompt });
+    const response = await runAI(env, modelId, {
+      prompt,
+      num_steps: style === 'quality' ? 50 : 20
+    });
 
-    const arrayBuffer = await new Response(result as any).arrayBuffer();
+    const arrayBuffer = await new Response(response as any).arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
 
     const filename = `generated_${Date.now()}.png`;
@@ -857,12 +902,22 @@ async function generateCompletion(
           if (MODELS[upperModel]) {
             // @ts-ignore
             modelId = MODELS[upperModel];
-          } else if (requestedModel === 'thinking') {
+          } else if (requestedModel === 'thinking' || requestedModel === 'reasoning') {
             modelId = MODELS.REASONING;
           } else if (requestedModel === 'coding') {
             modelId = MODELS.CODING;
-          } else if (requestedModel === 'gpt-oss') {
+          } else if (requestedModel === 'gpt_oss') {
             modelId = MODELS.GPT_OSS;
+          } else if (requestedModel === 'llama4_scout') {
+            modelId = MODELS.LLAMA4_SCOUT;
+          } else if (requestedModel === 'qwq_32b') {
+            modelId = MODELS.QWQ_32B;
+          } else if (requestedModel === 'mistral_small') {
+            modelId = MODELS.MISTRAL_SMALL;
+          } else if (requestedModel === 'gemma_3') {
+            modelId = MODELS.GEMMA_3;
+          } else if (requestedModel === 'deepseek_coder') {
+            modelId = MODELS.DEEPSEEK_CODER;
           }
         }
 
@@ -907,6 +962,30 @@ async function generateCompletion(
         if (!res.ok) throw new Error('Ollama HTTP ' + res.status);
         const data = await res.json() as any;
         return (isMessages ? data.message?.content : data.response)?.trim();
+      }
+    },
+    {
+      name: 'fireworks',
+      check: !!env.FIREWORKS_API_KEY,
+      health: healthTracker.fireworks,
+      run: async () => {
+        const modelId = requestedModel === 'kimi' ? MODELS.KIMI : (requestedModel.includes('/') ? requestedModel : MODELS.KIMI);
+        const data = await runAI(env, modelId, { max_tokens: maxTokens, temperature }, 'fireworks');
+        return data.choices?.[0]?.message?.content?.trim();
+      }
+    },
+    {
+      name: 'openrouter',
+      check: !!env.OPENROUTER_API_KEY,
+      health: healthTracker.openrouter,
+      run: async () => {
+        let modelId = MODELS.GPT4O;
+        if (requestedModel === 'gpt4o') modelId = MODELS.GPT4O;
+        else if (requestedModel === 'claude3') modelId = MODELS.CLAUDE3;
+        else if (requestedModel.includes('/')) modelId = requestedModel;
+
+        const data = await runAI(env, modelId, { max_tokens: maxTokens, temperature }, 'openrouter');
+        return data.choices?.[0]?.message?.content?.trim();
       }
     }
   ];
