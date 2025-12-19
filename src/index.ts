@@ -91,6 +91,13 @@ const MODELS = {
   RESNET: '@cf/microsoft/resnet-50'
 };
 
+const MODEL_GROUPS = [
+  { name: 'Language & Logic', models: ['DEFAULT', 'REASONING', 'CODING', 'GPT_OSS', 'Llama4_SCOUT'] },
+  { name: 'Visual Arts', models: ['FLUX', 'FLUX_DEV', 'SDXL', 'DREAMSHAPER', 'LUCID', 'PHOENIX'] },
+  { name: 'Audio Pipeline', models: ['STT', 'TTS', 'AURA'] },
+  { name: 'Vision & Perception', models: ['LLAVA', 'RESNET'] }
+];
+
 // --- Recommendation 6: Provider Health Tracking ---
 class ProviderHealth {
   failures = 0;
@@ -344,7 +351,7 @@ export default {
         case '/api/health':
           return handleHealth(request, env, corsHeaders);
         case '/api/models':
-          return json(MODELS, 200, corsHeaders);
+          return json({ catalog: MODELS, groups: MODEL_GROUPS }, 200, corsHeaders);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }

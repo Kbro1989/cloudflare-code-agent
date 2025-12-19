@@ -258,7 +258,7 @@ export const UI_JS = `
 // Safe definition of backtick to avoid template literal collisions
 const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V25 Loaded - Sound Studio Active");
+console.log("UI_VERSION_HOLD_FIX_V26 Loaded - Sound Studio Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -944,9 +944,13 @@ window.toggleAutoAudio = function() {
 
 window.speakResponse = async function(text) {
     try {
+        // Strip code blocks and markdown for cleaner speech
+        const cleanText = text.replace(/BACKTICK{3}[\\s\\S]*?BACKTICK{3}/g, '').replace(/[*_#]/g, '').substring(0, 1000);
+        if (!cleanText.trim()) return;
+
         const res = await fetch('/api/audio/tts', {
             method: 'POST',
-            body: JSON.stringify({ text: text.substring(0, 1000) }) // Limit for stability
+            body: JSON.stringify({ text: cleanText, model: 'aura' })
         });
         if (!res.ok) return;
         const blob = await res.blob();
@@ -1142,17 +1146,26 @@ async function fetchModels() {
     try {
         const res = await fetch('/api/models');
         if (res.ok) {
-            const models = await res.json();
+            const data = await res.json();
             const selector = document.getElementById('modelSelector');
-            if (selector) {
+            if (selector && data.groups) {
                 selector.innerHTML = '';
-                // Add friendly names for grouping or just list them all
-                for (const [key, value] of Object.entries(models)) {
-                    const opt = document.createElement('option');
-                    opt.value = key.toLowerCase();
-                    opt.innerText = key + " (" + (typeof value === 'string' ? value.split('/').pop() : value) + ")";
-                    selector.appendChild(opt);
-                }
+                data.groups.forEach(group => {
+                    const groupEl = document.createElement('optgroup');
+                    groupEl.label = group.name;
+                    groupEl.className = 'bg-slate-900 text-indigo-400 font-bold';
+                    group.models.forEach(modelKey => {
+                        const modelId = data.catalog[modelKey];
+                        if (modelId) {
+                            const opt = document.createElement('option');
+                            opt.value = modelKey.toLowerCase();
+                            opt.className = 'bg-slate-800 text-slate-200 font-normal';
+                            opt.innerText = modelKey + " (" + (typeof modelId === 'string' ? modelId.split('/').pop() : modelId) + ")";
+                            groupEl.appendChild(opt);
+                        }
+                    });
+                    selector.appendChild(groupEl);
+                });
             }
         }
     } catch (e) {
