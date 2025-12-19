@@ -232,11 +232,15 @@ Primary Directive: Provide immediate, actionable, and correct code or answers.
     *   Treat the \`projects/\` directory as your primary sandbox.
 - **Capabilities Awareness**:
     *   To generate an image, output: [IMAGE: description]
-    *   To run Blender automation, output: [BLENDER: python_script] (Use this for 3D modeling, vertex colors, or GLB exports).
-    *   To execute local terminal commands (git, npm, wrangler, dir, ls), output: [TERM: command]
-    *   To push final products to GitHub (Cloud-to-GitHub sync), output: [GITHUB: push owner/repo:branch:message] (Use this to finalize work and deliver to production).
-    *   To edit files, use the code block format.
-- To edit files, output a code block with the first line specifying the file path:
+    *   To run Blender automation, output: [BLENDER: python_script]
+    *   To execute local terminal commands, output: [TERM: command]
+    *   To push to GitHub, output: [GITHUB: push owner/repo:branch:message]
+    *   **To search for code**, output: [SEARCH: search_pattern] (Prioritize this to explore unknown codebases).
+    *   **To read a file**, output: [READ: file_path] (Use this to pull specific context into your session).
+    *   **To start a new project**, output: [PROJECT-INIT: brief_description] (e.g., [PROJECT-INIT: React + Tailwind dashboard]). After this, **design the file structure and write the files individually** using code blocks.
+- **Workflow Optimization**:
+    *   If the user asks to "fix" something, [SEARCH] for the error or variable first.
+    *   Do not hallucinate file contents; use [READ] to verify.
 \`\`\`language
 // file: path/to/file.ext
 ... code ...
@@ -306,15 +310,17 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n(function(){\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n})();\n// v=HOLD_FIX_V27.6 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          `<script type="module" src="/assets/app.js"></script>
+           <!-- v=OPTIMIZED_ASSET_V1 - BUILD: ${Date.now()} -->
+          </body>`
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
 
-      if (url.pathname === '/ui.js') {
-        return new Response(UI_JS + '\n' + BRIDGE_INTEGRATION, {
+      if (url.pathname === '/assets/app.js') {
+        return new Response(UI_JS + "\n" + BRIDGE_INTEGRATION, {
           headers: { ...corsHeaders, 'Content-Type': 'application/javascript; charset=utf-8' }
         });
       }
@@ -340,6 +346,7 @@ export default {
           return handleDeploy(request, env, corsHeaders);
         case '/api/fs/list':
         case '/api/fs/file':
+        case '/api/fs/search':
           return handleFilesystem(request, env, corsHeaders);
         case '/api/terminal':
           return handleTerminal(request, env, corsHeaders);
@@ -359,8 +366,7 @@ export default {
       }
     } catch (e: any) {
       // PRODUCTION HARDENING: Redact secrets from error logs
-      const safeMessage = e.message.replace(/GEMINI_API_KEY|OLLAMA_AUTH_TOKEN|AIza[A-Za-z0-9_-]+/g, '[REDACTED]');
-      return new Response(`Server Error: ${safeMessage}`, { status: 500, headers: corsHeaders });
+      return errorResponse(`Server Error: ${e.message}`, 500, corsHeaders);
     }
   }
 };
@@ -369,6 +375,7 @@ export default {
 // Context / RAG Handler
 // ----------------------------------------------------------------------------
 async function handleContextMap(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'GET') return errorResponse('Method Not Allowed', 405, corsHeaders);
   try {
     const listed = await env.R2_ASSETS.list();
     // Simple context map: list of files.
@@ -384,7 +391,7 @@ async function handleContextMap(request: Request, env: Env, corsHeaders: any): P
 
     return json({ tree: textFiles }, 200, corsHeaders);
   } catch (e: any) {
-    return json({ error: e.message }, 500, corsHeaders);
+    return errorResponse(e.message, 500, corsHeaders);
   }
 }
 
@@ -392,8 +399,9 @@ async function handleContextMap(request: Request, env: Env, corsHeaders: any): P
 // Deployment Handler (Self-Replication)
 // ----------------------------------------------------------------------------
 async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID || !env.DISPATCHER) {
-    return new Response('Deployment secrets missing (API_TOKEN, ACCOUNT_ID, or DISPATCHER)', { status: 500, headers: corsHeaders });
+    return errorResponse('Deployment secrets missing (API_TOKEN, ACCOUNT_ID, or DISPATCHER)', 500, corsHeaders);
   }
 
   const { scriptName, code } = await request.json() as any;
@@ -410,7 +418,7 @@ async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promi
     );
     return json({ success: true, result }, 200, corsHeaders);
   } catch (e: any) {
-    return new Response(`Deploy Failed: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`Deploy Failed: ${e.message}`, 500, corsHeaders);
   }
 }
 
@@ -421,7 +429,7 @@ async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promi
 import { GitHubService } from './services/github';
 
 async function handleTerminal(request: Request, env: Env, corsHeaders: any): Promise<Response> {
-  if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const { command } = await request.json() as any;
   const args = command.trim().split(/\s+/);
   const cmd = args[0];
@@ -460,6 +468,7 @@ async function handleTerminal(request: Request, env: Env, corsHeaders: any): Pro
 }
 
 async function handleGithub(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const url = new URL(request.url);
   // Pass empty strings as we are using Token-auth methods mostly
   const gh = new GitHubService('', '');
@@ -547,7 +556,7 @@ async function handleGithub(request: Request, env: Env, corsHeaders: any): Promi
     return new Response('Not Found', { status: 404, headers: corsHeaders });
 
   } catch (e: any) {
-    return new Response(`GitHub Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`GitHub Error: ${e.message}`, 500, corsHeaders);
   }
 }
 
@@ -613,10 +622,11 @@ async function deploySnippetToNamespace(
 // Image Generation Runner (Hardened with R2 Persistence)
 // ----------------------------------------------------------------------------
 async function handleImage(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
-  if (!env.AI) return new Response('Workers AI binding missing', { status: 500, headers: corsHeaders });
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+  if (!env.AI) return errorResponse('Workers AI binding missing', 500, corsHeaders);
 
   const { prompt, style } = await request.json() as any;
-  if (!prompt) return new Response('Missing prompt', { status: 400, headers: corsHeaders });
+  if (!prompt) return errorResponse('Missing prompt', 400, corsHeaders);
 
   try {
     let modelId = MODELS.FLUX;
@@ -650,7 +660,7 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
       provider: modelId
     }, 200, corsHeaders);
   } catch (e: any) {
-    return new Response(`Art Gen Failed: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`Art Gen Failed: ${e.message}`, 500, corsHeaders);
   }
 }
 
@@ -659,7 +669,8 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
 // ----------------------------------------------------------------------------
 
 async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Promise<Response> {
-  if (!env.AI) return new Response('AI binding missing', { status: 500, headers: corsHeaders });
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+  if (!env.AI) return errorResponse('AI binding missing', 500, corsHeaders);
 
   try {
     const audioBuffer = await request.arrayBuffer();
@@ -694,12 +705,13 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
       }
     }
   } catch (e: any) {
-    return new Response(`STT Buffer Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`STT Buffer Error: ${e.message}`, 500, corsHeaders);
   }
 }
 
 async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Promise<Response> {
-  if (!env.AI) return new Response('AI binding missing', { status: 500, headers: corsHeaders });
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+  if (!env.AI) return errorResponse('AI binding missing', 500, corsHeaders);
 
   const { text } = await request.json() as any;
   if (!text) return new Response('Missing text', { status: 400, headers: corsHeaders });
@@ -713,11 +725,12 @@ async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Pro
       headers: { ...corsHeaders, 'Content-Type': 'audio/mpeg' }
     });
   } catch (e: any) {
-    return new Response(`TTS Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`TTS Error: ${e.message}`, 500, corsHeaders);
   }
 }
 
 async function handleAudioGenerate(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const { text, model } = await request.json() as any;
   if (!text) return new Response('Missing text', { status: 400, headers: corsHeaders });
 
@@ -737,7 +750,7 @@ async function handleAudioGenerate(request: Request, env: Env, corsHeaders: any)
       }
     });
   } catch (e: any) {
-    return new Response(`Audio Gen Failed: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`Audio Gen Failed: ${e.message}`, 500, corsHeaders);
   }
 }
 
@@ -751,6 +764,7 @@ async function incrementKVQuota(env: Env) {
 }
 
 async function handleHealth(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'GET') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const status: any = {
     status: 'healthy',
     kvWriteQuota: 0,
@@ -796,15 +810,36 @@ async function handleHealth(request: Request, env: Env, corsHeaders: any): Promi
   return json(status, 200, corsHeaders);
 }
 
-async function generateCompletion(env: Env, prompt: string, maxTokens: number, requestedModel?: string, temperature = 0.2): Promise<{ completion: string, provider: string }> {
+// ----------------------------------------------------------------------------
+// AI Completion Engine (Structured & Resilient)
+// ----------------------------------------------------------------------------
+async function generateCompletion(
+  env: Env,
+  promptOrMessages: string | any[],
+  maxTokens = 512,
+  requestedModel = 'auto',
+  temperature = 0.5
+): Promise<{ completion: string, provider: string }> {
+  const isMessages = Array.isArray(promptOrMessages);
+
   const providers = [
     {
       name: 'gemini',
       check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY),
       health: healthTracker.gemini,
       run: async () => {
+        let contents;
+        if (isMessages) {
+          contents = promptOrMessages.map(m => ({
+            role: m.role === 'assistant' ? 'model' : (m.role === 'system' ? 'user' : m.role),
+            parts: [{ text: (m.role === 'system' ? `[SYSTEM INSTRUCTION]\n${m.content}\n[END SYSTEM INSTRUCTION]` : m.content) }]
+          }));
+        } else {
+          contents = [{ parts: [{ text: promptOrMessages }] }];
+        }
+
         const data = await runAI(env, 'gemini-1.5-flash:generateContent', {
-          contents: [{ parts: [{ text: prompt }] }],
+          contents,
           generationConfig: { temperature, maxOutputTokens: maxTokens }
         }, 'gemini');
         return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
@@ -831,9 +866,14 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
           }
         }
 
-        // @ts-ignore
-        const response = await runAI(env, modelId, { prompt, max_tokens: maxTokens, temperature });
-        // @ts-ignore
+        const input: any = { max_tokens: maxTokens, temperature };
+        if (isMessages) {
+          input.messages = promptOrMessages;
+        } else {
+          input.prompt = promptOrMessages;
+        }
+
+        const response = await runAI(env, modelId, input);
         return (response.response || response).trim();
       }
     },
@@ -843,23 +883,30 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
       health: healthTracker.ollama,
       run: async () => {
         const auth = env.OLLAMA_AUTH_TOKEN || env.OLLAMA_API_KEY;
-        const res = await fetch(`${env.OLLAMA_URL}/api/generate`, {
+        const body: any = {
+          model: 'qwen2.5-coder:7b',
+          stream: false,
+          options: { num_predict: maxTokens }
+        };
+
+        if (isMessages) {
+          body.messages = promptOrMessages;
+        } else {
+          body.prompt = promptOrMessages;
+        }
+
+        const res = await fetch(`${env.OLLAMA_URL}/api/${isMessages ? 'chat' : 'generate'}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(auth ? { 'Authorization': `Bearer ${auth}` } : {})
           },
-          body: JSON.stringify({
-            model: 'qwen2.5-coder:7b',
-            prompt,
-            stream: false,
-            options: { num_predict: maxTokens }
-          }),
+          body: JSON.stringify(body),
           signal: AbortSignal.timeout(30000)
         });
         if (!res.ok) throw new Error('Ollama HTTP ' + res.status);
         const data = await res.json() as any;
-        return data.response?.trim();
+        return (isMessages ? data.message?.content : data.response)?.trim();
       }
     }
   ];
@@ -900,6 +947,7 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
 // AI Completion (Unified)
 // ----------------------------------------------------------------------------
 async function handleComplete(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const { fileId, code, cursor, language, prompt, model } = await request.json() as any;
 
   // Normal path: Unified generateCompletion handles logic/model routing
@@ -930,7 +978,7 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
     });
     return new Response(stream, { headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' } });
   } catch (e: any) {
-    return new Response(`AI Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`AI Error: ${e.message}`, 500, corsHeaders);
   }
 }
 
@@ -938,6 +986,7 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 // Chat (Hardened)
 // ----------------------------------------------------------------------------
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const { message, history = [], model } = await request.json() as any;
 
   // --- Project Bible Grounding ---
@@ -950,11 +999,15 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
     if (taskObj) bibleContext += `\nActive Tasks:\n${await taskObj.text()}\n`;
   } catch (e) { }
 
-  // Use generateCompletion for unified logic
-  const prompt = `${SYSTEM_PROMPT}\n${bibleContext}\nChat History:\n${history.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\nUser: ${message}\nAI:`;
+  // Use structured messages for better instruction following
+  const messages = [
+    { role: 'system', content: `${SYSTEM_PROMPT}\n${bibleContext}` },
+    ...history.map((m: any) => ({ role: m.role, content: m.content })),
+    { role: 'user', content: message }
+  ];
 
   try {
-    const result = await generateCompletion(env, prompt, 1024, model, 0.3);
+    const result = await generateCompletion(env, messages, 1024, model, 0.3);
 
     // Recommendation 4: Adaptive Memory Batching
     ctx.waitUntil(saveProjectMemory(env, ctx, 'default', {
@@ -975,7 +1028,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
 
     return new Response(stream, { headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' } });
   } catch (e: any) {
-    return new Response(`Chat Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    return errorResponse(`Chat Error: ${e.message}`, 500, corsHeaders);
   }
 }
 
@@ -986,6 +1039,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
 // Explain Code (Hardened)
 // ----------------------------------------------------------------------------
 async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const { code, language } = await request.json() as any;
   const prompt = `Explain this ${language} code concisely:\n\`\`\`${language}\n${code}\n\`\`\`\n\nExplanation:`;
 
@@ -994,7 +1048,7 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
     ctx.waitUntil(incrementKVQuota(env));
     return json({ explanation: result.completion, provider: result.provider }, 200, corsHeaders);
   } catch (e: any) {
-    return json({ error: e.message }, 500, corsHeaders);
+    return errorResponse(e.message, 500, corsHeaders);
   }
 }
 
@@ -1002,6 +1056,7 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
 // Recommendation 7: doctor --fix Logic
 // ----------------------------------------------------------------------------
 async function handleDoctor(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'GET') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const issues: string[] = [];
   const fixes: string[] = [];
   const status_report: any = {};
@@ -1043,31 +1098,97 @@ async function handleDoctor(request: Request, env: Env, corsHeaders: any): Promi
 
 const WORKSPACE_PREFIX = 'projects/default/';
 
+// Helper: Refresh KV File Index
+async function refreshKVIndex(env: Env): Promise<void> {
+  try {
+    const list = await env.R2_ASSETS.list({ prefix: WORKSPACE_PREFIX });
+    const files = list.objects.map(o => ({
+      name: o.key.replace(WORKSPACE_PREFIX, ''),
+      size: o.size,
+      uploaded: o.uploaded
+    })).filter(f => f.name !== '');
+
+    // Cache for 1 hour, but we manually invalidate on writes
+    await env.CACHE.put('index:default', JSON.stringify(files), { expirationTtl: 3600 });
+  } catch (e) { console.error('Index Refresh Error:', e); }
+}
+
 async function handleFilesystem(request: Request, env: Env, corsHeaders: any): Promise<Response> {
   const url = new URL(request.url);
 
-  // List Files
+  // Search Files (R2 implementation) - Enforce POST for hardening
+  if (request.method === 'POST' && url.pathname === '/api/fs/search') {
+    let pattern = '';
+    try {
+      const body = await request.json() as { pattern: string };
+      pattern = body.pattern;
+    } catch (e) {
+      return errorResponse('Invalid JSON body', 400, corsHeaders);
+    }
+
+    if (!pattern) return errorResponse('Missing pattern', 400, corsHeaders);
+
+    try {
+      const list = await env.R2_ASSETS.list({ prefix: WORKSPACE_PREFIX });
+      const results: any[] = [];
+
+      for (const obj of list.objects) {
+        if (obj.key.match(/\.(png|jpg|jpeg|glb|gltf|gif|webp|woff2|ttf|mp3|wav|ogg)$/i)) continue;
+
+        const file = await env.R2_ASSETS.get(obj.key);
+        if (file) {
+          const content = await file.text();
+          const lines = content.split('\n');
+          lines.forEach((line, index) => {
+            if (line.toLowerCase().includes(pattern.toLowerCase())) {
+              results.push({
+                file: obj.key.replace(WORKSPACE_PREFIX, ''),
+                line: index + 1,
+                content: line.trim().substring(0, 200)
+              });
+            }
+          });
+        }
+        if (results.length > 50) break;
+      }
+      return json({ results }, 200, corsHeaders);
+    } catch (e: any) {
+      return errorResponse(e.message, 500, corsHeaders);
+    }
+  }
+
+  // List Files (Optimized with KV Cache)
   if (request.method === 'GET' && url.pathname === '/api/fs/list') {
     try {
+      // 1. Try Read from Cache
+      const cached = await env.CACHE.get('index:default', 'json');
+      if (cached) return json(cached, 200, corsHeaders);
+
+      // 2. Fallback to R2 (and update cache)
       const list = await env.R2_ASSETS.list({ prefix: WORKSPACE_PREFIX });
       const files = list.objects.map(o => ({
         name: o.key.replace(WORKSPACE_PREFIX, ''),
         size: o.size,
         uploaded: o.uploaded
       })).filter(f => f.name !== '');
+
+      // Async update cache
+      // @ts-ignore
+      if (typeof ctx.waitUntil === 'function') ctx.waitUntil(refreshKVIndex(env));
+
       return json(files, 200, corsHeaders);
     } catch (e: any) {
-      return new Response(e.message, { status: 500, headers: corsHeaders });
+      return errorResponse(e.message, 500, corsHeaders);
     }
   }
 
   // Get File
   if (request.method === 'GET' && url.pathname === '/api/fs/file') {
     const name = url.searchParams.get('name');
-    if (!name) return new Response('Missing name', { status: 400, headers: corsHeaders });
+    if (!name) return errorResponse('Missing name', 400, corsHeaders);
 
     const obj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + name);
-    if (!obj) return new Response('Not found', { status: 404, headers: corsHeaders });
+    if (!obj) return errorResponse('Not found', 404, corsHeaders);
 
     const isBinary = name.match(/\.(png|jpg|jpeg|glb|gltf|gif|webp)$/i);
     if (isBinary) {
@@ -1079,36 +1200,69 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
 
   // Save File
   if (request.method === 'POST' && url.pathname === '/api/fs/file') {
-    const { name, content, encoding } = await request.json() as { name: string, content: string, encoding?: string };
-    if (!name) return new Response('Missing name', { status: 400 });
+    try {
+      const { name, content, encoding } = await request.json() as { name: string, content: string, encoding?: string };
+      if (!name) return errorResponse('Missing name', 400, corsHeaders);
 
-    let body: any = content;
-    if (encoding === 'base64') {
-      const binString = atob(content);
-      body = Uint8Array.from(binString, c => c.charCodeAt(0));
+      let body: any = content;
+      if (encoding === 'base64') {
+        const binString = atob(content);
+        body = Uint8Array.from(binString, c => c.charCodeAt(0));
+      }
+
+      await env.R2_ASSETS.put(WORKSPACE_PREFIX + name, body);
+
+      // Update Index
+      // @ts-ignore
+      if (typeof ctx.waitUntil === 'function') ctx.waitUntil(refreshKVIndex(env));
+      // Also increment quota
+      // @ts-ignore
+      if (typeof ctx.waitUntil === 'function') ctx.waitUntil(incrementKVQuota(env));
+
+      return json({ success: true }, 200, corsHeaders);
+    } catch (e: any) {
+      return errorResponse(`Save Failed: ${e.message}`, 500, corsHeaders);
     }
-
-    await env.R2_ASSETS.put(WORKSPACE_PREFIX + name, body);
-    return json({ success: true }, 200, corsHeaders);
   }
 
   // Delete File
   if (request.method === 'DELETE' && url.pathname === '/api/fs/file') {
-    const { name } = await request.json() as { name: string };
-    if (!name) return new Response('Missing name', { status: 400 });
+    try {
+      const { name } = await request.json() as { name: string };
+      if (!name) return errorResponse('Missing name', 400, corsHeaders);
 
-    // Robustness: handle names that potentially already include the prefix
-    const fullKey = name.startsWith(WORKSPACE_PREFIX) ? name : WORKSPACE_PREFIX + name;
-    await env.R2_ASSETS.delete(fullKey);
-    return new Response('Deleted', { status: 200 });
+      // Robustness: handle names that potentially already include the prefix
+      const fullKey = name.startsWith(WORKSPACE_PREFIX) ? name : WORKSPACE_PREFIX + name;
+      await env.R2_ASSETS.delete(fullKey);
+      // Update Index
+      // @ts-ignore
+      if (typeof ctx.waitUntil === 'function') ctx.waitUntil(refreshKVIndex(env));
+      return json({ success: true }, 200, corsHeaders);
+    } catch (e: any) {
+      return errorResponse(`Delete Failed: ${e.message}`, 500, corsHeaders);
+    }
   }
 
-  return new Response('FS Method Not Allowed', { status: 405, headers: corsHeaders });
+  return errorResponse('FS Method Not Allowed', 405, corsHeaders);
 }
 
 function json(data: any, status = 200, corsHeaders: any = {}): Response {
-  return new Response(JSON.stringify(data), {
+  let body = JSON.stringify(data);
+  if (status >= 400) body = redact(body);
+  return new Response(body, {
     status,
     headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
+}
+
+function redact(str: string): string {
+  if (!str) return str;
+  return str.replace(/GEMINI_API_KEY|OLLAMA_AUTH_TOKEN|CLOUDFLARE_API_TOKEN|ACCOUNT_ID|AIza[A-Za-z0-9_-]+|fw_[a-zA-Z0-9]{20,}|key_[a-zA-Z0-9]{20,}/gi, '[REDACTED]');
+}
+
+function errorResponse(message: string, status = 500, corsHeaders = {}): Response {
+  return new Response(redact(message), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
   });
 }

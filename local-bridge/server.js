@@ -20,7 +20,13 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 
 // Working directory (configurable)
-const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || process.cwd();
+// Working directory (configurable)
+// Default to ./workspace to avoid cluttering the agent root
+const DEFAULT_WORKSPACE = path.join(process.cwd(), 'workspace');
+const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || DEFAULT_WORKSPACE;
+
+// Ensure workspace exists
+fs.mkdir(WORKSPACE_ROOT, { recursive: true }).catch(err => console.error('Failed to create workspace:', err));
 
 console.log(`🏠 Workspace Root: ${WORKSPACE_ROOT}`);
 
@@ -53,12 +59,15 @@ app.get('/api/fs/file', async (req, res) => {
     let filePath;
     try {
       filePath = path.join(WORKSPACE_ROOT, name);
-      if (!filePath.startsWith(WORKSPACE_ROOT)) {
+      // Case-insensitive check for Windows
+      if (!filePath.toLowerCase().startsWith(WORKSPACE_ROOT.toLowerCase())) {
         return res.status(403).json({ error: 'Access denied' });
       }
     } catch (pe) {
       return res.status(400).json({ error: 'Invalid path' });
     }
+
+    const isBinary = name.match(/\.(png|jpg|jpeg|glb|gltf|gif|webp)$/i);
 
     try {
       await fs.access(filePath);
@@ -75,6 +84,11 @@ app.get('/api/fs/file', async (req, res) => {
       } else {
         return res.status(404).json({ error: `File not found: ${name}` });
       }
+    }
+
+    if (isBinary) {
+      const buffer = await fs.readFile(filePath);
+      return res.send(buffer);
     }
 
     const content = await fs.readFile(filePath, 'utf-8');
@@ -156,6 +170,52 @@ app.delete('/api/fs/file', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error(`❌ DELETE /api/fs/file error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Search Files (Recursive grep-like)
+app.all('/api/fs/search', async (req, res) => {
+  try {
+    let pattern = req.query.pattern || req.query.q;
+    if (req.method === 'POST') {
+      pattern = pattern || req.body.pattern;
+    }
+
+    if (!pattern) return res.status(400).json({ error: 'Missing pattern' });
+
+    console.log(`🔍 Searching for: "${pattern}"`);
+    const allFiles = await listFilesRecursive(WORKSPACE_ROOT);
+    const results = [];
+
+    for (const file of allFiles) {
+      if (shouldIgnore(file.name)) continue;
+      // Skip binary files for text search
+      if (file.name.match(/\.(png|jpg|jpeg|glb|gltf|gif|webp|woff2|ttf|mp3|wav|ogg)$/i)) continue;
+
+      try {
+        const filePath = path.join(WORKSPACE_ROOT, file.name);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const lines = content.split('\n');
+
+        lines.forEach((line, index) => {
+          if (line.toLowerCase().includes(pattern.toLowerCase())) {
+            results.push({
+              file: file.name,
+              line: index + 1,
+              content: line.trim().substring(0, 200)
+            });
+          }
+        });
+      } catch (e) {
+        // Skip files that can't be read
+      }
+
+      if (results.length > 100) break; // Limit results
+    }
+
+    res.json({ results });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

@@ -16,6 +16,11 @@ export const IDE_HTML = `<!DOCTYPE html>
         }
     </script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.1.1/model-viewer.min.js"></script>
+    <script>
+      // Silence Tailwind Production Warning
+      window.tailwind = { config: { } };
+      localStorage.setItem('tailwind-config-warn', 'false');
+    </script>
     <style>
         body { background: #0f172a; color: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; }
         #monacoContainer { height: 100%; border-top: 1px solid #1e293b; }
@@ -210,10 +215,10 @@ export const IDE_HTML = `<!DOCTYPE html>
                     <div id="voiceStatus" class="hidden text-[10px] text-indigo-400 animate-pulse font-mono">Listening...</div>
                 </div>
                 <div class="relative">
-                    <textarea id="chatInput" rows="3" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-xs outline-none focus:border-indigo-500 transition resize-none pr-10" placeholder="Type a message or /image..."></textarea>
-                    <button onclick="window.sendMessage()" class="absolute bottom-3 right-3 text-indigo-400 hover:text-indigo-300 transition">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
+                    <textarea id="chatInput" class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 pr-12 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none" placeholder="Ask AI anything..." rows="3"></textarea>
+                <button id="chatSendButton" class="absolute bottom-3 right-3 p-2 text-slate-400 hover:text-indigo-400 transition-colors">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
                 </div>
             </div>
         </aside>
@@ -676,8 +681,9 @@ window.loadBible = async function() {
             window.bibleTasks = JSON.parse(tData.content);
             window.renderKanban();
         }
-    } catch(e) {}
+    } catch(e){ console.error('Chat Error:', e); }
 };
+window.sendMessage = window.sendMessage; // Redundant but good for grep
 
 window.renderKanban = function() {
     const tasks = window.bibleTasks || [];
@@ -831,6 +837,28 @@ window.saveCurrentFile = async function(name, content) {
     await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content }) });
 };
 
+// Event Listeners for UI
+const initUI = () => {
+    const chatInput = document.getElementById('chatInput');
+    const chatBtn = document.getElementById('chatSendButton');
+    if (chatBtn) chatBtn.onclick = () => window.sendMessage();
+    if (chatInput) {
+        chatInput.onkeydown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                window.sendMessage();
+            }
+        };
+    }
+    console.log('✅ UI Event Handlers Initialized');
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUI);
+} else {
+    initUI();
+}
+
 // AI assistant
 window.sendMessage = async function() {
     const input = document.getElementById('chatInput');
@@ -880,16 +908,21 @@ window.sendMessage = async function() {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value);
-            const lines = chunk.split('\\\\n\\\\n');
+            // DEBUG: console.log('Chunk received:', chunk);
+            const lines = chunk.split('\n\n');
             for (const line of lines) {
-                if (line.startsWith('data: ')) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                if (trimmed.startsWith('data: ')) {
                     try {
-                        const data = JSON.parse(line.slice(6));
+                        const data = JSON.parse(trimmed.slice(6));
                         if (data.token) {
                             fullText += data.token;
                             aiDiv.innerHTML = window.formatToken(fullText);
                         }
-                    } catch(e){}
+                    } catch(e){
+                         console.warn('SSE Parse Error:', e, trimmed);
+                    }
                 }
             }
         }
@@ -979,6 +1012,64 @@ window.sendMessage = async function() {
             }).catch(err => {
                 window.addMessage('ai', '❌ *Bridge Error:* \\\\n' + BACKTICK + err.message + BACKTICK);
             });
+        }
+
+        // Detect Search Automation
+        const searchMatch = fullText.match(/\\\[SEARCH: (.*?)\\\]/);
+        if (searchMatch && searchMatch[1]) {
+            const pattern = searchMatch[1];
+            window.addMessage('ai', '🔍 *Searching project for: "' + pattern + '"*...', true);
+
+            // OPTIMIZATION: Prioritize Local Bridge Search
+            const localApi = (typeof localBridgeAvailable !== 'undefined' && localBridgeAvailable) ? 'http://127.0.0.1:3030' : '';
+            const apiBase = localApi || ((typeof window.getApiBase === "function") ? window.getApiBase() : "");
+
+            fetch(apiBase + '/api/fs/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pattern })
+            }).then(r => r.json()).then(sData => {
+                if (sData.results && sData.results.length > 0) {
+                    let resHtml = '✅ *Search Results for "' + pattern + '":*\\\\n';
+                    sData.results.slice(0, 10).forEach(r => {
+                        resHtml += '• [' + r.file + '](file://' + r.file + ') (Line ' + r.line + '): ' + BACKTICK + r.content + BACKTICK + '\\\\n';
+                    });
+                    if (sData.results.length > 10) resHtml += '*...and ' + (sData.results.length - 10) + ' more results.*';
+                    window.addMessage('ai', resHtml);
+                } else {
+                    window.addMessage('ai', 'ℹ️ *No results found for "' + pattern + '".*');
+                }
+            }).catch(err => {
+                window.addMessage('ai', '❌ *Search Error:* ' + err.message);
+            });
+        }
+
+        // Detect Read File Automation
+        const readMatch = fullText.match(/\\\[READ: (.*?)\\\]/);
+        if (readMatch && readMatch[1]) {
+            const path = readMatch[1];
+            window.addMessage('ai', '📖 *Reading file: "' + path + '"*...', true);
+            const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+            fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(path))
+                .then(r => r.json())
+                .then(fData => {
+                    if (fData.content) {
+                        window.addMessage('ai', '📄 *Content of ' + path + ':*\\\\n' + window.formatToken(BACKTICK + BACKTICK + BACKTICK + '\\\\n// file: ' + path + '\\\\n' + fData.content + '\\\\n' + BACKTICK + BACKTICK + BACKTICK));
+                    } else {
+                        window.addMessage('ai', '❌ *Could not read ' + path + '*');
+                    }
+                }).catch(err => {
+                    window.addMessage('ai', '❌ *Read Error:* ' + err.message);
+                });
+        }
+
+        // Optimized Project Init: Dynamic Scaffolding
+        const initMatch = fullText.match(/\\\[PROJECT-INIT: (.*?)\\\]/);
+        if (initMatch && initMatch[1]) {
+            const prompt = initMatch[1];
+            window.addMessage('ai', '🏗️ *Initializing Dynamic Scaffolding: ' + prompt + '*...', true);
+            window.addMessage('ai', 'ℹ️ *I am designing the structure system-wide. Please wait...*');
+            // AI will now follow up with multiple code blocks to build this manually
         }
 
         if (autoAudio) window.speakResponse(fullText);
@@ -1127,6 +1218,11 @@ window.acceptDiff = function() {
 };
 
 window.rejectDiff = () => document.getElementById('diffModal')?.classList.add('hidden');
+
+// Deprecated: Moving to Dynamic AI-designed Scaffolding
+window.handleProjectInit = async function(blueprint) {
+    window.addMessage('ai', '⚠️ *Unified Scaffolding:* Please describe the project in chat, and I will build the files dynamically for you.');
+};
 window.getLanguage = (n) => {
     if (n.endsWith('.ts')) return 'typescript';
     if (n.endsWith('.js')) return 'javascript';
@@ -1142,7 +1238,11 @@ window.createNewFile = async function() {
     const name = prompt("Filename:");
     if (name) {
         const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
-        await fetch(apiBase + '/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
+        await fetch(apiBase + '/api/fs/file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, content: '' })
+        });
         window.refreshFiles();
     }
 };
@@ -1155,7 +1255,11 @@ window.uploadFile = async function(input) {
         // @ts-ignore
         const base64 = e.target.result.split(',')[1];
         const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
-        await fetch(apiBase + '/api/fs/file', { method: 'POST', body: JSON.stringify({ name: file.name, content: base64, encoding: 'base64' }) });
+        await fetch(apiBase + '/api/fs/file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: file.name, content: base64, encoding: 'base64' })
+        });
         window.refreshFiles();
     };
     reader.readAsDataURL(file);
@@ -1231,18 +1335,5 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchModels();
 });
 
-// Window function mapping
-window.acceptDiff = window.acceptDiff || acceptDiff;
-window.rejectDiff = window.rejectDiff || rejectDiff;
-window.ghClone = window.ghClone || ghClone;
-window.deployProject = window.deployProject || deployProject;
-window.sendMessage = window.sendMessage || sendMessage;
-window.uploadFile = window.uploadFile || uploadFile;
-window.saveCurrentFile = window.saveCurrentFile || saveCurrentFile;
-window.refreshFiles = window.refreshFiles || refreshFiles;
-window.createNewFile = window.createNewFile || createNewFile;
-window.toggleGithubSettings = window.toggleGithubSettings || toggleGithubSettings;
-window.formatToken = window.formatToken || formatToken;
-window.applyCode = window.applyCode || applyCode;
 window.updateHealthStatus = updateHealthStatus;
 `;
