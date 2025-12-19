@@ -383,24 +383,24 @@ export default {
         case '/api/audio/generate':
           return handleAudioGenerate(request, env, corsHeaders);
         case '/api/doctor':
-          return handleDoctor(request, env, corsHeaders);
+          return handleDoctor(request, env, ctx, corsHeaders);
         case '/api/deploy':
           return handleDeploy(request, env, corsHeaders);
         case '/api/fs/list':
         case '/api/fs/file':
         case '/api/fs/search':
-          return handleFilesystem(request, env, corsHeaders);
+          return handleFilesystem(request, env, ctx, corsHeaders);
         case '/api/terminal':
-          return handleTerminal(request, env, corsHeaders);
+          return handleTerminal(request, env, ctx, corsHeaders);
         case '/api/github/clone':
         case '/api/github/push':
         case '/api/github/user':
         case '/api/github/content':
-          return handleGithub(request, env, corsHeaders);
+          return handleGithub(request, env, ctx, corsHeaders);
         case '/api/context/map':
           return handleContextMap(request, env, corsHeaders);
         case '/api/health':
-          return handleHealth(request, env, corsHeaders);
+          return handleHealth(request, env, ctx, corsHeaders);
         case '/api/models':
           return json({ catalog: MODELS, groups: MODEL_GROUPS }, 200, corsHeaders);
         default:
@@ -470,7 +470,7 @@ async function handleDeploy(request: Request, env: Env, corsHeaders: any): Promi
 
 import { GitHubService } from './services/github';
 
-async function handleTerminal(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+async function handleTerminal(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const { command } = await request.json() as any;
   const args = command.trim().split(/\s+/);
@@ -509,7 +509,7 @@ async function handleTerminal(request: Request, env: Env, corsHeaders: any): Pro
   return json({ output }, 200, corsHeaders);
 }
 
-async function handleGithub(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+async function handleGithub(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const url = new URL(request.url);
   // Pass empty strings as we are using Token-auth methods mostly
@@ -807,7 +807,7 @@ async function incrementKVQuota(env: Env) {
   await env.CACHE.put(`kvWriteCount:${today}`, (count + 1).toString(), { expirationTtl: 86400 });
 }
 
-async function handleHealth(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+async function handleHealth(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (request.method !== 'GET') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const status: any = {
     status: 'healthy',
@@ -1133,7 +1133,7 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
 // ----------------------------------------------------------------------------
 // Recommendation 7: doctor --fix Logic
 // ----------------------------------------------------------------------------
-async function handleDoctor(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (request.method !== 'GET') return errorResponse('Method Not Allowed', 405, corsHeaders);
   const issues: string[] = [];
   const fixes: string[] = [];
@@ -1191,7 +1191,7 @@ async function refreshKVIndex(env: Env): Promise<void> {
   } catch (e) { console.error('Index Refresh Error:', e); }
 }
 
-async function handleFilesystem(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+async function handleFilesystem(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   const url = new URL(request.url);
 
   // Search Files (R2 implementation) - Enforce POST for hardening
