@@ -258,7 +258,7 @@ export const UI_JS = `
 // Safe definition of backtick to avoid template literal collisions
 const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V24 Loaded - Sound Studio Active");
+console.log("UI_VERSION_HOLD_FIX_V25 Loaded - Sound Studio Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -1138,8 +1138,33 @@ async function updateHealthStatus() {
     } catch (e) {}
 }
 
+async function fetchModels() {
+    try {
+        const res = await fetch('/api/models');
+        if (res.ok) {
+            const models = await res.json();
+            const selector = document.getElementById('modelSelector');
+            if (selector) {
+                selector.innerHTML = '';
+                // Add friendly names for grouping or just list them all
+                for (const [key, value] of Object.entries(models)) {
+                    const opt = document.createElement('option');
+                    opt.value = key.toLowerCase();
+                    opt.innerText = key + " (" + (typeof value === 'string' ? value.split('/').pop() : value) + ")";
+                    selector.appendChild(opt);
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch models", e);
+    }
+}
+
 setInterval(updateHealthStatus, 60000);
-document.addEventListener('DOMContentLoaded', updateHealthStatus);
+document.addEventListener('DOMContentLoaded', () => {
+    updateHealthStatus();
+    fetchModels();
+});
 
 // Window function mapping
 window.acceptDiff = window.acceptDiff || acceptDiff;

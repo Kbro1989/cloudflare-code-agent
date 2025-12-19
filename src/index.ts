@@ -343,6 +343,8 @@ export default {
           return handleContextMap(request, env, corsHeaders);
         case '/api/health':
           return handleHealth(request, env, corsHeaders);
+        case '/api/models':
+          return json(MODELS, 200, corsHeaders);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
