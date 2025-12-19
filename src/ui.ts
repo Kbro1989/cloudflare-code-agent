@@ -6,6 +6,7 @@ export const IDE_HTML = `<!DOCTYPE html>
     <title>Cloudflare Web IDE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script type="importmap">
         {
             "imports": {
@@ -247,35 +248,39 @@ window.deployProject = async function() {
     }
 };
 
-// Monaco setup
-require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-require(['vs/editor/editor.main'], function(monacoInstance) {
-    window.monaco = monacoInstance;
-    monacoInstance.languages.typescript.typescriptDefaults.setCompilerOptions({
-        target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
-        allowNonTsExtensions: true,
-        moduleResolution: monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
-    });
+// --- Monaco Setup ---
+if (typeof require !== 'undefined') {
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+    require(['vs/editor/editor.main'], function(monacoInstance) {
+        window.monaco = monacoInstance;
+        monacoInstance.languages.typescript.typescriptDefaults.setCompilerOptions({
+            target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
+            allowNonTsExtensions: true,
+            moduleResolution: monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
+        });
 
-    editor = monacoInstance.editor.create(document.getElementById('monacoContainer'), {
-        value: '// Select a file to view content',
-        language: 'typescript', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13
-    });
+        editor = monacoInstance.editor.create(document.getElementById('monacoContainer'), {
+            value: '// Select a file to view content',
+            language: 'typescript', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13
+        });
 
-    editor.onDidChangeCursorPosition((e) => {
-        const ln = document.getElementById('cursorLine');
-        const cl = document.getElementById('cursorCol');
-        if (ln) ln.innerText = e.position.lineNumber;
-        if (cl) cl.innerText = e.position.column;
-    });
+        editor.onDidChangeCursorPosition((e) => {
+            const ln = document.getElementById('cursorLine');
+            const cl = document.getElementById('cursorCol');
+            if (ln) ln.innerText = e.position.lineNumber;
+            if (cl) cl.innerText = e.position.column;
+        });
 
-    // Ctrl+S to save
-    editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
-        if (activeFile) window.saveCurrentFile(activeFile, editor.getValue());
-    });
+        // Ctrl+S to save
+        editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
+            if (activeFile) window.saveCurrentFile(activeFile, editor.getValue());
+        });
 
-    window.refreshFiles();
-});
+        window.refreshFiles();
+    });
+} else {
+    console.error('Monaco loader not found');
+}
 
 // Terminal
 const termInput = document.getElementById('terminalInput');

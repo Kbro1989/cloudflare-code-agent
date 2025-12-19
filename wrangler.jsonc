@@ -50,6 +50,12 @@
   "ai": {
     "binding": "AI"
   },
+  "dispatch_namespaces": [
+    {
+      "binding": "DISPATCHER",
+      "namespace": "code-agent-dispatcher"
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": {
