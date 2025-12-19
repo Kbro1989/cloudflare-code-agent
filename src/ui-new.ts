@@ -258,7 +258,7 @@ export const UI_JS = `
 // Safe definition of backtick to avoid template literal collisions
 const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V26 Loaded - Sound Studio Active");
+console.log("UI_VERSION_HOLD_FIX_V27.3 Loaded - Rigged for Production");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -299,7 +299,8 @@ window.deployProject = async function() {
     try {
         let codeToDeploy = currentCode;
         if (!activeFile?.endsWith('.ts') && !activeFile?.endsWith('.js')) {
-            const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
+            const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+            const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
             if(res.ok) {
                 const d = await res.json();
                 codeToDeploy = d.content;
@@ -607,7 +608,8 @@ window.saveGeneratedAudio = async function() {
         const reader = new FileReader();
         reader.onload = async () => {
             const base64 = reader.result.split(',')[1];
-            const res = await fetch('/api/fs/file', {
+            const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+            const res = await fetch(apiBase + '/api/fs/file', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: 'audio/' + name, content: base64, encoding: 'base64' })
@@ -749,7 +751,11 @@ window.renderAssetGallery = function(files) {
 window.deleteFile = async function(name) {
     if (!confirm('Delete ' + name + '?')) return;
     try {
-        await fetch('/api/fs/file?name=' + encodeURIComponent(name), { method: 'DELETE' });
+        await fetch('/api/fs/file', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
         window.refreshFiles();
     } catch(e) { alert('Failed'); }
 };
@@ -906,6 +912,50 @@ window.sendMessage = async function() {
                 window.addMessage('ai', '<img src="' + imgData.image + '" class="rounded-lg cursor-pointer" onclick="window.loadFile(\\'' + imgData.filename + '\\')">');
                 window.refreshFiles();
             }
+        }
+
+        // Detect GitHub Push Automation (Final Product Delivery)
+        const githubMatch = fullText.match(/\\[GITHUB: push (.*?):(.*?):(.*?)\\]/i);
+        if (githubMatch) {
+            const [_, repoPath, branch, message] = githubMatch;
+            const [owner, repo] = repoPath.split('/');
+            const token = localStorage.getItem('gh_token');
+            if (token && owner && repo) {
+                window.addMessage('ai', '🚀 *Delivery in Progress: Pushing to GitHub (' + repoPath + ')...*', true);
+                fetch('/api/github/push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, owner, repo, branch, message })
+                }).then(r => r.json()).then(gData => {
+                    if (gData.success) {
+                        window.addMessage('ai', '✅ *Push Successful!* \\\\nFinal product delivered to ' + BACKTICK + repoPath + BACKTICK + ' on branch ' + BACKTICK + branch + BACKTICK + '. \\\\nSHA: ' + BACKTICK + gData.sha + BACKTICK);
+                    } else {
+                        window.addMessage('ai', '❌ *Push Failed:* ' + (gData.error || 'Unknown error'));
+                    }
+                }).catch(err => {
+                    window.addMessage('ai', '❌ *GitHub Error:* ' + err.message);
+                });
+            } else {
+                window.addMessage('ai', '⚠️ *GitHub Push Blocked:* Missing credentials or repo details. Please log in to GitHub in Settings.');
+            }
+        }
+
+        // Detect Terminal Automation (Autonomous Terminal)
+        const termMatch = fullText.match(/\\[TERM: (.*?)\\]/);
+        if (termMatch && termMatch[1] && window.getApiBase()) {
+            const command = termMatch[1];
+            window.addMessage('ai', '💻 *Running Terminal Command: "' + command + '"*...', true);
+            fetch(window.getApiBase() + '/api/terminal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command })
+            }).then(r => r.json()).then(tData => {
+                const output = tData.output || 'Command executed';
+                window.addMessage('ai', '🏁 *Terminal Result:* \\\\n' + BACKTICK + BACKTICK + BACKTICK + '\\\\n' + output.slice(-1000) + '\\\\n' + BACKTICK + BACKTICK + BACKTICK);
+                window.refreshFiles();
+            }).catch(err => {
+                window.addMessage('ai', '❌ *Terminal Error:* \\\\n' + BACKTICK + err.message + BACKTICK);
+            });
         }
 
         // Detect Blender Automation
@@ -1103,7 +1153,8 @@ window.uploadFile = async function(input) {
     reader.onload = async (e) => {
         // @ts-ignore
         const base64 = e.target.result.split(',')[1];
-        await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name: file.name, content: base64, encoding: 'base64' }) });
+        const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+        await fetch(apiBase + '/api/fs/file', { method: 'POST', body: JSON.stringify({ name: file.name, content: base64, encoding: 'base64' }) });
         window.refreshFiles();
     };
     reader.readAsDataURL(file);

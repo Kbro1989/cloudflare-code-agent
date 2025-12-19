@@ -50,11 +50,28 @@ app.get('/api/fs/file', async (req, res) => {
     const { name } = req.query;
     if (!name) return res.status(400).json({ error: 'Missing name parameter' });
 
-    const filePath = path.join(WORKSPACE_ROOT, name);
+    let filePath = path.join(WORKSPACE_ROOT, name);
 
-    // Security: Prevent directory traversal
+    // Security check
     if (!filePath.startsWith(WORKSPACE_ROOT)) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    try {
+      await fs.access(filePath);
+    } catch {
+      // Fallback: try projects/default/ prefix if it doesn't already have it
+      if (!name.startsWith('projects/default/')) {
+        const fallbackPath = path.join(WORKSPACE_ROOT, 'projects', 'default', name);
+        try {
+          await fs.access(fallbackPath);
+          filePath = fallbackPath;
+        } catch {
+          return res.status(404).json({ error: `File not found: ${name}` });
+        }
+      } else {
+        return res.status(404).json({ error: `File not found: ${name}` });
+      }
     }
 
     const content = await fs.readFile(filePath, 'utf-8');
@@ -103,13 +120,29 @@ app.delete('/api/fs/file', async (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing name' });
 
-    const filePath = path.join(WORKSPACE_ROOT, name);
+    let filePath = path.join(WORKSPACE_ROOT, name);
 
     if (!filePath.startsWith(WORKSPACE_ROOT)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    await fs.unlink(filePath);
+    try {
+      await fs.unlink(filePath);
+    } catch (err) {
+      // Fallback: try projects/default/ prefix
+      if (!name.startsWith('projects/default/')) {
+        const fallbackPath = path.join(WORKSPACE_ROOT, 'projects', 'default', name);
+        try {
+          await fs.unlink(fallbackPath);
+          return res.json({ success: true, note: 'Deleted from projects/default/' });
+        } catch {
+          // Both failed
+          return res.status(404).json({ error: `File not found for deletion: ${name}` });
+        }
+      }
+      return res.status(404).json({ error: `File not found for deletion: ${name}` });
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

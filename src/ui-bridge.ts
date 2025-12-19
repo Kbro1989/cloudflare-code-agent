@@ -203,13 +203,32 @@ window.deleteFile = async function(name) {
     if (!confirm('Delete ' + name + '?')) return;
     try {
         const apiBase = window.getApiBase();
-        await fetch(apiBase + '/api/fs/file', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
-        });
+
+        // 1. Delete from Cloud (R2) - ALWAYS do this for sync
+        try {
+            await fetch('/api/fs/file', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+        } catch (cloudErr) {
+            console.warn('Cloud deletion failed (stub may remain):', cloudErr);
+        }
+
+        // 2. Delete from Local Bridge if available
+        if (localBridgeAvailable) {
+            await fetch(BRIDGE_URL + '/api/fs/file', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+        }
+
         window.refreshFiles();
-    } catch(e) { alert('Failed'); }
+    } catch(e) {
+        console.error('Deletion operation failed:', e);
+        alert('Failed to delete file from one or more locations.');
+    }
 };
 
 // Init on page load

@@ -233,6 +233,8 @@ Primary Directive: Provide immediate, actionable, and correct code or answers.
 - **Capabilities Awareness**:
     *   To generate an image, output: [IMAGE: description]
     *   To run Blender automation, output: [BLENDER: python_script] (Use this for 3D modeling, vertex colors, or GLB exports).
+    *   To execute local terminal commands (git, npm, wrangler, dir, ls), output: [TERM: command]
+    *   To push final products to GitHub (Cloud-to-GitHub sync), output: [GITHUB: push owner/repo:branch:message] (Use this to finalize work and deliver to production).
     *   To edit files, use the code block format.
 - To edit files, output a code block with the first line specifying the file path:
 \`\`\`language
@@ -304,7 +306,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n(function(){\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n})();\n// v=HOLD_FIX_V23 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n(function(){\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n})();\n// v=HOLD_FIX_V27.3 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -488,11 +490,58 @@ async function handleGithub(request: Request, env: Env, corsHeaders: any): Promi
       return json({ files }, 200, corsHeaders);
     }
 
-    // Fetch specific file content from GH (used by Clone loop)
+    // List specific repo content
     if (url.pathname.endsWith('/content')) {
       const content = await gh.getRepoContent(token, owner, repo, path);
-      // GH returns base64 content often
       return json(content, 200, corsHeaders);
+    }
+
+    if (url.pathname.endsWith('/push')) {
+      const { message, branch: targetBranch } = body;
+      const b = targetBranch || 'main';
+
+      // 1. Get current branch SHA
+      const branchRef: any = await gh.getTree(token, owner, repo, b);
+      const baseTreeSha = branchRef.sha;
+      const parentSha = branchRef.sha; // This is actually the tree, we need the commit SHA
+
+      // Correctly get head commit SHA
+      const head: any = await (gh as any).request(token, `/repos/${owner}/${repo}/git/refs/heads/${b}`);
+      const headCommitSha = head.object.sha;
+      const headCommit: any = await (gh as any).request(token, `/repos/${owner}/${repo}/git/commits/${headCommitSha}`);
+      const currentTreeSha = headCommit.tree.sha;
+
+      // 2. Fetch all files from R2
+      const listed = await env.R2_ASSETS.list({ prefix: WORKSPACE_PREFIX });
+      const treeItems = [];
+
+      for (const obj of listed.objects) {
+        const name = obj.key.replace(WORKSPACE_PREFIX, '');
+        if (name === 'BIBLE_TASKS.json' || name === 'BIBLE_LORE.md' || name.match(/\.(ts|js|html|css|json|md|txt)$/i)) {
+          const file = await env.R2_ASSETS.get(obj.key);
+          if (file) {
+            const content = await file.text();
+            const blob: any = await gh.createBlob(token, owner, repo, content);
+            treeItems.push({
+              path: name,
+              mode: '100644',
+              type: 'blob',
+              sha: blob.sha
+            });
+          }
+        }
+      }
+
+      // 3. Create Tree
+      const newTree: any = await gh.createTree(token, owner, repo, currentTreeSha, treeItems);
+
+      // 4. Create Commit
+      const newCommit: any = await gh.createCommit(token, owner, repo, message || 'Final Product Update', newTree.sha, [headCommitSha]);
+
+      // 5. Update Ref
+      const result: any = await gh.updateRef(token, owner, repo, `heads/${b}`, newCommit.sha);
+
+      return json({ success: true, sha: result.object.sha }, 200, corsHeaders);
     }
 
     return new Response('Not Found', { status: 404, headers: corsHeaders });
@@ -767,9 +816,20 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
       health: healthTracker.workersAi,
       run: async () => {
         let modelId = MODELS.DEFAULT;
-        if (requestedModel === 'thinking') modelId = MODELS.REASONING;
-        if (requestedModel === 'coding') modelId = MODELS.CODING;
-        if (requestedModel === 'gpt-oss') modelId = MODELS.GPT_OSS;
+        if (requestedModel) {
+          const upperModel = requestedModel.toUpperCase();
+          // @ts-ignore
+          if (MODELS[upperModel]) {
+            // @ts-ignore
+            modelId = MODELS[upperModel];
+          } else if (requestedModel === 'thinking') {
+            modelId = MODELS.REASONING;
+          } else if (requestedModel === 'coding') {
+            modelId = MODELS.CODING;
+          } else if (requestedModel === 'gpt-oss') {
+            modelId = MODELS.GPT_OSS;
+          }
+        }
 
         // @ts-ignore
         const response = await runAI(env, modelId, { prompt, max_tokens: maxTokens, temperature });
@@ -1036,7 +1096,10 @@ async function handleFilesystem(request: Request, env: Env, corsHeaders: any): P
   if (request.method === 'DELETE' && url.pathname === '/api/fs/file') {
     const { name } = await request.json() as { name: string };
     if (!name) return new Response('Missing name', { status: 400 });
-    await env.R2_ASSETS.delete(WORKSPACE_PREFIX + name);
+
+    // Robustness: handle names that potentially already include the prefix
+    const fullKey = name.startsWith(WORKSPACE_PREFIX) ? name : WORKSPACE_PREFIX + name;
+    await env.R2_ASSETS.delete(fullKey);
     return new Response('Deleted', { status: 200 });
   }
 

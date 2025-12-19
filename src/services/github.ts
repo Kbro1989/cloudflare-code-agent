@@ -62,14 +62,62 @@ export class GitHubService {
         return this.request(token, `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
     }
 
-    private async request(token: string, endpoint: string) {
-        const response = await fetch(`${GitHubService.API_URL}${endpoint}`, {
+    /**
+     * Git Data API: Create a blob (file content)
+     */
+    async createBlob(token: string, owner: string, repo: string, content: string, encoding: string = "utf-8") {
+        return this.request(token, `/repos/${owner}/${repo}/git/blobs`, "POST", {
+            content,
+            encoding
+        });
+    }
+
+    /**
+     * Git Data API: Create a new tree
+     */
+    async createTree(token: string, owner: string, repo: string, baseTreeSha: string, tree: any[]) {
+        return this.request(token, `/repos/${owner}/${repo}/git/trees`, "POST", {
+            base_tree: baseTreeSha,
+            tree
+        });
+    }
+
+    /**
+     * Git Data API: Create a commit
+     */
+    async createCommit(token: string, owner: string, repo: string, message: string, treeSha: string, parentShas: string[]) {
+        return this.request(token, `/repos/${owner}/${repo}/git/commits`, "POST", {
+            message,
+            tree: treeSha,
+            parents: parentShas
+        });
+    }
+
+    /**
+     * Git Data API: Update a reference (push)
+     */
+    async updateRef(token: string, owner: string, repo: string, ref: string, sha: string) {
+        return this.request(token, `/repos/${owner}/${repo}/git/refs/${ref}`, "PATCH", {
+            sha,
+            force: false
+        });
+    }
+
+    private async request(token: string, endpoint: string, method: string = "GET", body?: any) {
+        const options: RequestInit = {
+            method,
             headers: {
                 "Authorization": `Bearer ${token}`,
                 "Accept": "application/vnd.github.v3+json",
                 "User-Agent": "Hello-AI-Agent"
             }
-        });
+        };
+
+        if (body) {
+            options.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(`${GitHubService.API_URL}${endpoint}`, options);
 
         if (!response.ok) {
             throw new Error(`GitHub API Error: ${response.status} ${response.statusText}`);
