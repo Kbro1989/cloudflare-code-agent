@@ -1,6 +1,7 @@
 import { Ai } from '@cloudflare/ai';
 import Cloudflare from 'cloudflare';
-import { UI_JS } from './ui.js';
+import { IDE_HTML, UI_JS } from './ui-new';
+import { BRIDGE_INTEGRATION } from './ui-bridge';
 
 export interface Env {
   CACHE: KVNamespace;
@@ -66,21 +67,77 @@ const MODELS = {
   // Text / Coding / Reasoning
   DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
-  CODING: '@cf/meta/llama-3.1-8b-instruct',
+  CODING: '@cf/qwen/qwen2.5-coder-32b-instruct',
+  GPT_OSS: '@cf/openai/gpt-oss-120b',
+  Llama4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
 
-  // Image Gen
+  // Image Gen (Enhanced List)
   FLUX: '@cf/black-forest-labs/flux-1-schnell',
+  FLUX_DEV: '@cf/black-forest-labs/flux-2-dev',
   SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
   DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
+  LUCID: '@cf/leonardo/lucid-origin',
+  PHOENIX: '@cf/leonardo/phoenix-1.0',
 
   // Audio (Hands-Free)
   STT: '@cf/openai/whisper-large-v3-turbo',
   TTS: '@cf/myshell-ai/melotts',
+  AURA: '@cf/deepgram/aura-2-en',
 
   // Vision
   LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
   RESNET: '@cf/microsoft/resnet-50'
 };
+
+// --- Recommendation 6: Provider Health Tracking ---
+class ProviderHealth {
+  failures = 0;
+  lastSuccess = Date.now();
+  private readonly FAILURE_THRESHOLD = 3;
+  private readonly RECOVERY_TIME = 300000; // 5 minutes
+
+  recordFailure() { this.failures++; }
+  recordSuccess() { this.failures = 0; this.lastSuccess = Date.now(); }
+  isHealthy(): boolean {
+    if (this.failures >= this.FAILURE_THRESHOLD) {
+      return (Date.now() - this.lastSuccess) > this.RECOVERY_TIME;
+    }
+    return true;
+  }
+}
+
+const healthTracker = {
+  gemini: new ProviderHealth(),
+  workersAi: new ProviderHealth(),
+  ollama: new ProviderHealth()
+};
+
+// --- Recommendation 4: Adaptive Memory Batching ---
+let lastMemoryWriteTime = 0;
+const MIN_BATCH_DELAY = 60000; // 1 minute
+
+async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: string, data: any) {
+  const now = Date.now();
+  const timeSinceLastWrite = now - lastMemoryWriteTime;
+
+  // Dynamic batch size: More aggressive during peak hours (9-17)
+  const hour = new Date().getHours();
+  const batchThreshold = (hour >= 9 && hour <= 17) ? 15 : 10;
+
+  // Simple completion counter stored in KV (volatile is fine here)
+  const countKey = `memBatch:${projectId}`;
+  const count = parseInt(await env.CACHE.get(countKey) || '0') + 1;
+
+  const shouldWriteToKV = (count % batchThreshold === 0) || (timeSinceLastWrite > MIN_BATCH_DELAY);
+
+  if (shouldWriteToKV) {
+    ctx.waitUntil(env.MEMORY.put(`project:${projectId}`, JSON.stringify(data)));
+    ctx.waitUntil(env.CACHE.put(countKey, '0'));
+    lastMemoryWriteTime = now;
+  } else {
+    ctx.waitUntil(env.CACHE.put(countKey, count.toString()));
+  }
+}
 
 const SYSTEM_PROMPT = `
 You are an advanced AI coding agent (Omni-Dev Level).
@@ -129,27 +186,32 @@ export default {
       });
     }
 
-    // --- PRODUCTION HARDENING: KV Quota Logic ---
+    // --- Recommendation 3: Smart KV Quota Management ---
+    const QUOTA_WARNING_THRESHOLD = 0.85;
+    const QUOTA_HARD_THRESHOLD = 0.95;
+
     const today = new Date().toISOString().split('T')[0];
-    const writeCount = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
+    const writeCountRaw = await env.CACHE.get(`kvWriteCount:${today}`) || '0';
+    const writeCount = parseInt(writeCountRaw);
+    const quota = writeCount / 1000;
+
     const isWriteRequest = request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE';
 
-    // Hard cap check (only for AI/Metadata writes, we allow critical UI/Auth if needed, but here we cap everything to be safe)
-    if (isWriteRequest && parseInt(writeCount) >= 1000) {
-      // We allow some critical paths if they don't use KV writes, but generally, we warn
+    if (quota > QUOTA_HARD_THRESHOLD && isWriteRequest) {
       if (url.pathname.startsWith('/api/fs') || url.pathname.startsWith('/api/chat')) {
-        return json({ error: "Daily KV write quota exceeded (1000/day). Switch to Ollama local mode." }, 429, corsHeaders);
+        return json({
+          error: `KV quota critical: ${1000 - writeCount} writes remaining. Switching to read-only mode.`,
+          suggestion: "Use Ollama local mode"
+        }, 429, corsHeaders);
       }
     }
 
     // Router
     try {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
-        const { IDE_HTML } = await import('./ui');
-        const { BRIDGE_INTEGRATION } = await import('./ui-bridge');
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V4\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -157,8 +219,6 @@ export default {
       }
 
       if (url.pathname === '/ui.js') {
-        const { UI_JS } = await import('./ui');
-        const { BRIDGE_INTEGRATION } = await import('./ui-bridge');
         return new Response(UI_JS + '\n' + BRIDGE_INTEGRATION, {
           headers: { ...corsHeaders, 'Content-Type': 'application/javascript; charset=utf-8' }
         });
@@ -411,23 +471,24 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
   if (!prompt) return new Response('Missing prompt', { status: 400, headers: corsHeaders });
 
   try {
-    const modelId = style === 'realism' ? MODELS.SDXL : (style === 'artistic' ? MODELS.DREAMSHAPER : MODELS.FLUX);
-    const steps = style === 'realism' ? 8 : (style === 'artistic' ? 6 : 4);
+    let modelId = MODELS.FLUX;
+    if (style === 'realism') modelId = MODELS.SDXL;
+    if (style === 'artistic') modelId = MODELS.DREAMSHAPER;
+    if (style === 'high-res') modelId = MODELS.FLUX_DEV;
+    if (style === 'lucid') modelId = MODELS.LUCID;
+    if (style === 'phoenix') modelId = MODELS.PHOENIX;
 
     // @ts-ignore
-    const result = await env.AI.run(modelId, { prompt, num_steps: steps });
+    const result = await env.AI.run(modelId, { prompt });
 
-    // Use Response for stream handling
     const arrayBuffer = await new Response(result as any).arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
 
-    // PERSIST TO R2: Makes the image accessible via file explorer
     const filename = `generated_${Date.now()}.png`;
     await env.R2_ASSETS.put(WORKSPACE_PREFIX + filename, arrayBuffer, {
       httpMetadata: { contentType: 'image/png' }
     });
 
-    // Return reference and base64 for immediate UI feedback
     let binary = '';
     const chunkSize = 0x8000;
     for (let i = 0; i < bytes.byteLength; i += chunkSize) {
@@ -453,15 +514,30 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
   if (!env.AI) return new Response('AI binding missing', { status: 500, headers: corsHeaders });
 
   try {
-    const audioBlob = await request.arrayBuffer();
-    // @ts-ignore
-    const response = await env.AI.run(MODELS.STT, {
-      audio: [...new Uint8Array(audioBlob)]
-    });
+    const audioBuffer = await request.arrayBuffer();
+    const audioArray = new Uint8Array(audioBuffer);
 
-    return json(response, 200, corsHeaders);
+    try {
+      // Primary attempt: Native Binary (Most efficient for large buffers)
+      // @ts-ignore
+      const response = await env.AI.run(MODELS.STT, {
+        audio: audioArray as any
+      });
+      return json(response, 200, corsHeaders);
+    } catch (e1: any) {
+      // Secondary attempt: Spread Array (Compatibility fallback for older bindings)
+      try {
+        // @ts-ignore
+        const response = await env.AI.run(MODELS.STT, {
+          audio: [...audioArray]
+        });
+        return json(response, 200, corsHeaders);
+      } catch (e2: any) {
+        return new Response(`STT Error: [Binary: ${e1.message}] [Array: ${e2.message}]`, { status: 500, headers: corsHeaders });
+      }
+    }
   } catch (e: any) {
-    return new Response(`STT Error: ${e.message}`, { status: 500, headers: corsHeaders });
+    return new Response(`STT Buffer Error: ${e.message}`, { status: 500, headers: corsHeaders });
   }
 }
 
@@ -539,101 +615,103 @@ async function handleHealth(request: Request, env: Env, corsHeaders: any): Promi
   return json(status, 200, corsHeaders);
 }
 
-// ----------------------------------------------------------------------------
-// AI Common Core: generateCompletion (Priority Fallback + Explicit Model logic)
-// ----------------------------------------------------------------------------
 async function generateCompletion(env: Env, prompt: string, maxTokens: number, requestedModel?: string): Promise<{ completion: string, provider: string }> {
-
-  // 1. Explicit Workers AI Model (if requested and available)
-  if (requestedModel && env.AI) {
-    let modelId = MODELS.DEFAULT;
-    if (requestedModel === 'thinking') modelId = MODELS.REASONING;
-    if (requestedModel === 'coding') modelId = MODELS.CODING;
-
-    try {
-      // @ts-ignore
-      const response = await env.AI.run(modelId, { prompt, max_tokens: maxTokens });
-      // @ts-ignore
-      if (response && response.response) {
-        // @ts-ignore
-        return { completion: response.response.trim(), provider: 'workers-ai' };
+  const providers = [
+    {
+      name: 'gemini',
+      check: !!env.GEMINI_API_KEY,
+      health: healthTracker.gemini,
+      run: async () => {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens }
+            }),
+            signal: AbortSignal.timeout(15000)
+          }
+        );
+        if (!res.ok) throw new Error('Gemini HTTP ' + res.status);
+        const data = await res.json() as any;
+        return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       }
-    } catch (e) {
-      // If explicit model fails, fall through to default logic
-    }
-  }
+    },
+    {
+      name: 'workers-ai',
+      check: !!env.AI,
+      health: healthTracker.workersAi,
+      run: async () => {
+        let modelId = MODELS.DEFAULT;
+        if (requestedModel === 'thinking') modelId = MODELS.REASONING;
+        if (requestedModel === 'coding') modelId = MODELS.CODING;
+        if (requestedModel === 'gpt-oss') modelId = MODELS.GPT_OSS;
 
-  // 2. Gemini Flash (Primary Fallback)
-  const geminiFailing = await env.CACHE.get('geminiCircuitBreaker') === 'true';
-
-  if (!geminiFailing && env.GEMINI_API_KEY) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
-        {
+        // @ts-ignore
+        const response = await env.AI.run(modelId, { prompt, max_tokens: maxTokens });
+        // @ts-ignore
+        return response.response?.trim();
+      }
+    },
+    {
+      name: 'ollama',
+      check: !!env.OLLAMA_URL,
+      health: healthTracker.ollama,
+      run: async () => {
+        const auth = env.OLLAMA_AUTH_TOKEN || env.OLLAMA_API_KEY;
+        const res = await fetch(`${env.OLLAMA_URL}/api/generate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(auth ? { 'Authorization': `Bearer ${auth}` } : {})
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens }
+            model: 'qwen2.5-coder:7b',
+            prompt,
+            stream: false,
+            options: { num_predict: maxTokens }
           }),
-          signal: AbortSignal.timeout(15000)
-        }
-      );
-
-      if (res.ok) {
+          signal: AbortSignal.timeout(30000)
+        });
+        if (!res.ok) throw new Error('Ollama HTTP ' + res.status);
         const data = await res.json() as any;
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return { completion: text.trim(), provider: 'gemini' };
+        return data.response?.trim();
+      }
+    }
+  ];
+
+  // If a specific model is requested, we prefer Workers AI if healthy
+  if (requestedModel && requestedModel !== 'auto' && providers[1].health.isHealthy()) {
+    try {
+      const completion = await providers[1].run();
+      if (completion) {
+        providers[1].health.recordSuccess();
+        return { completion, provider: 'workers-ai' };
       }
     } catch (e) {
-      await env.CACHE.put('geminiCircuitBreaker', 'true', { expirationTtl: 300 });
+      providers[1].health.recordFailure();
     }
   }
 
-  // 3. Workers AI (Secondary Fallback)
-  if (env.AI) {
-    try {
-      // @ts-ignore
-      const response = await env.AI.run(MODELS.DEFAULT, {
-        prompt,
-        max_tokens: maxTokens
-      });
-      // @ts-ignore
-      if (response && response.response) {
-        // @ts-ignore
-        return { completion: response.response.trim(), provider: 'workers-ai' };
+  // Fallback chain based on health
+  for (const provider of providers) {
+    if (provider.check && provider.health.isHealthy()) {
+      try {
+        const completion = await provider.run();
+        if (completion) {
+          provider.health.recordSuccess();
+          return { completion, provider: provider.name };
+        }
+      } catch (e) {
+        provider.health.recordFailure();
+        console.warn(`${provider.name} failed:`, e);
       }
-    } catch (e) { }
+    }
   }
 
-  // 3. Ollama (Local Fallback)
-  if (env.OLLAMA_URL) {
-    try {
-      const auth = env.OLLAMA_AUTH_TOKEN || env.OLLAMA_API_KEY;
-      const res = await fetch(`${env.OLLAMA_URL}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(auth ? { 'Authorization': `Bearer ${auth}` } : {})
-        },
-        body: JSON.stringify({
-          model: 'qwen2.5-coder:7b',
-          prompt,
-          stream: false,
-          options: { num_predict: maxTokens }
-        }),
-        signal: AbortSignal.timeout(30000)
-      });
-
-      if (res.ok) {
-        const data = await res.json() as any;
-        if (data.response) return { completion: data.response.trim(), provider: 'ollama' };
-      }
-    } catch (e) { }
-  }
-
-  throw new Error('All AI providers failed. Check logs/keys.');
+  throw new Error('All AI providers failed or unhealthy.');
 }
 
 // ----------------------------------------------------------------------------
@@ -649,6 +727,13 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 
   try {
     const result = await generateCompletion(env, finalPrompt, 256, model);
+
+    // Recommendation 4: Adaptive Memory Batching
+    ctx.waitUntil(saveProjectMemory(env, ctx, 'default', {
+      lastPrompt: finalPrompt,
+      lastResult: result.completion,
+      timestamp: Date.now()
+    }));
 
     // Quota increment if success
     ctx.waitUntil(incrementKVQuota(env));
@@ -678,6 +763,14 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
 
   try {
     const result = await generateCompletion(env, prompt, 1024, model);
+
+    // Recommendation 4: Adaptive Memory Batching
+    ctx.waitUntil(saveProjectMemory(env, ctx, 'default', {
+      lastMessage: message,
+      lastResponse: result.completion,
+      timestamp: Date.now()
+    }));
+
     ctx.waitUntil(incrementKVQuota(env));
 
     const encoder = new TextEncoder();

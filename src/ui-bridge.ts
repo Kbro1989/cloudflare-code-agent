@@ -9,27 +9,55 @@ export const BRIDGE_INTEGRATION = `
 let localBridgeAvailable = false;
 const BRIDGE_URL = 'http://localhost:3030';
 
-// Detect Local Bridge on page load
+// Detect Local Bridge with retries
 window.detectLocalBridge = async function() {
+  const maxRetries = 3;
+  const retryDelay = 500; // ms
+
+  for (let i = 0; i < maxRetries; i++) {
     try {
-        const res = await fetch(BRIDGE_URL + '/health', { signal: AbortSignal.timeout(1000) });
-        if (res.ok) {
-            const data = await res.json();
-            if (data.status === 'ok') {
-                localBridgeAvailable = true;
-                console.log('✅ Local Bridge Connected:', data.workspace);
-                window.updateModeIndicator('local');
-                return true;
-            }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1000);
+
+      const res = await fetch(BRIDGE_URL + '/health', {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'ok') {
+          localBridgeAvailable = true;
+          console.log('✅ Local Bridge Connected:', data.workspace);
+          window.updateModeIndicator('local');
+
+          // Sync cloud state to local on connect
+          window.syncCloudToLocal().catch(console.warn);
+
+          return true;
         }
+      }
     } catch (e) {
-        localBridgeAvailable = false;
-        console.log('☁️  Using Cloud Mode (R2)');
-        window.updateModeIndicator('cloud');
+      console.log('Bridge detection attempt ' + (i+1) + ' failed: ' + e.message);
     }
-    return false;
+    await new Promise(r => setTimeout(r, retryDelay));
+  }
+
+  localBridgeAvailable = false;
+  console.log('☁️  Using Cloud Mode (R2)');
+  window.updateModeIndicator('cloud');
+  return false;
 };
 
+// Auto-reconnect on page focus
+window.addEventListener('focus', () => {
+  if (!localBridgeAvailable) {
+    setTimeout(window.detectLocalBridge, 1000);
+  }
+});
+
+// Update Mode Indicator
 window.updateModeIndicator = function(mode) {
     const indicator = document.getElementById('modeIndicator');
     if (!indicator) return;
@@ -43,44 +71,55 @@ window.updateModeIndicator = function(mode) {
     }
 };
 
-// Helper: Get API base URL
+// Graceful degradation for failed bridge operations
 window.getApiBase = function() {
-    return localBridgeAvailable ? BRIDGE_URL : '';
+  return localBridgeAvailable ? BRIDGE_URL : '';
+};
+
+window.syncCloudToLocal = async function() {
+  try {
+    const cloudFiles = await fetch('/api/fs/list').then(r => r.json());
+    const bridgeFiles = await fetch(BRIDGE_URL + '/api/fs/list').then(r => r.json());
+
+    const unsynced = cloudFiles.filter(cf => !bridgeFiles.some(bf => bf.name === cf.name));
+    if (unsynced.length > 0 && confirm('Sync ' + unsynced.length + ' cloud files to local?')) {
+      for (const file of unsynced) {
+        const content = await fetch('/api/fs/file?name=' + encodeURIComponent(file.name)).then(r => r.json());
+        await fetch(BRIDGE_URL + '/api/fs/file', {
+          method: 'POST',
+          body: JSON.stringify({ name: file.name, content: content.content })
+        });
+      }
+      window.refreshFiles();
+    }
+  } catch (e) {
+    console.error('Sync Error:', e);
+  }
 };
 
 // Override refreshFiles to use bridge
-const _originalRefreshFiles = window.refreshFiles;
 window.refreshFiles = async function() {
     const listEl = document.getElementById('fileList');
-    if (listEl) {
-        listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
-    }
+    if (listEl) listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
     try {
         const apiBase = window.getApiBase();
         const res = await fetch(apiBase + '/api/fs/list');
-        const uniqueFiles = new Map();
         const data = await res.json();
-        data.forEach(function(f) { uniqueFiles.set(f.name, f); });
+        const uniqueFiles = new Map();
+        data.forEach(f => uniqueFiles.set(f.name, f));
         const files = Array.from(uniqueFiles.values());
 
         fileTree = files;
         window.renderFileList(files);
-
-        if (activeFile === 'loading...' && files.find(function(f) { return f.name === 'src/index.ts'; })) {
-            window.loadFile('src/index.ts');
-        }
     } catch (e) {
-        if (listEl) {
-            listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
-        }
+        if (listEl) listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
     }
 };
 
 // Override saveCurrentFile to use bridge
 window.saveCurrentFile = async function(name, content) {
-    if (editor && !name.match(/\\\\.(png|jpg|glb|gltf)$/i)) {
-        const model = editor.getModel();
-        content = model ? model.getValue() : content;
+    if (window.editor && !name.match(/\\.(png|jpg|glb|gltf)$/i)) {
+        content = window.editor.getValue();
     }
 
     const apiBase = window.getApiBase();

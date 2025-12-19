@@ -136,7 +136,14 @@ export const IDE_HTML = `<!DOCTYPE html>
 
             <div class="p-4 border-t border-slate-800">
                 <div class="flex items-center gap-2 mb-2 px-1">
-                    <button id="voiceBtn" onclick="window.toggleVoice()" class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition" title="Voice Input">
+                    <button id="voiceBtn"
+                        onmousedown="window.startSpeechToText()"
+                        onmouseup="window.stopSpeechToText()"
+                        onmouseleave="window.stopSpeechToText()"
+                        ontouchstart="event.preventDefault(); window.startSpeechToText()"
+                        ontouchend="event.preventDefault(); window.stopSpeechToText()"
+                        class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition"
+                        title="Hold the click to Talk">
                         <i class="fa-solid fa-microphone"></i>
                     </button>
                     <button id="audioToggle" onclick="window.toggleAutoAudio()" class="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 transition" title="Auto Spoken Responses">
@@ -193,6 +200,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
+console.log("UI_VERSION_HOLD_FIX_V2 Loaded");
 
 // Global state
 let activeFile = null;
@@ -402,7 +410,7 @@ window.deleteFile = async function(name) {
 window.loadFile = async function(name) {
     activeFile = name;
     const previewContainer = document.getElementById('previewContainer');
-    const isMedia = name.match(/\\.(png|jpg|glb|gltf)$/i);
+    const isMedia = name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i);
 
     if (isMedia) {
         previewContainer.style.display = 'block';
@@ -417,7 +425,7 @@ window.loadFile = async function(name) {
                 previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
             } else {
                 previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900/50 backdrop-blur-sm p-4">' +
-                    '<img src="' + url + '" class="max-w-full max-h-full shadow-2xl rounded-lg border border-white/10" onload="URL.revokeObjectURL(this.src)">' +
+                    '<img src="' + url + '" class="max-w-full max-h-full shadow-2xl rounded-lg border border-white/10" onload="window.URL.revokeObjectURL(this.src)">' +
                     '</div>';
             }
         } catch (e) {
@@ -466,7 +474,7 @@ window.closeTab = function(name) {
 };
 
 window.saveCurrentFile = async function(name, content) {
-    if (editor && !name.match(/\\.(png|jpg|glb|gltf)$/i)) content = editor.getValue();
+    if (editor && !name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i)) content = editor.getValue();
     await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content }) });
 };
 
@@ -579,10 +587,16 @@ window.startSpeechToText = async function() {
                     method: 'POST',
                     body: audioBlob
                 });
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(err);
+                }
                 const data = await res.json();
                 if (data.text) {
                     const input = document.getElementById('chatInput');
                     input.value = (input.value ? input.value + ' ' : '') + data.text;
+                    // Auto-send on release for game-dev speed
+                    window.sendMessage();
                 }
             } catch(e) { console.error('STT Failed', e); }
             status.classList.add('hidden');
