@@ -209,7 +209,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V12 Loaded");
+console.log("UI_VERSION_HOLD_FIX_V13 Loaded");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -657,7 +657,7 @@ window.sendMessage = async function() {
 
         // Omni-Aware: Auto Image Trigger
         // Omni-Aware Art Triggers
-        const imageMatch = fullText.match(/\[IMAGE:\s*(.*?)\]/i);
+        const imageMatch = fullText.match(/\\[IMAGE:\\s*(.*?)\\]/i);
         if (imageMatch && imageMatch[1]) {
             const prompt = imageMatch[1];
             window.addMessage('ai', '🎨 *Generating image: "' + prompt + '"*...', true);
@@ -673,7 +673,7 @@ window.sendMessage = async function() {
         }
 
         // Detect Blender Automation
-        const blenderMatch = fullText.match(/\[BLENDER: ([\s\S]*?)\]/);
+        const blenderMatch = fullText.match(/\\[BLENDER: ([\\s\\S]*?)\\]/);
         if (blenderMatch && window.getApiBase()) {
             const script = blenderMatch[1];
             window.addMessage('ai', '🎬 *Running Blender Automation...*', true);
