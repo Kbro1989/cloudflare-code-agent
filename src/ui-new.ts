@@ -258,7 +258,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V19 Loaded - Project Bible Active");
+console.log("UI_VERSION_HOLD_FIX_V23 Loaded - Sound Studio Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -1028,8 +1028,9 @@ window.addMessage = function(role, text, loading) {
 };
 
 window.formatToken = function(text) {
-    // pattern matches triple backticks for code blocks
-    const pattern = /\\x60\\x60\\x60(\\w+)?\\n(?:\\/\\/\\s*file:\\s*([^\\n\\r]+)\\n)?([\\s\\S]*?)\\x60\\x60\\x60/g;
+    if (!text) return '';
+    // Use the BACKTICK variable to avoid literal backticks in the worker string
+    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\\\w+)?\\\\n(?:\\\\/\\\\/\\\\s*file:\\\\s*([^\\\\n\\\\r]+)\\\\n)?([\\\\s\\\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
     return text.replace(pattern, (m, lang, file, code) => {
         const encoded = encodeURIComponent(code);
         const safeFile = file ? encodeURIComponent(file) : '';

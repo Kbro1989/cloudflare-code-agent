@@ -297,7 +297,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V21 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n(function(){\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n})();\n// v=HOLD_FIX_V23 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
