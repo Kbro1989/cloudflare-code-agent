@@ -64,13 +64,10 @@ export default {
     // Serve UI
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const { IDE_HTML } = await import('./ui');
+      const { BRIDGE_INTEGRATION } = await import('./ui-bridge');
       const finalHtml = IDE_HTML.replace(
-        `< script >
-  // --- All of your UI Logic will be injected by the worker ---
-  </script>`,
-        `<script>
-${UI_JS}
-</script>`
+        '</body>',
+        '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n</script>\n</body>'
       );
       return new Response(finalHtml, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' }

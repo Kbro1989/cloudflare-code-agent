@@ -3,196 +3,191 @@ export const IDE_HTML = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hybrid IDE (Cloudflare Code Agent)</title>
+    <title>Cloudflare Web IDE</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.154.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.154.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.1.1/model-viewer.min.js"></script>
     <style>
-        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; }
-        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .scroll-smooth::-webkit-scrollbar { width: 6px; }
-        .scroll-smooth::-webkit-scrollbar-thumb { background-color: #475569; border-radius: 3px; }
-        .chat-message { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .typing-indicator span { display: inline-block; width: 6px; height: 6px; background-color: #94a3b8; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; margin: 0 1px; }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        model-viewer { width: 100%; height: 100%; background-color: #0f172a; --poster-color: transparent; }
+        body { background: #0f172a; color: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #monacoContainer { height: 100%; border-top: 1px solid #1e293b; }
+        .tab-active { background: #1e293b; border-bottom: 2px solid #6366f1; }
+        .sidebar-item:hover { background: #1e293b; }
+        #chatMessages::-webkit-scrollbar { width: 4px; }
+        #chatMessages::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+        .monaco-editor, .monaco-editor .margin, .monaco-editor-background { background-color: #0f172a !important; }
+        .chat-message p { margin-bottom: 0.5rem; }
+        .chat-message pre { background: #000; padding: 0.5rem; border-radius: 0.25rem; margin: 0.5rem 0; overflow-x: auto; }
+        .chat-message code { font-family: monospace; color: #e2e8f0; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
-
-    <!-- Top Navigation -->
-    <nav class="h-14 glass-panel flex items-center justify-between px-4 z-20 shadow-lg">
-        <div class="flex items-center space-x-3">
-            <i class="fa-solid fa-cloud-bolt text-indigo-400 text-xl"></i>
-            <span class="font-bold text-lg tracking-tight">Hybrid<span class="text-indigo-400">IDE</span></span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v4.2 3D-Engine</span>
-        </div>
-        <div class="flex items-center space-x-4">
-            <select id="modelSelector" class="bg-slate-800 text-xs text-slate-300 border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
-                <option value="default">⚡ Llama 3.3 (Fast)</option>
-                <option value="thinking">🧠 DeepSeek R1 (Reasoning)</option>
-            </select>
-            <select id="styleSelector" class="bg-slate-800 text-xs text-slate-300 border border-slate-700 rounded px-2 py-1 outline-none focus:border-indigo-500 transition-colors">
-                <option value="speed">⚡ Flux (Speed)</option>
-                <option value="realism">📸 Realism (SDXL)</option>
-                <option value="artistic">🎨 Artistic (Dreamshaper)</option>
-            </select>
-            <div id="statusIndicator" class="flex items-center space-x-2 text-xs text-slate-400">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Online</span>
+    <!-- Header -->
+    <header class="h-12 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900/50 backdrop-blur-md">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-cloud-bolt text-indigo-500 text-xl"></i>
+            <span class="font-bold tracking-tight">Cloudflare <span class="text-indigo-400">Code Agent</span></span>
+            <div id="modeIndicator" class="ml-4 text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                 Cloud Mode
             </div>
-            <button onclick="window.runPreview()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-2 shadow-lg shadow-indigo-500/20" title="Live Preview (HTML/JS)">
-                <i class="fa-solid fa-play"></i> <span>Preview</span>
+        </div>
+        <div class="flex items-center gap-3">
+             <button onclick="window.ghClone()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md border border-slate-700 transition flex items-center gap-2">
+                <i class="fa-brands fa-github"></i> Clone
             </button>
-            <button onclick="window.deployProject()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-2 shadow-lg shadow-emerald-500/20">
-                <i class="fa-solid fa-cloud-arrow-up"></i> <span>Deploy</span>
+            <button onclick="window.deployProject()" class="text-xs bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 rounded-md font-medium transition shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid fa-rocket mr-1"></i> Deploy
             </button>
         </div>
-    </nav>
+    </header>
 
-    <!-- Main Workspace -->
-    <div class="flex-1 flex overflow-hidden">
-
-        <!-- Sidebar (File Explorer) -->
-        <aside class="w-64 glass-panel border-r border-slate-700 flex flex-col transition-all duration-300" id="sidebar">
-            <div class="p-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
-                <span class="text-sm font-semibold text-slate-300">EXPLORER</span>
-                <div class="space-x-1">
-                    <button class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" onclick="window.refreshFiles()"><i class="fa-solid fa-rotate-right"></i></button>
-                    <button class="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition" onclick="window.createNewFile()"><i class="fa-solid fa-plus"></i></button>
+    <main class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 border-r border-slate-800 flex flex-col bg-slate-900/20">
+            <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Explorer</span>
+                <div class="flex gap-1">
+                    <button onclick="window.createNewFile()" title="New File" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-file-circle-plus text-sm"></i></button>
+                    <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
+                    <label class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer">
+                        <i class="fa-solid fa-upload text-sm"></i>
+                        <input type="file" class="hidden" onchange="window.uploadFile(this)">
+                    </label>
                 </div>
             </div>
-            <div id="fileList" class="flex-1 overflow-y-auto p-2 space-y-0.5 text-sm">
-                <div class="animate-pulse flex space-x-2 p-2"><div class="rounded-full bg-slate-700 h-4 w-4"></div><div class="h-4 bg-slate-700 rounded w-3/4"></div></div>
+            <div id="fileList" class="flex-1 overflow-y-auto py-2">
+                <!-- Files go here -->
             </div>
 
-            <!-- GitHub Section -->
-            <div class="p-3 border-t border-slate-700/50 bg-slate-800/30">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-semibold text-slate-400">GITHUB SYNC</span>
-                    <button class="text-slate-500 hover:text-white" onclick="window.toggleGithubSettings()"><i class="fa-solid fa-cog"></i></button>
+            <!-- GitHub Settings -->
+            <div class="p-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-2 truncate">
+                    <i class="fa-solid fa-code-branch"></i>
+                    <input id="ghRepo" type="text" placeholder="owner/repo" class="bg-transparent border-none outline-none w-full" value="">
                 </div>
-                <div id="githubControls" class="space-y-2">
-                    <div class="flex gap-1">
-                        <input id="ghRepo" placeholder="owner/repo" class="bg-slate-900 border border-slate-700 text-xs text-slate-300 px-2 py-1 rounded w-full">
-                    </div>
-                     <div class="flex gap-1">
-                        <button onclick="window.ghClone()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs py-1 rounded"><i class="fa-solid fa-download"></i> Clone</button>
-                        <button onclick="window.ghPush()" class="flex-1 bg-indigo-900 hover:bg-indigo-800 text-indigo-300 text-xs py-1 rounded"><i class="fa-solid fa-upload"></i> Push</button>
-                    </div>
-                </div>
+                <button onclick="window.toggleGithubSettings()" class="hover:text-slate-300"><i class="fa-solid fa-gear"></i></button>
             </div>
         </aside>
 
-        <!-- Editor Area -->
-        <main class="flex-1 relative bg-[#1e1e1e] flex flex-col min-w-0">
+        <!-- Editor & Preview -->
+        <section class="flex-1 flex flex-col min-w-0">
             <!-- Tabs -->
-            <div class="h-9 bg-[#2d2d2d] flex items-center border-b border-[#3e3e3e] overflow-x-auto select-none" id="tabsContainer">
-                <!-- Tabs rendered by JS -->
+            <div id="tabsContainer" class="h-10 border-b border-slate-800 bg-slate-900/40 flex items-center overflow-x-auto overflow-y-hidden">
+                <!-- Tabs go here -->
             </div>
 
-            <div class="flex-1 relative group">
-                <div id="monacoContainer" class="absolute inset-0"></div>
-                <div id="previewContainer" class="absolute inset-0 hidden z-10 bg-slate-900"></div>
+            <!-- Active Editor / Media Container -->
+            <div id="editorContainer" class="flex-1 relative">
+                <div id="monacoContainer"></div>
+                <!-- Media Overlay for images/3D -->
+                <div id="previewContainer" class="absolute inset-0 z-10 bg-slate-900 hidden"></div>
             </div>
 
-            <!-- Bottom Panel (Terminal) -->
-            <div id="bottomPanel" class="h-48 bg-[#1e1e1e] border-t border-slate-700 hidden flex flex-col">
-                <div class="flex justify-between items-center px-4 py-1 bg-[#2d2d2d] border-b border-[#3e3e3e]">
-                    <span class="text-xs text-slate-300">TERMINAL</span>
-                    <button class="text-slate-400 hover:text-white" onclick="document.getElementById('bottomPanel').classList.add('hidden')"><i class="fa-solid fa-times"></i></button>
+            <!-- Terminal (Collapsible) -->
+            <div id="terminal" class="h-48 border-t border-slate-800 bg-[#0f171a] flex flex-col">
+                <div class="px-3 py-1.5 border-b border-slate-800/50 flex items-center justify-between bg-black/20">
+                    <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+                        <i class="fa-solid fa-terminal text-emerald-500"></i>
+                        <span>Terminal</span>
+                    </div>
                 </div>
-                <div id="terminalOutput" class="flex-1 overflow-y-auto p-2 font-mono text-xs text-slate-300 space-y-1">
-                    <div class="text-emerald-400">Welcome to Cloudflare Agent Terminal</div>
-                </div>
-                <div class="p-2 bg-[#2d2d2d] flex items-center">
-                    <span class="text-emerald-400 mr-2">$</span>
-                    <input id="terminalInput" class="bg-transparent border-none outline-none text-slate-200 text-sm w-full font-mono" placeholder="Type command...">
+                <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto whitespace-pre-wrap text-slate-300"></div>
+                <div class="p-2 border-t border-slate-800/50 flex">
+                    <span class="text-emerald-500 font-mono text-xs mr-2">$</span>
+                    <input id="terminalInput" type="text" class="flex-1 bg-transparent border-none outline-none font-mono text-xs text-white" placeholder="Run command...">
                 </div>
             </div>
-
-            <div class="h-8 bg-slate-800 border-t border-slate-700 flex items-center px-4 justify-between text-xs text-slate-400">
-                <div class="flex space-x-4">
-                    <span class="hover:text-slate-200 cursor-pointer" onclick="document.getElementById('bottomPanel').classList.remove('hidden'); document.getElementById('terminalInput').focus()"><i class="fa-solid fa-terminal mr-1"></i> TERMINAL</span>
-                    <span class="hover:text-slate-200 cursor-pointer"><i class="fa-solid fa-triangle-exclamation mr-1"></i> PROBLEMS</span>
-                </div>
-                <div>Ln <span id="cursorLine">1</span>, Col <span id="cursorCol">1</span></div>
-            </div>
-        </main>
+        </section>
 
         <!-- Chat Panel -->
-        <aside class="w-80 glass-panel border-l border-slate-700 flex flex-col shadow-xl z-10" id="chatPanel">
-            <div class="p-3 border-b border-slate-700/50 bg-slate-800/50 flex justify-between items-center backdrop-blur-md">
-                <span class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-robot text-indigo-400"></i> AI Assistant</span>
-                <span id="providerBadge" class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Llama 3.3</span>
+        <aside class="w-80 border-l border-slate-800 flex flex-col bg-slate-900/30">
+            <div class="p-3 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-sparkles text-indigo-400"></i>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Assistant</span>
+                </div>
+                <div id="providerBadge" class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Llama 3.3</div>
             </div>
 
-            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-                <div class="chat-message bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                    <p class="text-sm text-slate-300">Hello! I'm your Super-Agent. 🧞‍♂️</p>
-                    <ul class="text-xs text-slate-400 mt-2 list-disc list-inside space-y-1">
-                        <li><b>Review/Code:</b> Llama 3.3 (Fast)</li>
-                        <li><b>Reasoning:</b> DeepSeek R1 (Smart)</li>
-                        <li><b>Generate:</b> <code>/image cyberpunk city</code></li>
-                        <li><b>3D:</b> Upload .glb to view!</li>
-                    </ul>
+            <!-- Model Selector -->
+            <div class="p-2 border-b border-slate-800">
+                <select id="modelSelector" class="w-full bg-slate-800/50 border border-slate-700 text-xs p-1.5 rounded outline-none focus:border-indigo-500 transition">
+                    <option value="default">Fast (Llama 3.3)</option>
+                    <option value="thinking">Thinking (DeepSeek R1)</option>
+                    <option value="flux">Image (FLUX.1)</option>
+                </select>
+            </div>
+
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-slate-300">
+                <div class="chat-message p-3 rounded-lg border border-slate-800 bg-slate-800/20">
+                    Hello! I'm your AI coding agent. I can write code, run commands, and generate images.
                 </div>
             </div>
 
-            <!-- Chat Input -->
-            <div class="p-3 bg-slate-800/80 border-t border-slate-700/50 backdrop-blur">
-                <input type="file" id="visionInput" class="hidden" onchange="window.uploadFile(this)">
-                <div class="relative flex items-center gap-2">
-                    <button onclick="document.getElementById('visionInput').click()" class="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-700/50" title="Upload Image/File">
-                        <i class="fa-solid fa-paperclip"></i>
+            <div class="p-4 border-t border-slate-800">
+                <div class="relative">
+                    <textarea id="chatInput" rows="3" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-xs outline-none focus:border-indigo-500 transition resize-none pr-10" placeholder="Type a message or /image..."></textarea>
+                    <button onclick="window.sendMessage()" class="absolute bottom-3 right-3 text-indigo-400 hover:text-indigo-300 transition">
+                        <i class="fa-solid fa-paper-plane"></i>
                     </button>
-                    <div class="relative flex-1">
-                        <textarea id="chatInput" rows="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none scroll-smooth transition-all" placeholder="Ask AI or type /image..."></textarea>
-                        <button onclick="window.sendMessage()" class="absolute right-2 top-1.5 text-indigo-400 hover:text-indigo-300 p-1 transition-colors"><i class="fa-solid fa-paper-plane"></i></button>
-                    </div>
-                </div>
-                <div class="text-[10px] text-slate-500 mt-1.5 flex justify-between px-1">
-                    <span>Ctrl+Enter to send</span>
-                    <span id="tokenCount">0 tokens</span>
                 </div>
             </div>
         </aside>
+    </main>
 
-    </div>
-
-    <!-- Diff Modal (God Mode) -->
-    <div id="diffModal" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-[#1e1e1e] w-[90%] h-[90%] border border-slate-600 rounded-lg shadow-2xl flex flex-col overflow-hidden">
-            <div class="h-10 bg-[#2d2d2d] flex items-center justify-between px-4 border-b border-slate-700">
-                <span class="font-bold text-slate-300"><i class="fa-solid fa-code-compare text-indigo-400 mr-2"></i>Review Changes</span>
-                <div class="space-x-2">
-                    <button onclick="window.rejectDiff()" class="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1 rounded transition border border-red-700">Reject</button>
-                    <button onclick="window.acceptDiff()" class="text-xs bg-emerald-900/50 hover:bg-emerald-900 text-emerald-200 px-3 py-1 rounded transition border border-emerald-700">Accept</button>
+    <!-- Modals -->
+    <div id="diffModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-8">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-6xl h-full flex flex-col rounded-xl shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h3 class="font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-code-compare text-indigo-400"></i>
+                    Proposed Changes
+                </h3>
+                <div class="flex gap-2">
+                    <button onclick="window.rejectDiff()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md text-sm transition">Discard</button>
+                    <button onclick="window.acceptDiff()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-bold transition shadow-lg shadow-indigo-500/20">Apply Changes</button>
                 </div>
             </div>
-            <div id="diffContainer" class="flex-1 relative"></div>
+            <div id="diffContainer" class="flex-1"></div>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script type="module" src="/ui.js"></script>
-</body>
-</html>`;
+    <!-- Status Bar -->
+    <footer class="h-6 border-t border-slate-800 bg-slate-900 flex items-center justify-between px-3 text-[10px] text-slate-500">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1"><i class="fa-solid fa-code-branch"></i> main</div>
+            <div class="flex items-center gap-1"><i class="fa-solid fa-circle text-emerald-500 text-[6px]"></i> Ready</div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="cursorPos">Ln <span id="cursorLine">1</span>, Col <span id="cursorCol">1</span></div>
+            <div class="flex items-center gap-1 font-mono uppercase tracking-widest opacity-80">UTF-8</div>
+        </div>
+    </footer>
+</body></html>`;
+
 
 export const UI_JS = `
-// Global variables for the IDE state
 // Global variables for the IDE state
 let activeFile = null; // Currently active file name
 let openTabs = []; // Array of file names
 let fileTree = []; // Array representing the file system tree
 let activeImage = null; // Track image context for Vision
-let projectMap = []; // Context: Full list of text files
-let contextFiles = new Set(); // Files explicitly referenced via @
-let diffEditor = null; // Monaco Diff Editor Instance
+let editor = null;
+let currentCode = '';
+let diffEditor = null;
+
+// Helper: Escape string for JS inclusion
+function escapeJsString(str) {
+    if (!str) return '';
+    return str.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'").replace(/"/g, '\\\\"').replace(/\\n/g, '\\\\n').replace(/\\r/g, '\\\\r');
+}
 
 // --- Deployment Logic ---
 window.deployProject = async function() {
@@ -206,52 +201,45 @@ window.deployProject = async function() {
     if (btn instanceof HTMLButtonElement) btn.disabled = true;
 
     try {
-        let codeToDeploy = '';
-        if (editor) codeToDeploy = editor.getValue();
-
-        // If editor is empty or not focused, try to fetch src/index.ts
-        if ((!codeToDeploy || codeToDeploy.trim() === '') && !activeFile) {
+        let codeToDeploy = currentCode;
+        if (!activeFile?.endsWith('.ts') && !activeFile?.endsWith('.js')) {
              try {
                 const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
-                const d = await res.json();
-                codeToDeploy = d.content;
+                if(res.ok) {
+                    const d = await res.json();
+                    codeToDeploy = d.content;
+                }
              } catch(e) {}
         }
 
         if (!codeToDeploy) {
-            alert("No code found to deploy! Open a file first.");
+            alert("No code found to deploy! Open a .ts file first.");
             return;
         }
 
         const res = await fetch('/api/deploy', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ scriptName, code: codeToDeploy })
         });
-
         const result = await res.json();
 
         if (res.ok) {
             alert(\`🚀 Success! Deployed to namespace '\${escapeJsString(result.result.namespace)}'.\\nScript: \${escapeJsString(result.result.script)}\`);
         } else {
-             alert('Deployment Failed: ' + escapeJsString(result.error || 'Unknown Error (Check Server Logs)'));
+             alert('Deployment Failed: ' + escapeJsString(result.error || 'Unknown Error'));
         }
-
     } catch (e) {
-        alert('Deployment Error: ' + escapeJsString(e.message));
-    }
-    finally {
+        alert('Deployment Error: ' + e.message);
+    } finally {
         btn.innerHTML = originalText;
         if (btn instanceof HTMLButtonElement) btn.disabled = false;
     }
-}
+};
 
 // --- Monaco Editor Setup ---
 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-
 require(['vs/editor/editor.main'], function(monacoInstance) {
-    window.monaco = monacoInstance; // Expose monaco globally
-
+    window.monaco = monacoInstance;
     monacoInstance.languages.typescript.typescriptDefaults.setCompilerOptions({
         target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
         allowNonTsExtensions: true,
@@ -260,655 +248,12 @@ require(['vs/editor/editor.main'], function(monacoInstance) {
 
     editor = monacoInstance.editor.create(document.getElementById('monacoContainer'), {
         value: '// Select a file to view content',
-        language: 'typescript',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: { enabled: false },
-        fontSize: 13,
-        fontFamily: 'Consolas, "Courier New", monospace',
-        padding: { top: 16 },
-        scrollBeyondLastLine: false,
-        smoothScrolling: true
+        language: 'typescript', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13
     });
 
     editor.onDidChangeCursorPosition((e) => {
-        const cursorLineElement = document.getElementById('cursorLine');
-        const cursorColElement = document.getElementById('cursorCol');
-        if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
-        if (cursorColElement) cursorColElement.innerText = e.position.column;
-    });
-
-    editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
-        if (activeFile) window.saveCurrentFile(activeFile, editor.getValue());
-    });
-
-    window.refreshFiles();
-});
-
-const modelSelector = document.getElementById('modelSelector');
-const providerBadge = document.getElementById('providerBadge');
-
-modelSelector?.addEventListener('change', (e) => {
-    const target = e.target;
-    const isDeepSeek = target.value === 'thinking';
-    if (providerBadge) {
-        providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
-        providerBadge.className = isDeepSeek
-            ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
-            : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
-    }
-});
-
-// --- File System Operations ---
-window.refreshFiles = async function() {
-    const listEl = document.getElementById('fileList');
-    if (listEl) listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
-
-    try {
-        const res = await fetch('/api/fs/list');
-        const uniqueFiles = new Map();
-        (await res.json()).forEach((f) => uniqueFiles.set(f.name, f));
-        const files = Array.from(uniqueFiles.values());
-        fileTree = files;
-        window.renderFileList(files);
-
-        // Auto-open index.ts if nothing open
-        if (!activeFile && files.find((f) => f.name === 'src/index.ts')) {
-            window.loadFile('src/index.ts');
-        }
-    } catch (e) {
-        if (listEl) listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
-    }
-};
-
-window.renderFileList = function(files) {
-    const listEl = document.getElementById('fileList');
-    if (!listEl) return;
-
-    listEl.innerHTML = '';
-    files.sort((a, b) => a.name.localeCompare(b.name));
-
-    files.forEach((file) => {
-        const div = document.createElement('div');
-        const isImg = file.name.match(new RegExp('\\.(png|jpg|jpeg|gif)$', 'i'));
-        const is3D = file.name.match(new RegExp('\\.(glb|gltf)$', 'i'));
-
-        let iconClass = 'fa-regular fa-file-code';
-        if (isImg) iconClass = 'fa-regular fa-file-image';
-        if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
-
-        div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
-        div.innerHTML = '<div class="flex items-center gap-2 truncate flex-1" onclick="window.loadFile(\'' + escapeJsString(file.name) + '\')">' +
-                        '<i class="' + iconClass + ' text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>' +
-                        '<span>' + file.name + '</span>' +
-                        '</div>' +
-                        '<button class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition p-1" onclick="event.stopPropagation(); window.deleteFile(\'' + escapeJsString(file.name) + '\')" title="Delete">' +
-                        '<i class="fa-solid fa-trash text-xs"></i>' +
-                        '</button>';
-listEl.appendChild(div);
-    });
-};
-
-window.deleteFile = async function (name) {
-    if (!confirm('Are you sure you want to delete "' + name + '"?')) return;
-
-    // Optimistic UI update
-    const div = Array.from(document.querySelectorAll('#fileList > div')).find(d => d.innerText.includes(name));
-    if (div) div.style.opacity = '0.5';
-
-    try {
-        await fetch('/api/fs/file?name=' + encodeURIComponent(name), { method: 'DELETE' });
-
-        // Close tab if open
-        if (openTabs.includes(name)) window.closeTab(name);
-
-        window.refreshFiles();
-    } catch (e) {
-        alert('Delete failed: ' + e.message);
-    }
-};
-
-window.runPreview = async function () {
-    const previewContainer = document.getElementById('previewContainer');
-    const monacoContainer = document.getElementById('monacoContainer');
-
-    if (!previewContainer || !monacoContainer) return;
-
-    // Toggle logic: If preview is visible, go back to code
-    if (previewContainer.style.display === 'block' && !activeFile.match(/\.(png|jpg|glb|gltf)$/i)) {
-        previewContainer.style.display = 'none';
-        monacoContainer.style.display = 'block';
-        return;
-    }
-
-    // Enter Preview Mode
-    monacoContainer.style.display = 'none';
-    previewContainer.style.display = 'block';
-    previewContainer.innerHTML = '<div class="text-slate-500 p-4 text-center">Building Preview...</div>';
-
-    // Gather all files to construct the preview
-    // Simplistic approach: Inject raw HTML/CSS/JS into iframe
-    try {
-        let htmlContent = '<h1>No index.html found</h1>';
-
-        // Find index.html
-        if (fileTree.some(f => f.name === 'index.html')) {
-            const res = await fetch('/api/fs/file?name=index.html');
-            const d = await res.json();
-            htmlContent = d.content;
-        } else if (fileTree.some(f => f.name === 'src/index.html')) {
-            const res = await fetch('/api/fs/file?name=src/index.html');
-            const d = await res.json();
-            htmlContent = d.content;
-        } else {
-            // If active file is HTML, use that
-            if (activeFile && activeFile.endsWith('.html')) {
-                const res = await fetch('/api/fs/file?name=' + encodeURIComponent(activeFile));
-                const d = await res.json();
-                htmlContent = d.content;
-            }
-        }
-
-        const iframe = document.createElement('iframe');
-        iframe.className = "w-full h-full bg-white border-none";
-        previewContainer.innerHTML = '';
-        previewContainer.appendChild(iframe);
-
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(htmlContent);
-        doc.close();
-
-    } catch (e) {
-        previewContainer.innerHTML = '<div class="text-red-400 p-4">Preview Error: ' + e.message + '</div>';
-    }
-};
-
-window.loadFile = async function (name) {
-    // 1. Handle Tabs
-    if (!openTabs.includes(name)) {
-        openTabs.push(name);
-    }
-    activeFile = name;
-    window.renderTabs();
-
-    const monacoContainer = document.getElementById('monacoContainer');
-    const previewContainer = document.getElementById('previewContainer');
-
-    // 2. Handle Binary/Preview Files
-    const is3D = name.match(new RegExp('\\.(glb|gltf)$', 'i'));
-    const isImg = name.match(new RegExp('\\.(png|jpg|jpeg|gif)$', 'i'));
-
-    if (is3D || isImg) {
-        // Show Preview, Hide Editor
-        if (monacoContainer) monacoContainer.style.display = 'none';
-        if (previewContainer) {
-            previewContainer.style.display = 'block';
-            previewContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500">Loading Preview...</div>';
-
-            try {
-                const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-
-                if (is3D) {
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    previewContainer.innerHTML = '<div class="h-full w-full bg-slate-900 relative">' +
-                        '<model-viewer src="' + url + '" camera-controls auto-rotate shadow-intensity="1" style="width: 100%; height: 100%;" background-color="#1e293b"></model-viewer>' +
-                        '<div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">' +
-                        '<span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: ' + name + '</span>' +
-                        '</div>' +
-                        '</div>';
-    } else {
-    const data = await res.json();
-    let src = data.content;
-                if (!src.startsWith('data:') && !src.startsWith('http')) src = 'data:image/png;base64,' + data.content;
-    activeImage = name;
-                previewContainer.innerHTML = '<div class="h-full flex items-center justify-center bg-slate-900">' +
-                    '<img src="' + src + '" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">' +
-                    '</div>';
-}
-} catch (e) {
-            previewContainer.innerHTML = '<div class="text-red-400 p-4">Error loading preview: ' + e.message + '</div>';
-}
-        }
-return;
-    }
-
-// 3. Handle Code Files (Monaco)
-if (monacoContainer) monacoContainer.style.display = 'block';
-if (previewContainer) {
-    // Only hide if we are NOT in special "Live Preview" mode?
-    // For simplicity, always hide logic preview when clicking a code file.
-    // User can click "Preview" button again to see it.
-    previewContainer.style.display = 'none';
-}
-
-// Check if model already exists
-const uri = monaco.Uri.parse('file:///' + name);
-let model = monaco.editor.getModel(uri);
-
-if (!model) {
-    try {
-        const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-        const data = await res.json();
-        model = monaco.editor.createModel(data.content, getLanguage(name), uri);
-    } catch (e) { }
-}
-
-if (editor && model) {
-    editor.setModel(model);
-}
-};
-
-window.renderTabs = function () {
-    const tabsContainer = document.getElementById('tabsContainer');
-    if (!tabsContainer) return;
-    tabsContainer.innerHTML = '';
-
-    openTabs.forEach(fileName => {
-        const isActive = fileName === activeFile;
-        // Styles: Active has top border + lighter bg. Inactive is darker.
-        const tabClass = isActive
-            ? 'px-3 py-2 bg-[#1e1e1e] border-t-2 border-indigo-500 text-slate-200 text-xs flex items-center space-x-2 min-w-fit cursor-pointer'
-            : 'px-3 py-2 bg-[#2d2d2d] border-t-2 border-transparent text-slate-400 hover:bg-[#252525] text-xs flex items-center space-x-2 min-w-fit cursor-pointer transition-colors';
-
-        const div = document.createElement('div');
-        div.className = tabClass;
-        div.onclick = () => window.loadFile(fileName);
-        div.innerHTML = \`
-            <span>\${fileName}</span>
-            <button class="hover:text-red-400 ml-1 rounded-full p-0.5" onclick="event.stopPropagation(); window.closeTab('\${escapeJsString(fileName)}')" title="Close">
-                <i class="fa-solid fa-times"></i>
-            </button>
-        \`;
-        tabsContainer.appendChild(div);
-    });
-};
-
-window.closeTab = function(name) {
-    if (!name && activeFile) name = activeFile;
-    if (!name) return;
-
-    // Remove from openTabs
-    openTabs = openTabs.filter(t => t !== name);
-
-    // Dispose model to free memory? Or keep it?
-    // Let's dispose if it's not the active file anymore to save memory,
-    // OR keep it for "Gama" feel. Let's keep it for now (Browser Memory is cheap).
-    // Actually, if we close the tab, users expect "Close".
-    const uri = monaco.Uri.parse('file:///' + name);
-    const model = monaco.editor.getModel(uri);
-    if (model) model.dispose();
-
-    // If we closed the active file, switch to neighbor
-    if (activeFile === name) {
-        activeFile = openTabs.length > 0 ? openTabs[openTabs.length - 1] : null;
-        if (activeFile) {
-            window.loadFile(activeFile);
-        } else {
-            // No tabs left
-            editor.setModel(null); // Clear editor
-            const previewContainer = document.getElementById('previewContainer');
-            if (previewContainer) previewContainer.style.display = 'none';
-             const monacoContainer = document.getElementById('monacoContainer');
-            if (monacoContainer) monacoContainer.style.display = 'block';
-            window.renderTabs();
-        }
-    } else {
-        window.renderTabs();
-    }
-};
-
-window.saveCurrentFile = async function(name, content) {
-    // Content is ignored if using Monaco model, but kept for compatibility
-    if (editor && !name.match(/\.(png|jpg|glb|gltf)$/i)) {
-        const model = editor.getModel();
-        content = model ? model.getValue() : content;
-    }
-
-    await fetch('/api/fs/file', {
-        method: 'POST',
-        body: JSON.stringify({ name, content })
-    });
-    // Visual feedback?
-    const btn = document.querySelector('button[title="Save"]'); // If we had one
-};
-
-// --- Chat ---
-const chatInput = document.getElementById('chatInput');
-const chatMessages = document.getElementById('chatMessages');
-
-chatInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMessage(); }
-});
-
-window.sendMessage = async function() {
-    if (!chatInput) return;
-    const text = chatInput.value.trim();
-    if(!text) return;
-    chatInput.value = '';
-
-    window.addMessage('user', text, false);
-
-    if (text.startsWith('/image')) {
-        const prompt = text.replace('/image', '').trim();
-        window.handleImageGeneration(prompt);
-        return;
-    }
-    const modelSelector = document.getElementById('modelSelector');
-    const model = modelSelector ? modelSelector.value : 'default';
-
-    const aiDiv = window.addMessage('ai', '', true);
-
-    try {
-        // --- Context Injection (God Mode) ---
-        let promptWithContext = text;
-        const attachedContext = [];
-
-        // 1. Explicit @file references
-        const mentions = text.match(/@[\w.\/-]+/g);
-        if (mentions) {
-            for (const mention of mentions) {
-                const fname = mention.substring(1);
-                try {
-                     const res = await fetch('/api/fs/file?name=' + encodeURIComponent(fname));
-                     if(res.ok) {
-                        const d = await res.json();
-                        attachedContext.push({ name: fname, content: d.content });
-                     }
-                } catch(e) {}
-            }
-        }
-
-        // 2. Active File Context (Text Files Only)
-        if (activeFile && !mentions?.includes('@' + activeFile) && !activeFile.match(/\.(png|jpg|glb|gltf)$/i)) {
-             try {
-                 let content = '';
-                 if (editor && activeFile === editor.getModel()?.uri.path.substring(1)) {
-                     content = editor.getValue();
-                 } else {
-                     const res = await fetch('/api/fs/file?name=' + encodeURIComponent(activeFile));
-                     const d = await res.json();
-                     content = d.content;
-                 }
-                 attachedContext.push({ name: activeFile, content: content, isCurrent: true });
-             } catch(e){}
-        }
-
-        const payload = { message: promptWithContext, model };
-
-        // Lightweight Context Prepend
-        if (attachedContext.length > 0) {
-            let contextStr = '\\\\n--- CONTEXT ---\\\\n';
-            attachedContext.forEach(c => {
-                contextStr += 'File: ' + c.name + '\\\\n' +
-                              '\\x60\\x60\\x60' + window.getLanguage(c.name) + '\\\\n' + c.content + '\\\\n\\x60\\x60\\x60\\\\n\\\\n';
-            });
-            payload.message = contextStr + '--- USER QUERY ---\\\\n' + text;
-        }
-
-        if (activeImage) payload.image = activeImage;
-
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-
-        const reader = res.body?.getReader();
-        if (!reader) {
-            aiDiv.innerText = 'Error: Could not get response reader.';
-            return;
-        }
-        const decoder = new TextDecoder();
-        aiDiv.innerHTML = '';
-
-        while(true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\\n\\n'); // Split by actual newline characters
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.slice(6));
-                        if(data.token) aiDiv.innerHTML += window.formatToken(data.token);
-                    } catch(e){}
-                }
-            }
-        }
-    } catch(e) {
-        aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
-    }
-};
-
-window.handleImageGeneration = async function(prompt) {
-    const styleSelector = document.getElementById('styleSelector');
-    const style = styleSelector ? styleSelector.value : 'speed';
-    const aiDiv = window.addMessage('ai', 'Generating Image (' + style + ')...', true);
-    try {
-        const res = await fetch('/api/image', {
-             method: 'POST',
-             body: JSON.stringify({ prompt, style })
-        });
-        const data = await res.json();
-
-        const id = 'img-' + Date.now();
-        aiDiv.innerHTML = \`<div class="flex flex-col gap-2">
-                <img src="\${data.image}" class="rounded border border-slate-600" id="\${id}">
-                <button onclick="window.saveImage('\${id}', '\${escapeJsString(prompt)}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
-            </div>\`;
-    } catch(e) {
-        aiDiv.innerText = 'Generation Failed: ' + escapeJsString(e.message);
-    }
-};
-
-window.saveImage = async function(id, prompt) {
-    const img = document.getElementById(id);
-    if (!img) return;
-    const base64 = img.src.split(',')[1];
-    const name = \`assets/\${prompt.substring(0,10).replace(/\\s/g, '_')}_\${Date.now()}.png\`;
-    await fetch('/api/fs/file', {
-        method: 'POST',
-        body: JSON.stringify({ name, content: base64 })
-    });
-    alert('Saved to ' + escapeJsString(name));
-    window.refreshFiles();
-};
-
-window.createNewFile = async function() {
-     const name = prompt("Filename:");
-     if(name) {
-         await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
-         window.refreshFiles();
-     }
-};
-
-window.addMessage = function(role, text, loading) {
-    const div = document.createElement('div');
-    div.className = \`chat-message p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}\`;
-    if(loading) div.innerHTML = 'Thinking...';
-    else div.innerHTML = window.formatToken(text);
-    if (chatMessages) {
-        chatMessages.appendChild(div);
-    }
-    return div;
-};
-
-window.applyCode = function(encodedCode) {
-    if(!editor) return;
-    const code = decodeURIComponent(encodedCode);
-    const position = editor.getPosition();
-    editor.executeEdits("ai-apply", [{
-        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-        text: code,
-        forceMoveMarkers: true
-    }]);
-};
-
-window.formatToken = function(text) {
-    // Regex for code blocks (using hex 60 for backtick to avoid string closure)
-    // Capture: 1=lang, 2=filename(optional), 3=content
-    const pattern = /\\x60\\x60\\x60(\\\w+)?\\\n(?:\\/\\/\\s*file:\\s*([^\\\n\\\r]+)\\\n)?([\\\s\\\S]*?)\\x60\\x60\\x60/g;
-    text = text.replace(pattern, function(match, lang, file, code) {
-        // If file is missing, 'file' arg might be 'code' if regex groups are weird?
-        // No, groups are: 1, 2, 3.
-        // If 2 is missing, it's undefined.
-        const encoded = encodeURIComponent(code);
-        const encodedFile = file ? encodeURIComponent(file.trim()) : '';
-        const fileBadge = file ? \`<span class="bg-indigo-500/20 text-indigo-300 px-1.5 rounded text-[10px] ml-2">\${file.trim()}</span>\` : '';
-
-        return \`<div class="bg-slate-900 rounded p-2 my-2 border border-slate-700 relative group">
-                    <div class="flex justify-between items-center text-xs text-slate-500 mb-1">
-                        <div class="flex items-center">
-                            <span>\${lang || 'code'}</span>
-                            \${fileBadge}
-                        </div>
-                        <button onclick="window.applyCode('\${encoded}', '\${encodedFile}')" class="text-indigo-400 hover:text-indigo-300 opacity-50 group-hover:opacity-100 transition"><i class="fa-solid fa-arrow-right-to-bracket"></i> Apply</button>
-                    </div>
-                    <pre class="overflow-x-auto text-xs text-slate-300 font-mono"><code>\${code}</code></pre>
-                </div>\`;
-    });
-
-    // 2. Handle simple newlines
-    return text.replace(/\\\n/g, '<br>');
-};
-
-window.getLanguage = function(n) {
-    if(n.endsWith('ts')) return 'typescript';
-    if(n.endsWith('html')) return 'html';
-    return 'plaintext';
-};
-
-window.uploadFile = async function(input) {
-    const file = input.files ? input.files[0] : null;
-    if (!file) return;
-
-    const aiDiv = window.addMessage('ai', 'Uploading: ' + file.name, true);
-
-    try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const result = e.target?.result;
-            if (result === null || typeof result !== 'string') {
-                aiDiv.innerText = 'Upload Failed: Could not read file content.';
-                return;
-            }
-            const base64 = result.split(',')[1];
-
-            const res = await fetch('/api/fs/file', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name: file.name,
-                    content: base64,
-                    encoding: 'base64'
-                })
-            });
-
-            if (res.ok) {
-                activeImage = file.name;
-                aiDiv.innerHTML = \`✅ Uploaded <b>\${escapeJsString(file.name)}</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>\`;
-                window.refreshFiles();
-
-                if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
-                   window.loadFile(file.name);
-                }
-            } else {
-                aiDiv.innerText = 'Upload Failed';
-            }
-        };
-        reader.readAsDataURL(file);
-    }
-    catch (e) {
-        aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
-    }
-};
-
-// --- Deployment Logic ---
-window.deployProject = async function() {
-    const scriptName = prompt("Enter a unique name for your Cloudflare Worker app:", "my-awesome-agent");
-    if (!scriptName) return;
-
-    const btn = document.querySelector('button[onclick="window.deployProject()"]');
-    if (!btn) return;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
-    // Ensure btn is an HTMLButtonElement to access .disabled
-    if (btn instanceof HTMLButtonElement) {
-        btn.disabled = true;
-    }
-
-    try {
-        let codeToDeploy = currentCode;
-
-        // If current file isn't meaningful, try to fetch src/index.ts
-        if (!activeFile.endsWith('.ts') && !activeFile.endsWith('.js')) {
-             try {
-                const res = await fetch('/api/fs/file?name=' + encodeURIComponent('src/index.ts'));
-                const d = await res.json();
-                codeToDeploy = d.content;
-             } catch(e) {}
-        }
-
-        if (!codeToDeploy) {
-            alert("No code found to deploy! Open a file first.");
-            return;
-        }
-
-        const res = await fetch('/api/deploy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scriptName, code: codeToDeploy })
-        });
-
-        const result = await res.json();
-
-        if (res.ok) {
-            alert(\`🚀 Success! Deployed to namespace '\${escapeJsString(result.result.namespace)}'.\\nScript: \${escapeJsString(result.result.script)}\`);
-        } else {
-             alert('Deployment Failed: ' + escapeJsString(result.error || 'Unknown Error (Check Server Logs)'));
-        }
-
-    } catch (e) {
-        alert('Deployment Error: ' + escapeJsString(e.message));
-    }
-    finally {
-        btn.innerHTML = originalText;
-        if (btn instanceof HTMLButtonElement) {
-            btn.disabled = false;
-        }
-    }
-}
-
-// --- Monaco Editor Setup ---
-require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-
-require(['vs/editor/editor.main'], function(monacoInstance) {
-    window.monaco = monacoInstance; // Expose monaco globally
-
-    monacoInstance.languages.typescript.typescriptDefaults.setCompilerOptions({
-        target: monacoInstance.languages.typescript.ScriptTarget.ES2020,
-        allowNonTsExtensions: true,
-        moduleResolution: monacoInstance.languages.typescript.ModuleResolutionKind.NodeJs,
-    });
-
-    editor = monacoInstance.editor.create(document.getElementById('monacoContainer'), {
-        value: '// Select a file to view content',
-        language: 'typescript',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: { enabled: false },
-        fontSize: 13,
-        fontFamily: 'Consolas, "Courier New", monospace',
-        padding: { top: 16 },
-        scrollBeyondLastLine: false,
-        smoothScrolling: true
-    });
-
-    editor.onDidChangeCursorPosition((e) => {
-        const cursorLineElement = document.getElementById('cursorLine');
-        const cursorColElement = document.getElementById('cursorCol');
-        if (cursorLineElement) cursorLineElement.innerText = e.position.lineNumber;
-        if (cursorColElement) cursorColElement.innerText = e.position.column;
+        document.getElementById('cursorLine').innerText = e.position.lineNumber;
+        document.getElementById('cursorCol').innerText = e.position.column;
     });
 
     editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
@@ -920,551 +265,266 @@ require(['vs/editor/editor.main'], function(monacoInstance) {
 
 // --- Terminal Logic ---
 const termInput = document.getElementById('terminalInput');
-if (termInput) {
-    termInput.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') {
-            const cmd = termInput.value;
-            if (!cmd) return;
-            termInput.value = '';
+termInput?.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+        const cmd = termInput.value;
+        if (!cmd) return;
+        termInput.value = '';
+        const out = document.getElementById('terminalOutput');
+        const line = document.createElement('div');
+        line.innerHTML = '<span class="text-slate-500 mr-2">$</span>' + window.escapeHtml(cmd);
+        out.appendChild(line);
 
-            const out = document.getElementById('terminalOutput');
-            const line = document.createElement('div');
-            line.innerHTML = '<span class="text-slate-500 mr-2">$</span>' + window.escapeHtml(cmd);
-            out.appendChild(line);
-
-            try {
-                const res = await fetch('/api/terminal', {
-                    method: 'POST',
-                    body: JSON.stringify({ command: cmd })
-                });
-                const d = await res.json();
-                const respLine = document.createElement('pre');
-                respLine.className = 'text-slate-300 whitespace-pre-wrap ml-4';
-                respLine.innerText = d.output;
-                out.appendChild(respLine);
-            } catch (err) {
-                const errLine = document.createElement('div');
+        try {
+            const res = await fetch('/api/terminal', { method: 'POST', body: JSON.stringify({ command: cmd }) });
+            const d = await res.json();
+            const respLine = document.createElement('pre');
+            respLine.className = 'text-slate-300 whitespace-pre-wrap ml-4';
+            respLine.innerText = d.output;
+            out.appendChild(respLine);
+        } catch (err) {
+            const errLine = document.createElement('div');
                 errLine.className = 'text-red-400 ml-4';
                 errLine.innerText = 'Error: ' + err.message;
                 out.appendChild(errLine);
-
-                // Auto-Fix Button (God Mode)
-                const fixBtn = document.createElement('button');
-                fixBtn.className = 'text-xs bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded ml-4 mt-1 hover:bg-indigo-800 transition flex items-center gap-1';
-                fixBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Fix';
-                fixBtn.onclick = () => window.autoFix(cmd, err.message);
-                out.appendChild(fixBtn);
-            }
-            out.scrollTop = out.scrollHeight;
         }
-    });
-}
+        out.scrollTop = out.scrollHeight;
+    }
+});
 
 window.escapeHtml = function(text) {
     if (!text) return text;
-    return text.replace(/&/g, "&amp;")
-               .replace(/</g, "&lt;")
-               .replace(/>/g, "&gt;")
-               .replace(/"/g, "&quot;")
-               .replace(/'/g, "&#039;");
-}
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+};
 
 // --- GitHub Logic ---
 window.toggleGithubSettings = function() {
     const current = localStorage.getItem('gh_token') || '';
-    const token = prompt("Enter GitHub Personal Access Token (repo scope):", current);
-    if (token !== null) {
-        localStorage.setItem('gh_token', token);
-        alert("Token saved locally.");
-    }
+    const token = prompt("Enter GitHub PAT:", current);
+    if (token !== null) localStorage.setItem('gh_token', token);
 };
 
 window.ghClone = async function() {
     const repoInput = document.getElementById('ghRepo');
-    const repo = repoInput ? repoInput.value : '';
+    const repo = repoInput?.value;
     const token = localStorage.getItem('gh_token');
-
-    if (!repo || !token) {
-        alert("Please set Repo (owner/repo) and Token (settings icon) first.");
-        return;
-    }
-
-    const [owner, colRepo] = repo.split('/');
-    if (!owner || !colRepo) { alert("Invalid Format. Use owner/repo"); return; }
+    if (!repo || !token) return alert("Missing Repo or Token");
 
     const btn = document.querySelector('button[onclick="window.ghClone()"]');
     const oldText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
     try {
-        const res = await fetch('/api/github/clone', {
-            method: 'POST',
-            body: JSON.stringify({ token, owner, repo: colRepo })
-        });
+        const [owner, name] = repo.split('/');
+        const res = await fetch('/api/github/clone', { method: 'POST', body: JSON.stringify({ token, owner, repo: name }) });
         const data = await res.json();
-
         if (data.error) throw new Error(data.error);
-        if (!data.files) throw new Error("No files found");
-
-        // Fetch Content Loop
-        let count = 0;
-        for (const file of data.files) {
-             // Skip huge files or images for now?
-             const cRes = await fetch('/api/github/content', {
-                 method: 'POST',
-                 body: JSON.stringify({ token, owner, repo: colRepo, path: file.path })
-             });
-             const contentData = await cRes.json();
-
-             // Save to FS
-             await fetch('/api/fs/file', {
-                 method: 'POST',
-                 body: JSON.stringify({
-                    name: file.path,
-                    content: contentData.content,
-                    encoding: contentData.encoding
-                 })
-             });
-             count++;
-        }
-        alert('Cloned ' + count + ' files successfully.');
+        alert('Cloned successfully');
         window.refreshFiles();
-
     } catch (e) {
         alert("Clone Failed: " + e.message);
-    } finally {
-        btn.innerHTML = oldText;
-    }
+    } finally { btn.innerHTML = oldText; }
 };
 
-window.ghPush = function() {
-    alert("Push not yet implemented (Requires commit object construction).");
-};
-
-const modelSelector = document.getElementById('modelSelector');
-const providerBadge = document.getElementById('providerBadge');
-
-modelSelector?.addEventListener('change', (e) => {
-    const target = e.target;
-    const isDeepSeek = target.value === 'thinking';
-    if (providerBadge) {
-        providerBadge.innerText = isDeepSeek ? 'DeepSeek R1' : 'Llama 3.3';
-        providerBadge.className = isDeepSeek
-            ? 'text-[10px] bg-indigo-900/50 text-indigo-300 ring-1 ring-indigo-500 px-1.5 py-0.5 rounded'
-            : 'text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300';
-    }
-});
-
-// --- File System Operations ---
+// --- File Operations ---
 window.refreshFiles = async function() {
     const listEl = document.getElementById('fileList');
-    if (listEl) {
-        listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
-    }
+    if (listEl) listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
     try {
         const res = await fetch('/api/fs/list');
-        const uniqueFiles = new Map();
-        (await res.json()).forEach((f) => uniqueFiles.set(f.name, f));
-        const files = Array.from(uniqueFiles.values());
-
+        const files = await res.json();
         fileTree = files;
         window.renderFileList(files);
-
-        if (activeFile === 'loading...' && files.find((f) => f.name === 'src/index.ts')) {
-            window.loadFile('src/index.ts');
-        }
-    } catch (e) {
-        if (listEl) {
-            listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>';
-        }
-    }
+        if (!activeFile && files.length > 0) window.loadFile(files[0].name);
+    } catch (e) { if (listEl) listEl.innerHTML = '<div class="text-red-400 text-xs p-2">Failed</div>'; }
 };
 
 window.renderFileList = function(files) {
     const listEl = document.getElementById('fileList');
     if (!listEl) return;
-
     listEl.innerHTML = '';
-    files.sort((a, b) => a.name.localeCompare(b.name));
-
-    files.forEach((file) => {
+    files.forEach(file => {
         const div = document.createElement('div');
-        const isImg = file.name.match(new RegExp('\\.(png|jpg|jpeg|gif)$', 'i'));
-        const is3D = file.name.match(new RegExp('\\.(glb|gltf)$', 'i'));
-
-        let iconClass = 'fa-regular fa-file-code';
-        if (isImg) iconClass = 'fa-regular fa-file-image';
-        if (is3D) iconClass = 'fa-solid fa-cube text-indigo-400';
-
-        div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md transition-colors';
-        div.innerHTML = \`<div class="flex items-center gap-2 truncate" onclick="window.loadFile('\${escapeJsString(file.name)}')">
-                            <i class="\${iconClass} text-slate-500 group-hover:text-indigo-400 transition-colors text-xs"></i>
+        div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md';
+        div.innerHTML = \`<div class="flex items-center gap-2 truncate flex-1" onclick="window.loadFile('\${escapeJsString(file.name)}')">
+                            <i class="fa-regular fa-file-code text-slate-500 group-hover:text-indigo-400"></i>
                             <span>\${file.name}</span>
-                        </div>\`;
+                        </div>
+                        <button class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400" onclick="event.stopPropagation(); window.deleteFile('\${escapeJsString(file.name)}')"><i class="fa-solid fa-trash text-xs"></i></button>\`;
         listEl.appendChild(div);
     });
 };
 
-window.loadFile = async function(name) {
-    activeFile = name;
-    const activeFileNameElement = document.getElementById('activeFileName');
-    if (activeFileNameElement) {
-        activeFileNameElement.innerText = name;
-    }
-    const container = document.getElementById('editorContainer');
-    if (!container) return;
-
-    // 3D Preview
-    if (name.match(new RegExp('\\.(glb|gltf)$', 'i'))) {
-         activeImage = null;
-         const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-         const blob = await res.blob();
-         const url = URL.createObjectURL(blob);
-
-         container.innerHTML = \`<div class="h-full w-full bg-slate-900 relative">
-        <model-viewer
-src="\${url}"
-id="mv-viewer"
-camera-controls
-auto-rotate
-shadow-intensity="1"
-style="width: 100%; height: 100%;"
-alt="A 3D model"
-background-color="#1e293b"
-    ></model-viewer>
-    <div class="absolute bottom-5 left-0 right-0 text-center pointer-events-none">
-        <span class="bg-black/50 text-white px-2 py-1 rounded text-xs">3D Preview: \${name}</span>
-            </div>
-            </div>\`;
-         return;
-    }
-
-    // Image Preview
-    if (name.match(new RegExp('\\.(png|jpg)$', 'i'))) {
-         activeImage = name;
-         const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-         const data = await res.json();
-         let src = data.content;
-         if (!src.startsWith('data:') && !src.startsWith('http')) {
-             src = \`data:image/png;base64,\${data.content}\`;
-         }
-
-         container.innerHTML = \`<div class="h-full flex items-center justify-center bg-slate-900">
-                        <img src="\${src}" class="max-w-[90%] max-h-[90%] shadow-lg border border-slate-700 rounded">
-                    </div>\`;
-         return;
-    }
-
-// Code/Text
-if (!container.querySelector('.monaco-editor')) {
-    location.reload();
-    return;
-}
-
-try {
-    const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
-                const data = await res.json();
-                currentCode = data.content;
-                if (editor) {
-                    const model = editor.getModel();
-                    if (window.monaco && model) {
-                        window.monaco.editor.setModelLanguage(model, getLanguage(name));
-                    }
-                    editor.setValue(data.content);
-                }
-            } catch (e) { }
-        };
-
-window.saveCurrentFile = async function(name, content) {
-    await fetch('/api/fs/file', {
-        method: 'POST',
-        body: JSON.stringify({ name, content })
-    });
-    window.refreshFiles();
+window.deleteFile = async function(name) {
+    if (!confirm('Delete ' + name + '?')) return;
+    try {
+        await fetch('/api/fs/file?name=' + encodeURIComponent(name), { method: 'DELETE' });
+        window.refreshFiles();
+    } catch(e) { alert('Failed'); }
 };
 
-// --- Chat ---
-const chatInput = document.getElementById('chatInput');
-const chatMessages = document.getElementById('chatMessages');
+window.loadFile = async function(name) {
+    activeFile = name;
+    document.getElementById('activeFileName') ? document.getElementById('activeFileName').innerText = name : null;
+    const container = document.getElementById('editorContainer');
+    const previewContainer = document.getElementById('previewContainer');
 
-chatInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMessage(); }
-});
-
-window.sendMessage = async function() {
-    if (!chatInput) return;
-    const text = chatInput.value.trim();
-    if(!text) return;
-    chatInput.value = '';
-
-    window.addMessage('user', text, false);
-
-    if (text.startsWith('/image')) {
-        const prompt = text.replace('/image', '').trim();
-        window.handleImageGeneration(prompt);
-        return;
+    const isMedia = name.match(/\\\\.(png|jpg|glb|gltf)$/i);
+    if (isMedia) {
+        previewContainer.style.display = 'block';
+        previewContainer.innerHTML = 'Loading...';
+        const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+        if (name.match(/\\\\.(glb|gltf)$/i)) {
+            const url = URL.createObjectURL(await res.blob());
+            previewContainer.innerHTML = \`<model-viewer src="\${url}" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>\`;
+        } else {
+            const d = await res.json();
+            previewContainer.innerHTML = \`<div class="flex items-center justify-center h-full bg-slate-900"><img src="\${d.content.startsWith('http') ? d.content : 'data:image/png;base64,' + d.content}" class="max-w-full max-h-full"></div>\`;
+        }
+    } else {
+        previewContainer.style.display = 'none';
+        try {
+            const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+            const d = await res.json();
+            currentCode = d.content;
+            if (editor) {
+                const model = editor.getModel();
+                monaco.editor.setModelLanguage(model, window.getLanguage(name));
+                editor.setValue(d.content);
+            }
+        } catch(e){}
     }
-    const modelSelector = document.getElementById('modelSelector');
-    const model = modelSelector ? modelSelector.value : 'default';
+    window.renderTabs();
+};
 
+window.renderTabs = function() {
+    if (!openTabs.includes(activeFile) && activeFile) openTabs.push(activeFile);
+    const container = document.getElementById('tabsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    openTabs.forEach(t => {
+        const div = document.createElement('div');
+        div.className = \`px-3 py-2 text-xs flex items-center gap-2 cursor-pointer \${t === activeFile ? 'bg-slate-800 border-t-2 border-indigo-500 text-slate-200' : 'bg-slate-900/50 text-slate-500'}\`;
+        div.onclick = () => window.loadFile(t);
+        div.innerHTML = \`<span>\${t}</span><i class="fa-solid fa-times hover:text-red-400" onclick="event.stopPropagation(); window.closeTab('\${escapeJsString(t)}')"></i>\`;
+        container.appendChild(div);
+    });
+};
+
+window.closeTab = function(name) {
+    openTabs = openTabs.filter(t => t !== name);
+    if (activeFile === name) activeFile = openTabs[openTabs.length - 1] || null;
+    if (activeFile) window.loadFile(activeFile);
+    else { if(editor) editor.setValue(''); window.renderTabs(); }
+};
+
+window.saveCurrentFile = async function(name, content) {
+    if (editor && !name.match(/\\\\.(png|jpg|glb|gltf)$/i)) content = editor.getValue();
+    await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content }) });
+};
+
+// --- AI Assistant ---
+window.sendMessage = async function() {
+    const input = document.getElementById('chatInput');
+    const text = input?.value.trim();
+    if (!text) return;
+    input.value = '';
+    window.addMessage('user', text);
     const aiDiv = window.addMessage('ai', '', true);
 
     try {
-        const payload = { message: text, model };
-        if (activeImage) payload.image = activeImage;
-
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error('Server Error ' + res.status + ': ' + errText);
-        }
-
-        const reader = res.body?.getReader();
-        if (!reader) {
-            aiDiv.innerText = 'Error: Could not get response reader.';
-            return;
-        }
+        const model = document.getElementById('modelSelector')?.value;
+        const res = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message: text, model, image: activeImage }) });
+        if (!res.ok) throw new Error('Status ' + res.status);
+        const reader = res.body.getReader();
         const decoder = new TextDecoder();
         aiDiv.innerHTML = '';
-
-        while(true) {
-const { done, value } = await reader.read();
-if (done) break;
-const chunk = decoder.decode(value);
-const lines = chunk.split('\\n\\n'); // Split by actual newline characters
-for (const line of lines) {
-    if (line.startsWith('data: ')) {
-        try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\\\\n\\\\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
                         const data = JSON.parse(line.slice(6));
-                        if(data.token) aiDiv.innerHTML += window.formatToken(data.token);
+                        if (data.token) aiDiv.innerHTML += window.formatToken(data.token);
                     } catch(e){}
                 }
             }
         }
-    } catch(e) {
-        aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
-    }
-};
-
-window.handleImageGeneration = async function(prompt) {
-    const styleSelector = document.getElementById('styleSelector');
-    const style = styleSelector ? styleSelector.value : 'speed';
-    const aiDiv = window.addMessage('ai', 'Generating Image (' + style + ')...', true);
-    try {
-        const res = await fetch('/api/image', {
-             method: 'POST',
-             body: JSON.stringify({ prompt, style })
-        });
-        const data = await res.json();
-
-        const id = 'img-' + Date.now();
-        aiDiv.innerHTML = \`<div class="flex flex-col gap-2">
-                <img src="\${data.image}" class="rounded border border-slate-600" id="\${id}">
-                <button onclick="window.saveImage('\${id}', '\${escapeJsString(prompt)}')" class="bg-indigo-600 text-xs py-1 px-2 text-white rounded self-end">Save</button>
-            </div>\`;
-    } catch(e) {
-        aiDiv.innerText = 'Generation Failed: ' + escapeJsString(e.message);
-    }
-};
-
-window.saveImage = async function(id, prompt) {
-    const img = document.getElementById(id);
-    if (!img) return;
-    const base64 = img.src.split(',')[1];
-    const name = \`assets/\${prompt.substring(0,10).replace(/\\s/g, '_')}_\${Date.now()}.png\`;
-    await fetch('/api/fs/file', {
-        method: 'POST',
-        body: JSON.stringify({ name, content: base64 })
-    });
-    alert('Saved to ' + escapeJsString(name));
-    window.refreshFiles();
-};
-
-window.createNewFile = async function() {
-     const name = prompt("Filename:");
-     if(name) {
-         await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
-         window.refreshFiles();
-     }
-};
-
-window.closeTab = function() {
-    activeFile = 'No file selected';
-    if(editor) editor.setValue('// Select a file to view content');
-    const activeFileNameElement = document.getElementById('activeFileName');
-    if (activeFileNameElement) activeFileNameElement.innerText = activeFile;
-    const container = document.getElementById('editorContainer');
-     if (container) {
-        // Ensure monaco container exists if it was replaced by 3D/Image
-        if (!container.querySelector('.monaco-editor')) {
-             location.reload(); // Simple reset for now if coming from 3D view
-        }
-    }
+    } catch(e) { aiDiv.innerText = 'Error: ' + e.message; }
 };
 
 window.addMessage = function(role, text, loading) {
+    const container = document.getElementById('chatMessages');
     const div = document.createElement('div');
-    div.className = \`chat-message p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6' : 'bg-indigo-900/20 mr-6'}\`;
-    if(loading) div.innerHTML = 'Thinking...';
-    else div.innerHTML = window.formatToken(text);
-    if (chatMessages) {
-        chatMessages.appendChild(div);
-    }
+    div.className = \`p-3 rounded-lg border \${role === 'user' ? 'bg-slate-700/50 ml-6 border-slate-600' : 'bg-indigo-900/20 mr-6 border-indigo-900/50'}\`;
+    div.innerHTML = loading ? 'Thinking...' : window.formatToken(text);
+    container?.appendChild(div);
+    container ? container.scrollTop = container.scrollHeight : null;
     return div;
 };
 
-window.applyCode = async function(encodedCode, encodedFile) {
-    // 0. Handle File Targeting
-    const targetFile = encodedFile ? decodeURIComponent(encodedFile) : activeFile;
-    if (targetFile && targetFile !== activeFile) {
-        // Switch to the target file first
-        await window.loadFile(targetFile); // Assuming loadFile handles opening/creating
-        // wait a bit for editor to update? loadFile is async and sets editor value.
-    }
+window.formatToken = function(text) {
+    const pattern = /\\\\x60\\\\x60\\\\x60(\\\\w+)?\\\\n(?:\\\\/\\\\/\\\\s*file:\\\\s*([^\\\\n\\\\r]+)\\\\n)?([\\\\s\\\\S]*?)\\\\x60\\\\x60\\\\x60/g;
+    return text.replace(pattern, (m, lang, file, code) => {
+        const encoded = encodeURIComponent(code);
+        return \`<div class="bg-black/40 rounded p-2 my-2 border border-slate-700 relative group">
+            <div class="flex justify-between text-[10px] text-slate-500 mb-1 uppercase">
+                <span>\${file || lang || 'code'}</span>
+                <button onclick="window.applyCode('\${encoded}', '\${file ? encodeURIComponent(file) : ''}')" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>
+            </div>
+            <pre class="text-xs overflow-x-auto">\${window.escapeHtml(code)}</pre>
+        </div>\`;
+    }).replace(/\\\\n/g, '<br>');
+};
 
-    if(!editor || !activeFile) return;
-    const newCode = decodeURIComponent(encodedCode);
-    const originalCode = editor.getValue(); // Current editor content
-
-    // 1. Show Modal
+window.applyCode = async function(encodedCode, file) {
+    const code = decodeURIComponent(encodedCode);
+    const fileName = file ? decodeURIComponent(file) : activeFile;
+    if (fileName && fileName !== activeFile) await window.loadFile(fileName);
+    if (!editor) return;
     const modal = document.getElementById('diffModal');
-    if (modal) modal.classList.remove('hidden');
-
-    // 2. Initialize Diff Editor if needed
+    modal?.classList.remove('hidden');
     if (!diffEditor) {
-        diffEditor = monaco.editor.createDiffEditor(document.getElementById('diffContainer'), {
-            theme: 'vs-dark',
-            originalEditable: false,
-            readOnly: false // Modified side is editable
-        });
+        diffEditor = monaco.editor.createDiffEditor(document.getElementById('diffContainer'), { theme: 'vs-dark', automaticLayout: true });
     }
-
-    // 3. Set Models (Original vs Modified)
-    // Heuristic: If newCode is a full file (via size or structure), use it.
-    // ideal: The AI should return a flag "isPatch" vs "isFile".
-    // For now, let's assume if it contains 'import ' or is > 50% length of original, it's a replacement.
-    // OTHERWISE, if it's small, it might be a snippet we need to "patch" in?
-    // "God Mode" Cursor style usually expects full file rewrites or smart instruction patches.
-    // Let's assume the AI returns the RELEVANT snippet.
-    // If we want a true Diff, we need to apply the snippet to the original logic first.
-    // BUT window.applyCode is currently triggered by "Apply" button on a code block.
-    // Simplest v1: The user must ask AI to provide the FULL file logic if they want a clean diff.
-    // Complex v2 (Smart Patch): We can't easily guess where a snippet goes without line numbers.
-    // STRATEGY: Treat the AI response as the "New Content". Even if it's just a function, compare it.
-
-    const originalModel = monaco.editor.createModel(originalCode, 'typescript'); // TODO: dynamic lang
-    const modifiedModel = monaco.editor.createModel(newCode, 'typescript');
-
     diffEditor.setModel({
-        original: originalModel,
-        modified: modifiedModel
+        original: monaco.editor.createModel(editor.getValue(), 'typescript'),
+        modified: monaco.editor.createModel(code, 'typescript')
     });
 };
 
 window.acceptDiff = function() {
-    if (!diffEditor || !editor) return;
-    const modifiedModel = diffEditor.getModel().modified;
-    const finalCode = modifiedModel.getValue();
-
-    // Apply to Main Editor
-    editor.setValue(finalCode);
-
-    // Save?
-    if (activeFile) window.saveCurrentFile(activeFile, finalCode);
-
-    // Close Modal
-    document.getElementById('diffModal').classList.add('hidden');
-
-    // Cleanup? Keep instance, dispose models?
-    // diffEditor.getModel().original.dispose();
-    // diffEditor.getModel().modified.dispose();
-};
-
-window.rejectDiff = function() {
-    document.getElementById('diffModal').classList.add('hidden');
-};
-
-window.autoFix = function(cmd, errorMsg) {
-    const prompt = \`I ran command "\${cmd}" and got this error:\\n\\n\${errorMsg}\\n\\nPlease fix the code to resolve this error.\`;
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.value = prompt;
-        window.sendMessage();
+    if (editor && diffEditor) {
+        const val = diffEditor.getModel().modified.getValue();
+        editor.setValue(val);
+        if (activeFile) window.saveCurrentFile(activeFile, val);
     }
+    window.rejectDiff();
 };
 
-window.formatToken = function(text) {
-    // 1. Handle Code Blocks
-    // Regex for code blocks (using hex 60 for backtick to avoid string closure)
-    const pattern = /\\x60\\x60\\x60(\\\w+)?\\\n([\\\s\\\S]*?)\\x60\\x60\\x60/g;
-    text = text.replace(pattern, function(match, lang, code) {
-        const encoded = encodeURIComponent(code);
-        return \`<div class="bg-slate-900 rounded p-2 my-2 border border-slate-700 relative group">
-                    <div class="flex justify-between items-center text-xs text-slate-500 mb-1">
-                        <span>\${lang || 'code'}</span>
-                        <button onclick="window.applyCode('\${encoded}')" class="text-indigo-400 hover:text-indigo-300 opacity-50 group-hover:opacity-100 transition"><i class="fa-solid fa-arrow-right-to-bracket"></i> Apply</button>
-                    </div>
-                    <pre class="overflow-x-auto text-xs text-slate-300 font-mono"><code>\${code}</code></pre>
-                </div>\`;
-    });
+window.rejectDiff = () => document.getElementById('diffModal')?.classList.add('hidden');
+window.getLanguage = (n) => n.endsWith('ts') ? 'typescript' : (n.endsWith('html') ? 'html' : 'plaintext');
 
-    // 2. Handle simple newlines
-    return text.replace(/\\\n/g, '<br>');
-};
-
-window.getLanguage = function(n) {
-    if(n.endsWith('ts')) return 'typescript';
-    if(n.endsWith('html')) return 'html';
-    return 'plaintext';
+window.createNewFile = async function() {
+    const name = prompt("Filename:");
+    if (name) {
+        await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
+        window.refreshFiles();
+    }
 };
 
 window.uploadFile = async function(input) {
-    const file = input.files ? input.files[0] : null;
+    const file = input.files?.[0];
     if (!file) return;
-
-    const aiDiv = window.addMessage('ai', 'Uploading: ' + file.name, true);
-
-    try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const result = e.target?.result;
-            if (result === null || typeof result !== 'string') {
-                aiDiv.innerText = 'Upload Failed: Could not read file content.';
-                return;
-            }
-            const base64 = result.split(',')[1];
-
-            const res = await fetch('/api/fs/file', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name: file.name,
-                    content: base64,
-                    encoding: 'base64'
-                })
-            });
-
-            if (res.ok) {
-                activeImage = file.name;
-                aiDiv.innerHTML = \`✅ Uploaded <b>\${escapeJsString(file.name)}</b>. <br><span class="text-xs opacity-50">Stored in R2. Ready for Vision.</span>\`;
-                window.refreshFiles();
-
-                if (file.name.endsWith('.glb') || file.name.endsWith('.gltf')) {
-                   window.loadFile(file.name);
-                }
-            } else {
-                aiDiv.innerText = 'Upload Failed';
-            }
-        };
-        reader.readAsDataURL(file);
-    }
-    catch (e) {
-        aiDiv.innerText = 'Error: ' + escapeJsString(e.message);
-    }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64 = e.target.result.split(',')[1];
+        await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name: file.name, content: base64, encoding: 'base64' }) });
+        window.refreshFiles();
+    };
+    reader.readAsDataURL(file);
 };
 `;
-
-

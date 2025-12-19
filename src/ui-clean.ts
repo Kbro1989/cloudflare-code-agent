@@ -165,3 +165,4 @@ function escapeJsString(str) {
     if (!str) return str;
     return String(str).replace(/\\\\/g, "\\\\\\\\").replace(/'/g, "\\\\'");
 }
+`;
