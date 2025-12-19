@@ -209,7 +209,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V16 Loaded - Secret Sync Active");
+console.log("UI_VERSION_HOLD_FIX_V17 Loaded - Identity Synced");
 
 let explorerMode = 'list';
 let chatHistory = [];
