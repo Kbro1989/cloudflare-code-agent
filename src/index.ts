@@ -146,6 +146,9 @@ Primary Directive: Provide immediate, actionable, and correct code or answers.
 - Minimize "thinking out loud" unless using the reasoning model.
 - Avoid repetitive reasoning loops. If you find yourself over-speculating, stop and ask for data.
 - Do not assume files exist unless you see them in the file list.
+- **Capabilities Awareness**:
+    *   To generate an image, output: [IMAGE: description]
+    *   To edit files, use the code block format.
 - To edit files, output a code block with the first line specifying the file path:
 \`\`\`language
 // file: path/to/file.ext
@@ -216,7 +219,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V5 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V6 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -242,6 +245,8 @@ export default {
           return handleAudioSTT(request, env, corsHeaders);
         case '/api/audio/tts':
           return handleAudioTTS(request, env, corsHeaders);
+        case '/api/doctor':
+          return handleDoctor(request, env, corsHeaders);
         case '/api/deploy':
           return handleDeploy(request, env, corsHeaders);
         case '/api/fs/list':
@@ -522,21 +527,31 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     const audioBuffer = await request.arrayBuffer();
     const audioArray = new Uint8Array(audioBuffer);
 
+    console.log(`🎙️ STT Request: ${audioArray.byteLength} bytes`);
+
+    if (audioArray.byteLength < 100) {
+      return new Response('Audio buffer too small', { status: 400, headers: corsHeaders });
+    }
+
     try {
-      // Direct binary input for Whisper is the most reliable current method in Workers AI
+      // The most reliable way for Whisper V3 on Workers AI is often passing the buffer directly if the binding allows
+      // OR explicitly passing it as a numeric array if the schema expects it.
+      // 5006 error often implies it's trying to validate a JSON schema on a binary input.
+
       // @ts-ignore
-      const response = await env.AI.run(MODELS.STT, audioArray);
+      const response = await env.AI.run(MODELS.STT, {
+        audio: [...audioArray]
+      });
       return json(response, 200, corsHeaders);
     } catch (e1: any) {
       try {
-        // Fallback: Number array format
+        // Fallback: Try passing the Uint8Array directly (some bindings prefer this)
         // @ts-ignore
-        const response = await env.AI.run(MODELS.STT, {
-          audio: Array.from(audioArray)
-        });
+        const response = await env.AI.run(MODELS.STT, audioArray);
         return json(response, 200, corsHeaders);
       } catch (e2: any) {
-        return new Response(`STT Error: [Direct: ${e1.message}] [Array: ${e2.message}]`, { status: 500, headers: corsHeaders });
+        console.error('STT Combined Failure:', e1.message, e2.message);
+        return new Response(`STT Error: [V1: ${e1.message}] [V2: ${e2.message}]`, { status: 500, headers: corsHeaders });
       }
     }
   } catch (e: any) {
@@ -807,6 +822,40 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
   } catch (e: any) {
     return json({ error: e.message }, 500, corsHeaders);
   }
+}
+
+// ----------------------------------------------------------------------------
+// Recommendation 7: doctor --fix Logic
+// ----------------------------------------------------------------------------
+async function handleDoctor(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  const issues: string[] = [];
+  const fixes: string[] = [];
+
+  // Check Bindings
+  if (!env.AI) issues.push('AI binding missing');
+  if (!env.R2_ASSETS) issues.push('R2_ASSETS binding missing');
+  if (!env.MEMORY) issues.push('MEMORY (KV) binding missing');
+
+  // Check Quota
+  const today = new Date().toISOString().split('T')[0];
+  const writeCount = parseInt(await env.CACHE.get(`kvWriteCount:${today}`) || '0');
+  if (writeCount > 900) issues.push(`KV Quota Critical (${writeCount}/1000)`);
+
+  // Check System Readiness
+  try {
+    const list = await env.R2_ASSETS.list({ limit: 1 });
+    if (!list) issues.push('R2 access failing');
+  } catch (e: any) { issues.push('R2 error: ' + e.message); }
+
+  const status = issues.length === 0 ? 'Optimal' : (issues.length < 3 ? 'Degraded' : 'Critical');
+
+  return json({
+    status,
+    timestamp: Date.now(),
+    issues,
+    fixes,
+    recommendation: issues.length > 0 ? "Check wrangler.jsonc or account permissions." : "System healthy."
+  }, 200, corsHeaders);
 }
 
 // ----------------------------------------------------------------------------

@@ -200,9 +200,9 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V5 Loaded");
+console.log("UI_VERSION_HOLD_FIX_V6 Loaded");
 
-// Global state
+let chatHistory = [];
 let activeFile = null;
 let openTabs = [];
 let fileTree = [];
@@ -489,13 +489,18 @@ window.sendMessage = async function() {
 
     try {
         const model = document.getElementById('modelSelector')?.value;
-        const endpoint = model === 'flux' || model === 'sdxl' ? '/api/image' : '/api/chat';
+        const isImageModel = model === 'flux' || model === 'sdxl';
+        const endpoint = isImageModel ? '/api/image' : '/api/chat';
+
+        // Add to history
+        chatHistory.push({ role: 'user', content: text });
 
         const res = await fetch(endpoint, {
             method: 'POST',
             body: JSON.stringify({
                 message: text,
-                prompt: text, // For image gen
+                history: chatHistory.slice(-10), // Send last 10 messages for context
+                prompt: text,
                 style: model === 'sdxl' ? 'realism' : 'speed',
                 model,
                 image: activeImage
@@ -536,8 +541,26 @@ window.sendMessage = async function() {
             }
         }
 
-        if (autoAudio) window.speakResponse(fullText);
+        // Add to history and check for triggers
+        chatHistory.push({ role: 'assistant', content: fullText });
 
+        // Omni-Aware: Auto Image Trigger
+        const imageMatch = fullText.match(/\[IMAGE:\s*(.*?)\]/i);
+        if (imageMatch && imageMatch[1]) {
+            const prompt = imageMatch[1];
+            window.addMessage('ai', '🎨 *Generating image: "' + prompt + '"*...', true);
+            const imgRes = await fetch('/api/image', {
+                method: 'POST',
+                body: JSON.stringify({ prompt, style: 'speed' })
+            });
+            if (imgRes.ok) {
+                const imgData = await imgRes.json();
+                window.addMessage('ai', '<img src="' + imgData.image + '" class="rounded-lg cursor-pointer" onclick="window.loadFile(\\'' + imgData.filename + '\\')">');
+                window.refreshFiles();
+            }
+        }
+
+        if (autoAudio) window.speakResponse(fullText);
     } catch(e) { aiDiv.innerText = 'Error: ' + e.message; }
 };
 
@@ -594,7 +617,7 @@ window.startSpeechToText = async function() {
                 const data = await res.json();
                 if (data.text) {
                     const input = document.getElementById('chatInput');
-                    input.value = (input.value ? input.value + ' ' : '') + data.text;
+                    input.value = '[VOICE_COMMAND] ' + data.text;
                     // Auto-send on release for game-dev speed
                     window.sendMessage();
                 }
@@ -621,7 +644,13 @@ window.addMessage = function(role, text, loading) {
     const div = document.createElement('div');
     const isUser = (role === 'user');
     div.className = 'p-3 rounded-lg border ' + (isUser ? 'bg-slate-700/50 ml-6 border-slate-600' : 'bg-indigo-900/20 mr-6 border-indigo-900/50');
-    div.innerHTML = loading ? 'Thinking...' : window.formatToken(text);
+
+    if (loading) {
+        div.innerHTML = '<div class="flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-indigo-400"></i> Thinking...</div>';
+    } else {
+        div.innerHTML = window.formatToken(text);
+    }
+
     container?.appendChild(div);
     if (container) container.scrollTop = container.scrollHeight;
     return div;
