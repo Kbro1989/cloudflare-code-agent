@@ -255,10 +255,10 @@ export const IDE_HTML = `<!DOCTYPE html>
 
 
 export const UI_JS = `
-// Use hex escape for backticks to avoid terminating the outer template literal
-const BACKTICK = "\\x60";
+// Safe definition of backtick to avoid template literal collisions
+const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V23 Loaded - Sound Studio Active");
+console.log("UI_VERSION_HOLD_FIX_V24 Loaded - Sound Studio Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -874,7 +874,7 @@ window.sendMessage = async function() {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value);
-            const lines = chunk.split('\\n\\n');
+            const lines = chunk.split('\\\\n\\\\n');
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     try {
@@ -920,14 +920,14 @@ window.sendMessage = async function() {
             }).then(r => r.json()).then(bData => {
                 if (bData.success) {
                     const output = bData.output ? bData.output.slice(-500) : 'Done';
-                    window.addMessage('ai', '✅ *Blender Task Complete!* \n' + BACKTICK + BACKTICK + BACKTICK + '\n' + output + '\n' + BACKTICK + BACKTICK + BACKTICK);
+                    window.addMessage('ai', '✅ *Blender Task Complete!* \\\\n' + BACKTICK + BACKTICK + BACKTICK + '\\\\n' + output + '\\\\n' + BACKTICK + BACKTICK + BACKTICK);
                     window.refreshFiles();
                 } else {
                     const errText = bData.error || 'Unknown error';
-                    window.addMessage('ai', '❌ *Blender Error:* \n' + BACKTICK + errText + BACKTICK);
+                    window.addMessage('ai', '❌ *Blender Error:* \\\\n' + BACKTICK + errText + BACKTICK);
                 }
             }).catch(err => {
-                window.addMessage('ai', '❌ *Bridge Error:* \n' + BACKTICK + err.message + BACKTICK);
+                window.addMessage('ai', '❌ *Bridge Error:* \\\\n' + BACKTICK + err.message + BACKTICK);
             });
         }
 
@@ -1041,7 +1041,7 @@ window.formatToken = function(text) {
             '</div>' +
             '<pre class="text-xs overflow-x-auto">' + window.escapeHtml(code) + '</pre>' +
         '</div>';
-    }).replace(/\\n/g, '<br>');
+    }).replace(/\\\\n/g, '<br>');
 };
 
 window.applyCode = async function(encodedCode, file) {
