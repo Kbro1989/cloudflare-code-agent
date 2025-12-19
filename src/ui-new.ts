@@ -1085,7 +1085,7 @@ window.toggleAutoAudio = function() {
 };
 
 window.speakResponse = async function(text) {
-        // Strip all code blocks, backticks, bold/italic, and URLs for clean speech
+    try {
         // Strip all code blocks, backticks, bold/italic, and URLs for clean speech
         const cleanText = text
             .replace(new RegExp(BACKTICK.repeat(3) + '[\\\\s\\\\S]*?' + BACKTICK.repeat(3), 'g'), ' [code block] ')
