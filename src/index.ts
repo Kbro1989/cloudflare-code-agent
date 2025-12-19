@@ -141,7 +141,12 @@ async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: str
 
 const SYSTEM_PROMPT = `
 You are an advanced AI coding agent (Omni-Dev Level).
-To edit files, output a code block with the first line specifying the file path:
+Primary Directive: Provide immediate, actionable, and correct code or answers.
+- Keep responses snappy and concise.
+- Minimize "thinking out loud" unless using the reasoning model.
+- Avoid repetitive reasoning loops. If you find yourself over-speculating, stop and ask for data.
+- Do not assume files exist unless you see them in the file list.
+- To edit files, output a code block with the first line specifying the file path:
 \`\`\`language
 // file: path/to/file.ext
 ... code ...
@@ -211,7 +216,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V4\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V5 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -518,22 +523,20 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     const audioArray = new Uint8Array(audioBuffer);
 
     try {
-      // Primary attempt: Native Binary (Most efficient for large buffers)
+      // Direct binary input for Whisper is the most reliable current method in Workers AI
       // @ts-ignore
-      const response = await env.AI.run(MODELS.STT, {
-        audio: audioArray as any
-      });
+      const response = await env.AI.run(MODELS.STT, audioArray);
       return json(response, 200, corsHeaders);
     } catch (e1: any) {
-      // Secondary attempt: Spread Array (Compatibility fallback for older bindings)
       try {
+        // Fallback: Number array format
         // @ts-ignore
         const response = await env.AI.run(MODELS.STT, {
-          audio: [...audioArray]
+          audio: Array.from(audioArray)
         });
         return json(response, 200, corsHeaders);
       } catch (e2: any) {
-        return new Response(`STT Error: [Binary: ${e1.message}] [Array: ${e2.message}]`, { status: 500, headers: corsHeaders });
+        return new Response(`STT Error: [Direct: ${e1.message}] [Array: ${e2.message}]`, { status: 500, headers: corsHeaders });
       }
     }
   } catch (e: any) {
@@ -615,7 +618,7 @@ async function handleHealth(request: Request, env: Env, corsHeaders: any): Promi
   return json(status, 200, corsHeaders);
 }
 
-async function generateCompletion(env: Env, prompt: string, maxTokens: number, requestedModel?: string): Promise<{ completion: string, provider: string }> {
+async function generateCompletion(env: Env, prompt: string, maxTokens: number, requestedModel?: string, temperature = 0.2): Promise<{ completion: string, provider: string }> {
   const providers = [
     {
       name: 'gemini',
@@ -629,7 +632,7 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens }
+              generationConfig: { temperature, maxOutputTokens: maxTokens }
             }),
             signal: AbortSignal.timeout(15000)
           }
@@ -650,7 +653,7 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
         if (requestedModel === 'gpt-oss') modelId = MODELS.GPT_OSS;
 
         // @ts-ignore
-        const response = await env.AI.run(modelId, { prompt, max_tokens: maxTokens });
+        const response = await env.AI.run(modelId, { prompt, max_tokens: maxTokens, temperature });
         // @ts-ignore
         return response.response?.trim();
       }
@@ -726,7 +729,7 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
   const finalPrompt = prompt || `Complete this ${language} code:\n${before}<CURSOR>${after}\n\nOutput ONLY the completion:`;
 
   try {
-    const result = await generateCompletion(env, finalPrompt, 256, model);
+    const result = await generateCompletion(env, finalPrompt, 256, model, 0.1);
 
     // Recommendation 4: Adaptive Memory Batching
     ctx.waitUntil(saveProjectMemory(env, ctx, 'default', {
@@ -762,7 +765,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
   const prompt = `Chat History:\n${history.map((m: any) => `${m.role}: ${m.content}`).join('\n')}\nUser: ${message}\nAI:`;
 
   try {
-    const result = await generateCompletion(env, prompt, 1024, model);
+    const result = await generateCompletion(env, prompt, 1024, model, 0.3);
 
     // Recommendation 4: Adaptive Memory Batching
     ctx.waitUntil(saveProjectMemory(env, ctx, 'default', {
@@ -798,7 +801,7 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
   const prompt = `Explain this ${language} code concisely:\n\`\`\`${language}\n${code}\n\`\`\`\n\nExplanation:`;
 
   try {
-    const result = await generateCompletion(env, prompt, 512, 'coding');
+    const result = await generateCompletion(env, prompt, 512, 'coding', 0);
     ctx.waitUntil(incrementKVQuota(env));
     return json({ explanation: result.completion, provider: result.provider }, 200, corsHeaders);
   } catch (e: any) {
