@@ -50,6 +50,25 @@
   "ai": {
     "binding": "AI"
   },
+  "assets": {
+    "directory": "./src",
+    "binding": "ASSETS"
+  },
+  "upload": {
+    "dir": "src",
+    "format": "modules",
+    "rules": [
+      {
+        "type": "Text",
+        "globs": [
+          "**/*.ts",
+          "**/*.js",
+          "**/*.html"
+        ],
+        "fallthrough": true
+      }
+    ]
+  },
   "observability": {
     "enabled": true,
     "logs": {

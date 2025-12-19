@@ -209,7 +209,7 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V13 Loaded");
+console.log("UI_VERSION_HOLD_FIX_V16 Loaded - Secret Sync Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -887,14 +887,15 @@ async function updateHealthStatus() {
                     quotaParent.className = 'flex items-center gap-2 text-slate-500';
                 }
             }
+        }
 
-            // Update Provider Badge
-            const primary = data.providers.find(p => p.tier === 'primary');
-            if (primary && primary.status === 'available') {
-                document.getElementById('providerBadge').innerText = 'Gemini 1.5 Flash';
-            } else {
-                 const secondary = data.providers.find(p => p.tier === 'secondary');
-                 if (secondary) document.getElementById('providerBadge').innerText = 'Workers AI';
+        // Detailed binding audit (V15)
+        const docRes = await fetch('/api/doctor');
+        if (docRes.ok) {
+            const report = await docRes.json();
+            console.log("Binding Health Audit:", report.bindings);
+            if (report.issues.length > 0) {
+                console.warn("IDE Issues Detected:", report.issues);
             }
         }
     } catch (e) {}

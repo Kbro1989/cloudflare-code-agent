@@ -12,6 +12,7 @@ export interface Env {
 
   // Secrets
   GEMINI_API_KEY?: string;
+  VITE_GEMINI_API_KEY?: string;
   OLLAMA_URL?: string;
   OLLAMA_AUTH_TOKEN?: string;
   OLLAMA_API_KEY?: string;
@@ -223,7 +224,7 @@ export default {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/ide') {
         const finalHtml = IDE_HTML.replace(
           '</body>',
-          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V13 - BUILD: ' + Date.now() + '\n</script>\n</body>'
+          '<script type="module">\n' + UI_JS + '\n' + BRIDGE_INTEGRATION + '\n// v=HOLD_FIX_V16 - BUILD: ' + Date.now() + '\n</script>\n</body>'
         );
         return new Response(finalHtml, {
           headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
@@ -605,7 +606,7 @@ async function handleHealth(request: Request, env: Env, corsHeaders: any): Promi
   status.kvWriteQuota = Math.round((parseInt(writeCount) / 1000) * 100);
 
   // Gemini Check
-  if (env.GEMINI_API_KEY) {
+  if (env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY) {
     const isFailing = await env.CACHE.get('geminiCircuitBreaker') === 'true';
     status.providers.push({
       name: 'gemini',
@@ -642,11 +643,12 @@ async function generateCompletion(env: Env, prompt: string, maxTokens: number, r
   const providers = [
     {
       name: 'gemini',
-      check: !!env.GEMINI_API_KEY,
+      check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY),
       health: healthTracker.gemini,
       run: async () => {
+        const apiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -835,31 +837,40 @@ async function handleExplain(request: Request, env: Env, ctx: ExecutionContext, 
 async function handleDoctor(request: Request, env: Env, corsHeaders: any): Promise<Response> {
   const issues: string[] = [];
   const fixes: string[] = [];
+  const status_report: any = {};
 
-  // Check Bindings
+  // Check Core Bindings
+  status_report.AI = !!env.AI;
+  status_report.R2 = !!env.R2_ASSETS;
+  status_report.MEMORY_KV = !!env.MEMORY;
+  status_report.CACHE_KV = !!env.CACHE;
+  status_report.RATE_LIMITER = !!env.RATE_LIMITER;
+
+  // Check Secrets (Presence only)
+  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY);
+  status_report.CLOUDFLARE_AUTH = !!env.CLOUDFLARE_API_TOKEN;
+  status_report.OLLAMA_SECRET = !!env.OLLAMA_URL;
+
   if (!env.AI) issues.push('AI binding missing');
   if (!env.R2_ASSETS) issues.push('R2_ASSETS binding missing');
   if (!env.MEMORY) issues.push('MEMORY (KV) binding missing');
+  if (!env.RATE_LIMITER) issues.push('RATE_LIMITER (DO) binding missing');
+  if (!status_report.GEMINI_SECRET) issues.push('GEMINI_API_KEY secret missing (Flash fallback will fail)');
 
   // Check Quota
   const today = new Date().toISOString().split('T')[0];
   const writeCount = parseInt(await env.CACHE.get(`kvWriteCount:${today}`) || '0');
   if (writeCount > 900) issues.push(`KV Quota Critical (${writeCount}/1000)`);
 
-  // Check System Readiness
-  try {
-    const list = await env.R2_ASSETS.list({ limit: 1 });
-    if (!list) issues.push('R2 access failing');
-  } catch (e: any) { issues.push('R2 error: ' + e.message); }
-
   const status = issues.length === 0 ? 'Optimal' : (issues.length < 3 ? 'Degraded' : 'Critical');
 
   return json({
     status,
     timestamp: Date.now(),
+    bindings: status_report,
     issues,
     fixes,
-    recommendation: issues.length > 0 ? "Check wrangler.jsonc or account permissions." : "System healthy."
+    recommendation: issues.length > 0 ? "Check your Cloudflare Dashboard bindings or wrangler.jsonc." : "All systems green."
   }, 200, corsHeaders);
 }
 
