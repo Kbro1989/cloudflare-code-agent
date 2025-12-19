@@ -47,14 +47,17 @@ app.get('/api/fs/list', async (req, res) => {
 // Get File
 app.get('/api/fs/file', async (req, res) => {
   try {
-    const { name } = req.query;
-    if (!name) return res.status(400).json({ error: 'Missing name parameter' });
+    const name = req.query.name;
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Missing name parameter' });
 
-    let filePath = path.join(WORKSPACE_ROOT, name);
-
-    // Security check
-    if (!filePath.startsWith(WORKSPACE_ROOT)) {
-      return res.status(403).json({ error: 'Access denied' });
+    let filePath;
+    try {
+      filePath = path.join(WORKSPACE_ROOT, name);
+      if (!filePath.startsWith(WORKSPACE_ROOT)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } catch (pe) {
+      return res.status(400).json({ error: 'Invalid path' });
     }
 
     try {
@@ -86,13 +89,16 @@ app.get('/api/fs/file', async (req, res) => {
 app.post('/api/fs/file', async (req, res) => {
   try {
     const { name, content, encoding } = req.body;
-    if (!name) return res.status(400).json({ error: 'Missing name' });
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Missing name' });
 
-    const filePath = path.join(WORKSPACE_ROOT, name);
-
-    // Security check
-    if (!filePath.startsWith(WORKSPACE_ROOT)) {
-      return res.status(403).json({ error: 'Access denied' });
+    let filePath;
+    try {
+      filePath = path.join(WORKSPACE_ROOT, name);
+      if (!filePath.startsWith(WORKSPACE_ROOT)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } catch (pe) {
+      return res.status(400).json({ error: 'Invalid path' });
     }
 
     // Ensure directory exists
@@ -118,12 +124,16 @@ app.post('/api/fs/file', async (req, res) => {
 app.delete('/api/fs/file', async (req, res) => {
   try {
     const { name } = req.body;
-    if (!name) return res.status(400).json({ error: 'Missing name' });
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Missing name' });
 
-    let filePath = path.join(WORKSPACE_ROOT, name);
-
-    if (!filePath.startsWith(WORKSPACE_ROOT)) {
-      return res.status(403).json({ error: 'Access denied' });
+    let filePath;
+    try {
+      filePath = path.join(WORKSPACE_ROOT, name);
+      if (!filePath.startsWith(WORKSPACE_ROOT)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    } catch (pe) {
+      return res.status(400).json({ error: 'Invalid path' });
     }
 
     try {
@@ -145,6 +155,7 @@ app.delete('/api/fs/file', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error(`❌ DELETE /api/fs/file error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });

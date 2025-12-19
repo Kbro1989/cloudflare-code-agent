@@ -258,7 +258,7 @@ export const UI_JS = `
 // Safe definition of backtick to avoid template literal collisions
 const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V27.3 Loaded - Rigged for Production");
+console.log("UI_VERSION_HOLD_FIX_V27.4 Loaded - Bridge Reliability Patch Active");
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -1141,7 +1141,8 @@ window.getLanguage = (n) => {
 window.createNewFile = async function() {
     const name = prompt("Filename:");
     if (name) {
-        await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
+        const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+        await fetch(apiBase + '/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content: '' }) });
         window.refreshFiles();
     }
 };
