@@ -7,7 +7,7 @@
 export const BRIDGE_INTEGRATION = `
 // Local Bridge State
 let localBridgeAvailable = false;
-const BRIDGE_URL = 'http://localhost:3030';
+const BRIDGE_URL = 'http://127.0.0.1:3030';
 
 // Detect Local Bridge with retries
 window.detectLocalBridge = async function() {

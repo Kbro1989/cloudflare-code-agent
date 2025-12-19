@@ -218,9 +218,18 @@ function shouldIgnore(name) {
   return ignorePatterns.includes(name) || name.startsWith('.');
 }
 
-app.listen(PORT, () => {
-  console.log(`\n🌉 Local Bridge Server running on http://localhost:${PORT}`);
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`\n🌉 Local Bridge Server running on http://127.0.0.1:${PORT}`);
   console.log(`📁 Serving files from: ${WORKSPACE_ROOT}`);
   console.log(`\n✨ Your Web IDE can now access local files!`);
-  console.log(`\nTo change workspace: set WORKSPACE_ROOT=/path/to/project\n`);
+  console.log(`To change workspace: set WORKSPACE_ROOT=/path/to/project`);
 });
+
+// Global error handler for uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
