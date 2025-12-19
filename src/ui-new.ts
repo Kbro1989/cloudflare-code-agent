@@ -27,6 +27,11 @@ export const IDE_HTML = `<!DOCTYPE html>
         .chat-message p { margin-bottom: 0.5rem; }
         .chat-message pre { background: #000; padding: 0.5rem; border-radius: 0.25rem; margin: 0.5rem 0; overflow-x: auto; }
         .chat-message code { font-family: monospace; color: #e2e8f0; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; padding: 0.5rem; }
+        .asset-card { background: #1e293b; border-radius: 0.5rem; border: 1px solid #334155; overflow: hidden; position: relative; aspect-ratio: 1/1; cursor: pointer; transition: all 0.2s; }
+        .asset-card:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .asset-thumb { width: 100%; height: 100%; object-fit: cover; }
+        .asset-meta { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8)); padding: 0.25rem 0.5rem; font-size: 8px; color: #94a3b8; pointer-events: none; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -55,6 +60,7 @@ export const IDE_HTML = `<!DOCTYPE html>
             <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
                 <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Explorer</span>
                 <div class="flex gap-1">
+                    <button onclick="window.toggleExplorerMode()" id="explorerToggle" title="Toggle Gallery" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-table-cells text-sm"></i></button>
                     <button onclick="window.createNewFile()" title="New File" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-file-circle-plus text-sm"></i></button>
                     <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-indigo-400 text-slate-500 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
                     <label class="p-1 hover:text-indigo-400 text-slate-500 transition cursor-pointer">
@@ -65,6 +71,9 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
             <div id="fileList" class="flex-1 overflow-y-auto py-2">
                 <!-- Files go here -->
+            </div>
+            <div id="galleryList" class="flex-1 overflow-y-auto hidden">
+                <div class="gallery-grid" id="galleryGrid"></div>
             </div>
 
             <!-- GitHub Settings -->
@@ -200,8 +209,9 @@ export const UI_JS = `
 // Use hex escape for backticks to avoid terminating the outer template literal
 const BACKTICK = "\\x60";
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V11 Loaded");
+console.log("UI_VERSION_HOLD_FIX_V12 Loaded");
 
+let explorerMode = 'list';
 let chatHistory = [];
 let activeFile = null;
 let openTabs = [];
@@ -420,7 +430,19 @@ window.refreshFiles = async function() {
 
 window.renderFileList = function(files) {
     const listEl = document.getElementById('fileList');
-    if (!listEl) return;
+    const galleryEl = document.getElementById('galleryList');
+    if (!listEl || !galleryEl) return;
+
+    if (explorerMode === 'gallery') {
+        listEl.classList.add('hidden');
+        galleryEl.classList.remove('hidden');
+        window.renderAssetGallery(files);
+        return;
+    } else {
+        listEl.classList.remove('hidden');
+        galleryEl.classList.add('hidden');
+    }
+
     listEl.innerHTML = '';
     files.forEach(file => {
         const div = document.createElement('div');
@@ -432,6 +454,59 @@ window.renderFileList = function(files) {
                         '</div>' +
                         '<button class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400" onclick="event.stopPropagation(); window.deleteFile(\\'' + safeName + '\\')"><i class="fa-solid fa-trash text-xs"></i></button>';
         listEl.appendChild(div);
+    });
+};
+
+window.toggleExplorerMode = function() {
+    explorerMode = (explorerMode === 'list') ? 'gallery' : 'list';
+    const btn = document.getElementById('explorerToggle');
+    if (btn) btn.innerHTML = explorerMode === 'list' ? '<i class="fa-solid fa-table-cells text-sm"></i>' : '<i class="fa-solid fa-list text-sm"></i>';
+    window.renderFileList(fileTree);
+};
+
+window.renderAssetGallery = function(files) {
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    // Filter for media files
+    const mediaFiles = files.filter(f => f.name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i));
+
+    if (mediaFiles.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 text-xs">No media assets found</div>';
+        return;
+    }
+
+    mediaFiles.forEach(async file => {
+        const card = document.createElement('div');
+        card.className = 'asset-card group';
+        const safeName = escapeJsString(file.name);
+        card.onclick = () => window.loadFile(file.name);
+
+        const is3D = file.name.match(/\\.(glb|gltf)$/i);
+        const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
+
+        card.innerHTML = '<div class="flex items-center justify-center h-full"><i class="fa-solid fa-spinner fa-spin text-slate-700"></i></div>' +
+                         '<div class="asset-meta truncate">' + file.name + '</div>';
+        grid.appendChild(card);
+
+        // Lazy load thumbnail
+        try {
+            const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(file.name));
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                if (is3D) {
+                    card.innerHTML = '<model-viewer src="' + url + '" style="width:100%;height:100%" auto-rotate rotation-per-second="30deg" interaction-prompt="none" shadow-intensity="1"></model-viewer>' +
+                                     '<div class="asset-meta truncate">' + file.name + '</div>';
+                } else {
+                    card.innerHTML = '<img src="' + url + '" class="asset-thumb" onload="window.URL.revokeObjectURL(this.src)">' +
+                                     '<div class="asset-meta truncate">' + file.name + '</div>';
+                }
+            }
+        } catch(e) {
+            card.innerHTML = '<div class="flex items-center justify-center h-full text-red-900"><i class="fa-solid fa-image"></i></div>';
+        }
     });
 };
 
