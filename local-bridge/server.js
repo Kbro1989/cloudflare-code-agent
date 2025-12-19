@@ -60,6 +60,7 @@ app.get('/api/fs/file', async (req, res) => {
     const content = await fs.readFile(filePath, 'utf-8');
     res.json({ content });
   } catch (error) {
+    console.error(`❌ GET /api/fs/file error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
@@ -88,8 +89,10 @@ app.post('/api/fs/file', async (req, res) => {
       await fs.writeFile(filePath, content || '', 'utf-8');
     }
 
+    console.log(`💾 Saved file: ${name}`);
     res.json({ success: true });
   } catch (error) {
+    console.error(`❌ POST /api/fs/file error (${req.body.name}): ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
