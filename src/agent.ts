@@ -4,6 +4,19 @@ import { runWithTools } from "@cloudflare/ai-utils";
 import { Env } from "./index";
 
 const WORKSPACE_PREFIX = 'projects/default/';
+const LOCAL_BRIDGE_URL = 'http://127.0.0.1:3040';
+
+// Clean up incomplete tool calls from messages (from agents-starter pattern)
+function cleanupMessages(messages: any[]): any[] {
+  return messages.filter((message) => {
+    if (!message.parts) return true;
+    const hasIncompleteToolCall = message.parts.some((part: any) =>
+      part.state === 'input-streaming' ||
+      (part.state === 'input-available' && !part.output && !part.errorText)
+    );
+    return !hasIncompleteToolCall;
+  });
+}
 
 export class CodeAgent extends AIChatAgent<Env> {
   async onRequest(request: Request): Promise<Response> {
@@ -104,14 +117,14 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ query }: { query: string }) => {
             try {
-              const res = await fetch("http://127.0.0.1:3030/api/fs/search", {
+              const res = await fetch(LOCAL_BRIDGE_URL + "/api/fs/search", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ pattern: query })
               });
               if (res.ok) return await res.text();
             } catch (e) { }
-            return "Search failed: Local bridge not reachable on port 3030.";
+            return "Search failed: Local bridge not reachable.";
           }
         },
         {
@@ -126,14 +139,14 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ command }: { command: string }) => {
             try {
-              const res = await fetch("http://127.0.0.1:3030/api/terminal", {
+              const res = await fetch(LOCAL_BRIDGE_URL + "/api/terminal", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ command })
               });
               return await res.text();
             } catch (e) {
-              return "Error: Terminal bridge not reachable on port 3030.";
+              return "Error: Terminal bridge not reachable.";
             }
           }
         },
@@ -150,7 +163,7 @@ export class CodeAgent extends AIChatAgent<Env> {
           function: async ({ command }: { command: string }) => {
             try {
               const fullCommand = command.startsWith("git ") ? command : `git ${command}`;
-              const res = await fetch("http://127.0.0.1:3030/api/terminal", {
+              const res = await fetch(LOCAL_BRIDGE_URL + "/api/terminal", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ command: fullCommand })
@@ -174,7 +187,7 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ script, args = [] }: { script: string, args?: string[] }) => {
             try {
-              const res = await fetch("http://127.0.0.1:3030/api/blender/run", {
+              const res = await fetch(LOCAL_BRIDGE_URL + "/api/blender/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ script, args })
