@@ -409,45 +409,75 @@ if (window.require || typeof require !== 'undefined') {
     console.error('Monaco loader not found');
 }
 
-// Terminal
+// --- WebSocket Terminal Engine ---
+let termWS = null;
+const termOutput = document.getElementById('terminalOutput');
+
+function initTerminalWS() {
+    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+    const wsUrl = bridgeUrl.replace('http', 'ws');
+
+    console.log('🔌 Connecting Terminal WebSocket:', wsUrl);
+    termWS = new WebSocket(wsUrl);
+
+    termWS.onmessage = (event) => {
+        try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'output') {
+                const span = document.createElement('span');
+                span.className = msg.isError ? 'text-red-400 whitespace-pre-wrap' : 'text-cyan-400/90 whitespace-pre-wrap';
+                span.innerText = msg.data;
+                termOutput.appendChild(span);
+                termOutput.scrollTop = termOutput.scrollHeight;
+            } else if (msg.type === 'system') {
+                const div = document.createElement('div');
+                div.className = 'text-yellow-500 italic text-xs my-1';
+                div.innerText = ' [System]: ' + msg.data;
+                termOutput.appendChild(div);
+            }
+        } catch (e) {
+            const raw = document.createElement('span');
+            raw.className = 'text-gray-400 whitespace-pre-wrap';
+            raw.innerText = event.data;
+            termOutput.appendChild(raw);
+        }
+    };
+
+    termWS.onclose = () => {
+        console.warn('⚠️ Terminal WebSocket Closed. Retrying in 3s...');
+        setTimeout(initTerminalWS, 3000);
+    };
+
+    termWS.onerror = (err) => console.error('❌ Terminal WS Error:', err);
+}
+
+// Start terminal service
+initTerminalWS();
+
 const termInput = document.getElementById('terminalInput');
 termInput?.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
         const cmd = termInput.value;
         if (!cmd) return;
         termInput.value = '';
-        const out = document.getElementById('terminalOutput');
-        const line = document.createElement('div');
-        line.innerHTML = '<span class="text-cyan-900 mr-2">$</span>' + window.escapeHtml(cmd);
-        out.appendChild(line);
 
-        try {
-            const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
-            const res = await fetch(apiBase + '/api/terminal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: cmd })
-            });
-            const d = await res.json();
-            const respLine = document.createElement('pre');
+        // Command Echo
+        const echo = document.createElement('div');
+        echo.className = 'text-white/40 mt-2';
+        echo.innerHTML = '<span class="text-cyan-900 mr-2">PS></span>' + window.escapeHtml(cmd);
+        termOutput.appendChild(echo);
 
-            // Set color based on success/failure
-            if (d.success === false) {
-                respLine.className = 'text-red-400/80 whitespace-pre-wrap ml-4 italic';
-            } else {
-                respLine.className = 'text-cyan-400/80 whitespace-pre-wrap ml-4';
-            }
-
-            respLine.innerText = d.output + (d.exitCode ? "\\n\\n[Process exited with code " + d.exitCode + "]" : "");
-            out.appendChild(respLine);
-        } catch (err) {
-            const errLine = document.createElement('div');
-            errLine.className = 'text-red-400 ml-4';
-            errLine.innerText = 'Bridge Error: ' + err.message;
-            out.appendChild(errLine);
+        if (termWS && termWS.readyState === WebSocket.OPEN) {
+            termWS.send(JSON.stringify({ type: 'input', command: cmd }));
+        } else {
+            const err = document.createElement('div');
+            err.className = 'text-red-500';
+            err.innerText = 'Error: Terminal not connected to local bridge.';
+            termOutput.appendChild(err);
         }
-        out.scrollTop = out.scrollHeight;
+        termOutput.scrollTop = termOutput.scrollHeight;
     }
+});
 });
 
 // GitHub

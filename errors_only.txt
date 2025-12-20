@@ -1,0 +1,135 @@
+﻿
+tail_logs_utf8.txt:14
+:    "exceptions": 
+[],
+tail_logs_utf8.txt:43
+:    "exceptions": 
+[],
+tail_logs_utf8.txt:70
+:    "exceptions": 
+[],
+tail_logs_utf8.txt:17
+1:    "exceptions": 
+[],
+tail_logs_utf8.txt:27
+3:    "exceptions": 
+[],
+tail_logs_utf8.txt:30
+0:    "exceptions": 
+[],
+tail_logs_utf8.txt:40
+3:    "exceptions": 
+[],
+tail_logs_utf8.txt:43
+0:    "exceptions": 
+[],
+tail_logs_utf8.txt:53
+2:    "exceptions": 
+[],
+tail_logs_utf8.txt:56
+1:    "exceptions": 
+[],
+tail_logs_utf8.txt:58
+8:    "exceptions": 
+[],
+tail_logs_utf8.txt:68
+8:    "exceptions": 
+[],
+tail_logs_utf8.txt:78
+8:    "exceptions": 
+[],
+tail_logs_utf8.txt:89
+0:    "exceptions": 
+[],
+tail_logs_utf8.txt:91
+9:    "exceptions": 
+[],
+tail_logs_utf8.txt:94
+6:    "exceptions": 
+[],
+tail_logs_utf8.txt:10
+48:    "exceptions": 
+[],
+tail_logs_utf8.txt:10
+75:    "exceptions": 
+[],
+tail_logs_utf8.txt:11
+77:    "exceptions": 
+[],
+tail_logs_utf8.txt:12
+04:    "exceptions": 
+[],
+tail_logs_utf8.txt:13
+06:    "exceptions": 
+[],
+tail_logs_utf8.txt:13
+27:    "outcome": 
+"exception",
+tail_logs_utf8.txt:13
+35:    "exceptions": 
+[
+tail_logs_utf8.txt:13
+38:            
+"name": "Error",
+tail_logs_utf8.txt:14
+36:    "outcome": 
+"exception",
+tail_logs_utf8.txt:14
+42:    "exceptions": 
+[
+tail_logs_utf8.txt:14
+45:            
+"name": "Error",
+tail_logs_utf8.txt:14
+50:            
+"name": "Error",
+tail_logs_utf8.txt:15
+59:    "exceptions": 
+[],
+tail_logs_utf8.txt:15
+86:    "exceptions": 
+[],
+tail_logs_utf8.txt:16
+88:    "exceptions": 
+[],
+tail_logs_utf8.txt:17
+15:    "exceptions": 
+[],
+tail_logs_utf8.txt:18
+17:    "exceptions": 
+[],
+tail_logs_utf8.txt:18
+44:    "exceptions": 
+[],
+tail_logs_utf8.txt:19
+46:    "exceptions": 
+[],
+tail_logs_utf8.txt:19
+73:    "exceptions": 
+[],
+tail_logs_utf8.txt:20
+75:    "exceptions": 
+[],
+tail_logs_utf8.txt:21
+02:    "exceptions": 
+[],
+tail_logs_utf8.txt:22
+04:    "exceptions": 
+[],
+tail_logs_utf8.txt:22
+31:    "exceptions": 
+[],
+tail_logs_utf8.txt:23
+33:    "exceptions": 
+[],
+tail_logs_utf8.txt:23
+60:    "exceptions": 
+[],
+tail_logs_utf8.txt:24
+62:    "exceptions": 
+[],
+tail_logs_utf8.txt:24
+89:    "exceptions": 
+[],
+
+

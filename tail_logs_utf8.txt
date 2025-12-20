@@ -1,0 +1,1542 @@
+﻿{
+    "wallTime": 1,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205177998,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 141,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205177957,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+            "method": "GET",
+            "headers": {
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b3a3fa01db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=0, i",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "document",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-site": "none",
+                "sec-fetch-user": "?1",
+                "upgrade-insecure-requests": "1",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205178199,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 65,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205178166,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/assets/app.js",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b3b8c3d1db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "origin": "https://cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "script",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 1,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179083,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179083,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 67,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179048,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/models",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b4108011db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 131,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179048,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/health",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b410ffc1db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179235,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 71,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179203,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/doctor",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b420b7a1db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179485,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179563,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 67,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179530,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/favicon.ico",
+            "method": "GET",
+            "headers": {
+                "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b440ad81db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "image",
+                "sec-fetch-mode": "no-cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 204
+        }
+    }
+}
+{
+    "wallTime": 160,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179452,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/fs/list",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b43893d1db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179674,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 71,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205179641,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/fs/list",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b44bcd81db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205184157,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 74,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205184122,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/health",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b60baa21db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 0,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205184262,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 67,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "ok",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205184228,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/doctor",
+            "method": "GET",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6b616cd71db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 1,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "ok",
+    "durableObjectId": "0dd1ef7a0a7ad4823b4b0cfe5200e45a5f0592ba9aff4e99f555acece45f63d4",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "RateLimiter",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [],
+    "logs": [],
+    "eventTimestamp": 1766205195149,
+    "event": {
+        "request": {
+            "url": "https://rate-limit/",
+            "method": "POST",
+            "headers": {
+                "content-type": "text/plain;charset=UTF-8"
+            }
+        },
+        "response": {
+            "status": 200
+        }
+    }
+}
+{
+    "wallTime": 1,
+    "cpuTime": 0,
+    "truncated": false,
+    "executionModel": "durableObject",
+    "outcome": "exception",
+    "durableObjectId": "4503fa2dffb2e42598dd171c672cee7dbeb6a5f6e9d89e68c014de29c40f9d32",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "entrypoint": "CodeAgent",
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [
+        {
+            "stack": "    at CodeAgent.fetch (index.js:112909:15)",
+            "name": "Error",
+            "message": "Missing namespace or room headers when connecting to CodeAgent.\nDid you try connecting directly to this Durable Object? Try using getServerByName(namespace, id) instead.",
+            "timestamp": 1766205195202
+        }
+    ],
+    "logs": [],
+    "eventTimestamp": 1766205195201,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/chat",
+            "method": "POST",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6ba57c151db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-length": "144",
+                "content-type": "text/plain;charset=UTF-8",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "origin": "https://cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-agents-namespace": "CodeAgent",
+                "x-agents-room": "default",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        }
+    }
+}
+{
+    "wallTime": 97,
+    "cpuTime": 1,
+    "truncated": false,
+    "executionModel": "stateless",
+    "outcome": "exception",
+    "scriptVersion": {
+        "id": "4e2a7ddb-5e5c-479a-9c9d-d4a9288c7505"
+    },
+    "scriptName": "cloudflare-code-agent",
+    "diagnosticsChannelEvents": [],
+    "exceptions": [
+        {
+            "name": "Error",
+            "message": "Missing namespace or room headers when connecting to CodeAgent.\nDid you try connecting directly to this Durable Object? Try using getServerByName(namespace, id) instead.",
+            "timestamp": 1766205195210
+        }
+    ],
+    "logs": [],
+    "eventTimestamp": 1766205195115,
+    "event": {
+        "request": {
+            "url": "https://cloudflare-code-agent.kristain33rs.workers.dev/api/chat",
+            "method": "POST",
+            "headers": {
+                "accept": "*/*",
+                "accept-encoding": "gzip, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cf-connecting-ip": "2a09:bac5:952d:3af::5e:3f",
+                "cf-ipcountry": "US",
+                "cf-ray": "9b0c6ba57c151db9",
+                "cf-visitor": "{\"scheme\":\"https\"}",
+                "connection": "Keep-Alive",
+                "content-length": "144",
+                "content-type": "text/plain;charset=UTF-8",
+                "host": "cloudflare-code-agent.kristain33rs.workers.dev",
+                "origin": "https://cloudflare-code-agent.kristain33rs.workers.dev",
+                "priority": "u=1, i",
+                "referer": "https://cloudflare-code-agent.kristain33rs.workers.dev/",
+                "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "\"Windows\"",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "same-origin",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+                "x-forwarded-proto": "https",
+                "x-real-ip": "2a09:bac5:952d:3af::5e:3f"
+            },
+            "cf": {
+                "httpProtocol": "HTTP/3",
+                "clientAcceptEncoding": "gzip, deflate, br",
+                "requestPriority": "",
+                "edgeRequestKeepAliveStatus": 1,
+                "requestHeaderNames": {},
+                "clientTcpRtt": 0,
+                "colo": "STL",
+                "asn": 13335,
+                "asOrganization": "Cloudflare London, LLC",
+                "country": "US",
+                "isEUCountry": false,
+                "city": "St. Louis",
+                "continent": "NA",
+                "region": "Missouri",
+                "regionCode": "MO",
+                "timezone": "America/Chicago",
+                "longitude": "-90.19789",
+                "latitude": "38.62727",
+                "postalCode": "63101",
+                "tlsVersion": "TLSv1.3",
+                "tlsCipher": "AEAD-AES128-GCM-SHA256",
+                "tlsClientRandom": "xbBigyNAUHdNVzG1K1HpiIsTuhnTJnKM708wb5fGyr0=",
+                "tlsClientCiphersSha1": "3HTt3+R/6BL3zeALJDSq0pR1yOQ=",
+                "tlsClientExtensionsSha1": "DnUsmb/8YZg9TdBtzMiO5nfd6Z8=",
+                "tlsClientExtensionsSha1Le": "5n8kZyAlZSR5g2rV16GF+be1LUg=",
+                "tlsExportedAuthenticator": {
+                    "clientHandshake": "49e72623cb56a1ee707f510a6677051df2fb9aaf9d002c4f977dfa74ed23cf14",
+                    "serverHandshake": "44607a53273da2d2da9b7c022a9422ba6fc596928a70aa09cebe419ff8f3b767",
+                    "clientFinished": "8c229110a3c2431e11b38739f1cfc92dc223ed56d0cc08fb508e1ddd5549355d",
+                    "serverFinished": "f4da8963e042899d30e69f362ae6b0e70153719ab63e823e781b5d6ea04ede91"
+                },
+                "tlsClientHelloLength": "1973",
+                "tlsClientAuth": {
+                    "certPresented": "0",
+                    "certVerified": "NONE",
+                    "certRevoked": "0",
+                    "certIssuerDN": "",
+                    "certSubjectDN": "",
+                    "certIssuerDNRFC2253": "",
+                    "certSubjectDNRFC2253": "",
+                    "certIssuerDNLegacy": "",
+                    "certSubjectDNLegacy": "",
+                    "certSerial": "",
+                    "certIssuerSerial": "",
+                    "certSKI": "",
+                    "certIssuerSKI": "",
+                    "certFingerprintSHA1": "",
+                    "certFingerprintSHA256": "",
+                    "certNotBefore": "",
+                    "certNotAfter": ""
+                },
+                "verifiedBotCategory": ""
+            }
+        },
+        "response": {
+            "status": 500
+        }
+    }
+}
+
