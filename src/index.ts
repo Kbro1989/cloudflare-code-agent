@@ -167,12 +167,22 @@ async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: str
   }
 }
 
-// --- AI Gateway Helper (Safe Routing Phase 10) ---
 async function runAI(env: Env, model: string, input: any, provider = 'workers-ai'): Promise<any> {
   const accountId = env.CLOUDFLARE_ACCOUNT_ID;
   const gatewayId = env.AI_GATEWAY_ID;
   const cfApiToken = env.WORKERS_AI_KEY || env.CLOUDFLARE_API_TOKEN;
   const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
+
+  // --- BYPASS GATEWAY FOR BINARY-HEAVY MODELS (Performance & Reliability) ---
+  const isBinaryModel = model.includes('whisper') || model.includes('melo') || model.includes('aura') || model.includes('flux') || model.includes('stable-diffusion') || model.includes('resnet');
+
+  if (isBinaryModel && provider === 'workers-ai' && env.AI) {
+    try {
+      return await env.AI.run(model as any, input);
+    } catch (e) {
+      console.warn(`Direct AI (${model}) failed. Trying Gateway as fallback...`);
+    }
+  }
 
   if (accountId && gatewayId && cfApiToken) {
     try {
@@ -190,18 +200,24 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
       };
 
       if (provider === 'gemini') {
-        // Google AI Studio Gateway pattern: .../google-ai-studio/v1/models/model:method
         url += `/v1/models/${model}`;
         if (geminiApiKey) headers['x-goog-api-key'] = geminiApiKey;
       } else {
-        // Workers AI pattern: .../workers-ai/model
         url += `/${model}`;
+      }
+
+      let body;
+      if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
+        body = input;
+        headers['Content-Type'] = 'application/octet-stream';
+      } else {
+        body = JSON.stringify(input);
       }
 
       const res = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(input),
+        body: body as any,
         signal: AbortSignal.timeout(30000)
       });
 
@@ -230,9 +246,7 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
         signal: AbortSignal.timeout(30000)
       }
     );
-    if (res.ok) {
-      return await res.json();
-    }
+    if (res.ok) return await res.json();
     throw new Error(`Direct Gemini failed: ${res.status}`);
   }
 
@@ -732,25 +746,14 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     }
 
     try {
-      // The most reliable way for Whisper V3 on Workers AI is often passing the buffer directly if the binding allows
-      // OR explicitly passing it as a numeric array if the schema expects it.
-      // 5006 error often implies it's trying to validate a JSON schema on a binary input.
-
-      // @ts-ignore
+      // Simplified STT call: Workers AI Whisper V3 can take { audio: Uint8Array }
       const response = await runAI(env, MODELS.STT, {
-        audio: [...audioArray]
+        audio: Array.from(audioArray)
       });
       return json(response, 200, corsHeaders);
     } catch (e1: any) {
-      try {
-        // Fallback: Try passing the Uint8Array directly (some bindings prefer this)
-        // @ts-ignore
-        const response = await runAI(env, MODELS.STT, audioArray);
-        return json(response, 200, corsHeaders);
-      } catch (e2: any) {
-        console.error('STT Combined Failure:', e1.message, e2.message);
-        return new Response(`STT Error: [V1: ${e1.message}] [V2: ${e2.message}]`, { status: 500, headers: corsHeaders });
-      }
+      console.error('STT Failure:', e1.message);
+      return new Response(`STT Error: ${e1.message}`, { status: 500, headers: corsHeaders });
     }
   } catch (e: any) {
     return errorResponse(`STT Buffer Error: ${e.message}`, 500, corsHeaders);
@@ -1150,6 +1153,9 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   status_report.MEMORY_KV = !!env.MEMORY;
   status_report.CACHE_KV = !!env.CACHE;
   status_report.RATE_LIMITER = !!env.RATE_LIMITER;
+
+  // Enumerate keys (redacted) to identify hidden naming issues
+  status_report.DEBUG_KEYS = Object.keys(env).map(k => k.replace(/API_KEY|TOKEN|SECRET|PASSWORD/i, '[REDACTED]'));
 
   // Check Secrets (Presence only)
   status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY);
