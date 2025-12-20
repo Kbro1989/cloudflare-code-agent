@@ -142,8 +142,10 @@ export const IDE_HTML = `<!DOCTYPE html>
                 </div>
             </div>
 
+
             <!-- GitHub Settings -->
             <div class="p-3 border-t border-cyan-900/50 flex flex-col gap-2 bg-slate-950">
+                <input id="ghRepo" placeholder="owner/repo" class="w-full bg-slate-900 border border-cyan-900/50 text-[10px] px-2 py-1.5 rounded text-cyan-400 placeholder:text-cyan-950 outline-none focus:border-cyan-400 font-mono">
                 <div class="flex items-center justify-between text-[10px] text-cyan-900 font-mono">
                     <span class="truncate max-w-[100px]" id="ghRepoStatus">Not Linked</span>
                     <button onclick="window.toggleGithubSettings()" class="hover:text-cyan-400 transition"><i class="fa-solid fa-gear"></i></button>
