@@ -8,7 +8,7 @@ const { promisify } = require('util');
 
 const execAsync = promisify(exec);
 const app = express();
-const PORT = 3030;
+const PORT = 3040;
 
 // CORS: Allow Web IDE to connect
 app.use(cors({
@@ -226,16 +226,42 @@ app.post('/api/terminal', async (req, res) => {
     const { command } = req.body;
     if (!command) return res.status(400).json({ error: 'Missing command' });
 
-    const { stdout, stderr } = await execAsync(command, {
-      cwd: WORKSPACE_ROOT,
-      timeout: 30000 // 30s timeout
-    });
+    console.log(`💻 Executing: ${command}`);
 
-    res.json({ output: stdout || stderr || 'Command executed successfully' });
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: WORKSPACE_ROOT,
+        timeout: 30000 // 30s timeout
+      });
+      res.json({ output: stdout || stderr || 'Command executed successfully', success: true });
+    } catch (error) {
+      // Return 200 even on command failure so the UI can show the error output
+      // without triggering a fetch error in the browser.
+      res.json({
+        output: error.stderr || error.stdout || error.message,
+        success: false,
+        exitCode: error.code
+      });
+    }
   } catch (error) {
     res.status(500).json({
-      output: error.stderr || error.stdout || error.message
+      output: 'Bridge Internal Error: ' + error.message,
+      success: false
     });
+  }
+});
+
+// Environment Variables (Global Context)
+app.get('/api/env', (req, res) => {
+  try {
+    // expose full process.env to allow -g variable discovery
+    res.json({
+      env: process.env,
+      platform: process.platform,
+      nodeVersion: process.version
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

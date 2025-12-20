@@ -401,7 +401,7 @@ termInput?.addEventListener('keydown', async (e) => {
         termInput.value = '';
         const out = document.getElementById('terminalOutput');
         const line = document.createElement('div');
-        line.innerHTML = '<span class="text-slate-500 mr-2">$</span>' + window.escapeHtml(cmd);
+        line.innerHTML = '<span class="text-cyan-900 mr-2">$</span>' + window.escapeHtml(cmd);
         out.appendChild(line);
 
         try {
@@ -413,14 +413,21 @@ termInput?.addEventListener('keydown', async (e) => {
             });
             const d = await res.json();
             const respLine = document.createElement('pre');
-            respLine.className = 'text-slate-300 whitespace-pre-wrap ml-4';
-            respLine.innerText = d.output;
+
+            // Set color based on success/failure
+            if (d.success === false) {
+                respLine.className = 'text-red-400/80 whitespace-pre-wrap ml-4 italic';
+            } else {
+                respLine.className = 'text-cyan-400/80 whitespace-pre-wrap ml-4';
+            }
+
+            respLine.innerText = d.output + (d.exitCode ? "\\n\\n[Process exited with code " + d.exitCode + "]" : "");
             out.appendChild(respLine);
         } catch (err) {
             const errLine = document.createElement('div');
-                errLine.className = 'text-red-400 ml-4';
-                errLine.innerText = 'Error: ' + err.message;
-                out.appendChild(errLine);
+            errLine.className = 'text-red-400 ml-4';
+            errLine.innerText = 'Bridge Error: ' + err.message;
+            out.appendChild(errLine);
         }
         out.scrollTop = out.scrollHeight;
     }

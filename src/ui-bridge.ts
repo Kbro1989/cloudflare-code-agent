@@ -7,7 +7,7 @@
 export const BRIDGE_INTEGRATION = `
 // Local Bridge State
 let localBridgeAvailable = false;
-const BRIDGE_URL = 'http://127.0.0.1:3030';
+const BRIDGE_URL = 'http://127.0.0.1:3040';
 
 // Detect Local Bridge with retries
 window.detectLocalBridge = async function() {
@@ -31,6 +31,16 @@ window.detectLocalBridge = async function() {
           localBridgeAvailable = true;
           console.log('✅ Local Bridge Connected:', data.workspace);
           window.updateModeIndicator('local');
+
+          // Fetch Global Env
+          try {
+             const envRes = await fetch(BRIDGE_URL + '/api/env');
+             if (envRes.ok) {
+                 const envData = await envRes.json();
+                 window.GLOBAL_ENV = envData.env;
+                 console.log('🌍 Global Local Env Loaded:', Object.keys(window.GLOBAL_ENV).length + ' vars');
+             }
+          } catch (e) { console.warn('Failed to load global env:', e); }
 
           // Sync cloud state to local on connect
           window.syncCloudToLocal().catch(console.warn);
