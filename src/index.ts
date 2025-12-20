@@ -723,7 +723,7 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
     // Handle both raw buffer and potential results object
     let arrayBuffer: ArrayBuffer;
     if (response instanceof Uint8Array || response instanceof ArrayBuffer) {
-      arrayBuffer = response instanceof Uint8Array ? response.buffer : response;
+      arrayBuffer = (response instanceof Uint8Array ? response.buffer : response) as ArrayBuffer;
     } else if (response instanceof ReadableStream) {
       arrayBuffer = await new Response(response).arrayBuffer();
     } else if (typeof response === 'object' && response !== null) {
@@ -878,21 +878,22 @@ async function handleHealth(request: Request, env: Env, ctx: ExecutionContext, c
     });
   }
 
-  // Workers AI (Llama)
+  // Workers AI (Llama) - PRIMARY
   if (env.AI) {
     status.providers.push({
       name: 'workers-ai',
-      tier: 'secondary',
+      tier: 'primary',
       status: 'available',
       free: true
     });
   }
 
-  // Ollama
-  if (env.OLLAMA_URL) {
+  // Gemini - SECONDARY
+  const hasGemini = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY);
+  if (hasGemini) {
     status.providers.push({
-      name: 'ollama',
-      tier: 'fallback',
+      name: 'gemini',
+      tier: 'secondary',
       status: 'available',
       free: true
     });
@@ -915,34 +916,12 @@ async function generateCompletion(
 
   const providers = [
     {
-      name: 'gemini',
-      check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY),
-      health: healthTracker.gemini,
-      run: async () => {
-        let contents;
-        if (isMessages) {
-          contents = promptOrMessages.map(m => ({
-            role: m.role === 'assistant' ? 'model' : (m.role === 'system' ? 'user' : m.role),
-            parts: [{ text: (m.role === 'system' ? `[SYSTEM INSTRUCTION]\n${m.content}\n[END SYSTEM INSTRUCTION]` : m.content) }]
-          }));
-        } else {
-          contents = [{ parts: [{ text: promptOrMessages }] }];
-        }
-
-        const data = await runAI(env, 'gemini-1.5-flash:generateContent', {
-          contents,
-          generationConfig: { temperature, maxOutputTokens: maxTokens }
-        }, 'gemini');
-        return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      }
-    },
-    {
       name: 'workers-ai',
       check: !!env.AI,
       health: healthTracker.workersAi,
       run: async () => {
         let modelId = MODELS.DEFAULT;
-        if (requestedModel) {
+        if (requestedModel && requestedModel !== 'auto') {
           const upperModel = requestedModel.toUpperCase();
           // @ts-ignore
           if (MODELS[upperModel]) {
@@ -977,11 +956,29 @@ async function generateCompletion(
         const response = await runAI(env, modelId, input);
         if (!response) throw new Error("Empty response from AI");
         const text = (response.response || response.message?.content || (typeof response === 'string' ? response : ''));
-        if (!text) {
-          console.warn("AI Response Structure:", JSON.stringify(response).substring(0, 200));
-          throw new Error("Could not extract text from AI response");
+        return text?.trim();
+      }
+    },
+    {
+      name: 'gemini',
+      check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY),
+      health: healthTracker.gemini,
+      run: async () => {
+        let contents;
+        if (isMessages) {
+          contents = (promptOrMessages as any[]).map(m => ({
+            role: m.role === 'assistant' ? 'model' : (m.role === 'system' ? 'user' : m.role),
+            parts: [{ text: (m.role === 'system' ? `[SYSTEM INSTRUCTION]\n${m.content}\n[END SYSTEM INSTRUCTION]` : m.content) }]
+          }));
+        } else {
+          contents = [{ parts: [{ text: promptOrMessages }] }];
         }
-        return text.trim();
+
+        const data = await runAI(env, 'gemini-1.5-flash:generateContent', {
+          contents,
+          generationConfig: { temperature, maxOutputTokens: maxTokens }
+        }, 'gemini');
+        return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       }
     },
     {
@@ -995,12 +992,8 @@ async function generateCompletion(
           stream: false,
           options: { num_predict: maxTokens }
         };
-
-        if (isMessages) {
-          body.messages = promptOrMessages;
-        } else {
-          body.prompt = promptOrMessages;
-        }
+        if (isMessages) body.messages = promptOrMessages;
+        else body.prompt = promptOrMessages;
 
         const res = await fetch(`${env.OLLAMA_URL}/api/${isMessages ? 'chat' : 'generate'}`, {
           method: 'POST',
@@ -1035,24 +1028,23 @@ async function generateCompletion(
         if (requestedModel === 'gpt4o') modelId = MODELS.GPT4O;
         else if (requestedModel === 'claude3') modelId = MODELS.CLAUDE3;
         else if (requestedModel.includes('/')) modelId = requestedModel;
-
         const data = await runAI(env, modelId, { max_tokens: maxTokens, temperature }, 'openrouter');
         return data.choices?.[0]?.message?.content?.trim();
       }
     }
   ];
 
-  // If a specific model is requested, we prefer Workers AI if healthy, UNLESS it's a Gemini/Flash model
+  // If a specific non-Gemini model is requested, try Workers AI (primary) first
   const isExplicitGemini = requestedModel && (requestedModel.toLowerCase().includes('gemini') || requestedModel.toLowerCase().includes('flash'));
-  if (requestedModel && requestedModel !== 'auto' && !isExplicitGemini && providers[1].health.isHealthy()) {
+  if (requestedModel && requestedModel !== 'auto' && !isExplicitGemini && providers[0].health.isHealthy() && providers[0].check) {
     try {
-      const completion = await providers[1].run();
+      const completion = await providers[0].run();
       if (completion) {
-        providers[1].health.recordSuccess();
+        providers[0].health.recordSuccess();
         return { completion, provider: 'workers-ai' };
       }
     } catch (e) {
-      providers[1].health.recordFailure();
+      providers[0].health.recordFailure();
     }
   }
 
@@ -1174,7 +1166,9 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   if (!env.R2_ASSETS) issues.push('R2_ASSETS binding missing');
   if (!env.MEMORY) issues.push('MEMORY (KV) binding missing');
   if (!env.RATE_LIMITER) issues.push('RATE_LIMITER (DO) binding missing');
-  if (!status_report.GEMINI_SECRET) issues.push('Gemini API secret missing (Add GOOGLE_API_KEY or GEMINI_API_KEY as Cloudflare Secret)');
+  if (!status_report.GEMINI_SECRET && !env.AI) {
+    issues.push('Gemini API secret missing (Add GOOGLE_API_KEY or GEMINI_API_KEY as Cloudflare Secret)');
+  }
 
   // Check Quota
   const today = new Date().toISOString().split('T')[0];
