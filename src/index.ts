@@ -102,7 +102,7 @@ const MODELS = {
   PHOENIX: '@cf/leonardo/phoenix-1.0',
 
   // --- Audio Pipeline ---
-  STT: '@cf/openai/whisper-large-v3-turbo',
+  STT: '@cf/openai/whisper',
   FLUX_STT: '@cf/deepgram/flux',
   TTS: '@cf/myshell-ai/melotts',
   AURA: '@cf/deepgram/aura-2-en',
@@ -184,9 +184,14 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
 
   if (isBinaryModel && provider === 'workers-ai' && env.AI) {
     try {
+      // Whisper usually expects either raw binary OR { audio: Uint8Array }
+      // If input is already wrapped in { audio: ... }, pass it through
+      if (typeof input === 'object' && input !== null && input.audio) {
+        return await env.AI.run(model as any, input);
+      }
       return await env.AI.run(model as any, input);
     } catch (e) {
-      console.warn(`Direct AI (${model}) failed. Trying Gateway as fallback...`);
+      console.warn(`Direct AI (${model}) failed: ${e}. Trying Gateway as fallback...`);
     }
   }
 
@@ -214,14 +219,14 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
       }
 
       let body;
-      if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
+      const isBinary = input instanceof Uint8Array || input instanceof ArrayBuffer;
+
+      if (isBinary) {
         body = input;
-        headers['Content-Type'] = 'application/octet-stream';
-      } else if (input.audio && (input.audio instanceof Uint8Array || input.audio instanceof ArrayBuffer)) {
-        body = input.audio;
         headers['Content-Type'] = 'application/octet-stream';
       } else {
         body = JSON.stringify(input);
+        headers['Content-Type'] = 'application/json';
       }
 
       const res = await fetch(url, {
@@ -783,8 +788,10 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
       try {
         response = await runAI(env, MODELS.STT, audioArray);
       } catch (e: any) {
-        if (e.message.includes('required properties') || e.message.includes('5006')) {
-          console.log("🔄 STT: Schema mismatch (5006), retrying with JSON array format...");
+        // If we get a type mismatch or required properties error, retry with JSON wrapper
+        if (e.message.toLowerCase().includes('type mismatch') || e.message.includes('5006') || e.message.includes('required properties')) {
+          console.log("🔄 STT: Retrying with JSON array format...");
+          // CRITICAL: We pass a regular object here, runAI will now correctly set Content-Type to application/json
           response = await runAI(env, MODELS.STT, { audio: Array.from(audioArray) });
         } else {
           throw e;
@@ -1112,10 +1119,17 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
 
-  // Forward the request to the Agent Durable Object without consuming body here
+  // Forward the request to the Agent Durable Object
   const id = env.CODE_AGENT.idFromName("default");
   const agent = env.CODE_AGENT.get(id);
-  return agent.fetch(request);
+
+  // CRITICAL: The Cloudflare Agents library requires these headers for internal routing
+  const headers = new Headers(request.headers);
+  headers.set("X-Agents-Namespace", "CodeAgent");
+  headers.set("X-Agents-Room", "default");
+
+  const newReq = new Request(request, { headers });
+  return agent.fetch(newReq);
 }
 
 // ----------------------------------------------------------------------------

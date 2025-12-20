@@ -9,10 +9,17 @@ export class CodeAgent extends AIChatAgent<Env> {
   async onChatMessage(): Promise<Response | undefined> {
     try {
       const { AI } = this.env;
+      if (!AI) throw new Error("AI Binding is missing in the Agent environment.");
 
-      // Define the toolset for the agent
+      console.log("📨 CodeAgent: Received message...");
+
+      // Defensively handle this.messages which might be an object or getter
+      const rawMessages = (this as any).messages;
+      const msgs = Array.isArray(rawMessages) ? rawMessages : (typeof rawMessages?.getMessages === 'function' ? await rawMessages.getMessages() : []);
+
+      console.log(`📜 Message count: ${msgs.length}`);
+
       const tools: any = [
-        // ... (tools remain same)
         {
           name: "list_files",
           description: "List all files in the current workspace to understand project structure.",
@@ -55,7 +62,6 @@ export class CodeAgent extends AIChatAgent<Env> {
             required: ["query"]
           },
           function: async ({ query }: { query: string }) => {
-            // We can use the local bridge for fast searching if connected
             try {
               const res = await fetch("http://127.0.0.1:3030/api/fs/search", {
                 method: "POST",
@@ -64,7 +70,6 @@ export class CodeAgent extends AIChatAgent<Env> {
               });
               if (res.ok) return await res.text();
             } catch (e) { }
-
             return "Search failed: Local bridge not reachable on port 3030.";
           }
         },
@@ -93,7 +98,7 @@ export class CodeAgent extends AIChatAgent<Env> {
         },
         {
           name: "git_exec",
-          description: "Execute git commands locally (e.g., git status, git add, git commit). Requires local bridge.",
+          description: "Execute git commands locally. Requires local bridge.",
           parameters: {
             type: "object",
             properties: {
@@ -103,7 +108,6 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ command }: { command: string }) => {
             try {
-              // Ensure it's a git command
               const fullCommand = command.startsWith("git ") ? command : `git ${command}`;
               const res = await fetch("http://127.0.0.1:3030/api/terminal", {
                 method: "POST",
@@ -118,7 +122,7 @@ export class CodeAgent extends AIChatAgent<Env> {
         },
         {
           name: "blender_run",
-          description: "Run a Python script in Blender (background mode) to generate or edit 3D models (.glb).",
+          description: "Run a Python script in Blender (background mode) to generate or edit 3D models.",
           parameters: {
             type: "object",
             properties: {
@@ -135,33 +139,30 @@ export class CodeAgent extends AIChatAgent<Env> {
                 body: JSON.stringify({ script, args })
               });
               const data = await res.json() as any;
-              if (data.success) {
-                return `Blender execution successful.\nOutput:\n${data.output}`;
-              } else {
-                return `Blender execution failed.\nError: ${data.error}\nStderr: ${data.stderr}`;
-              }
+              return data.success ? `Success!\n${data.output}` : `Failed: ${data.error}`;
             } catch (e: any) {
-              return `Error: Blender bridge not reachable on port 3030. ${e.message}`;
+              return `Error: Blender bridge not reachable. ${e.message}`;
             }
           }
         }
       ];
 
-      // Core Agent Brain: Use runWithTools to orchestrate the conversation
-      // This handles the thought -> tool-call -> tool-result -> response loop automatically.
+      const modelId = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+      console.log(`🤖 Agent thinking with ${modelId}...`);
+
       const result = await (runWithTools as any)(
         AI,
-        "@cf/meta/llama-3.3-70b-instruct-fp8-low-latency",
+        modelId,
         {
-          messages: (this.messages as any[]).map(m => ({
+          messages: msgs.map((m: any) => ({
             role: m.role,
-            content: typeof m.content === 'string' ? m.content : (m.parts?.[0]?.text || "")
+            content: typeof m.content === 'string' ? m.content : (m.parts?.[0]?.text || String(m.content || ""))
           })),
           tools: tools,
         }
       );
 
-      // Persist messages to the Agent's SQLite store and return response
+      console.log("✅ CodeAgent: Response generated.");
       return new Response(JSON.stringify(result));
     } catch (e: any) {
       console.error("CodeAgent Error:", e.message);
