@@ -77,41 +77,57 @@ window.getApiBase = function() {
 };
 
 window.syncCloudToLocal = async function() {
-  try {
-    const cloudFiles = await fetch('/api/fs/list').then(r => r.json());
-    const bridgeFiles = await fetch(BRIDGE_URL + '/api/fs/list').then(r => r.json());
+    const statusEl = document.getElementById('modeIndicator');
+    try {
+        const cloudFiles = await fetch('/api/fs/list').then(r => r.json());
+        const bridgeFiles = await fetch(BRIDGE_URL + '/api/fs/list').then(r => r.json());
 
-    const unsynced = cloudFiles.filter(cf => !bridgeFiles.some(bf => bf.name === cf.name));
-    if (unsynced.length > 0 && confirm('Sync ' + unsynced.length + ' cloud files to local?')) {
-      for (const file of unsynced) {
-        const isBinary = file.name.match(/\\.(png|jpg|jpeg|glb|gltf|gif|webp)$/i);
-        const res = await fetch('/api/fs/file?name=' + encodeURIComponent(file.name));
+        // Skip large generated assets in batch sync to avoid 429s/timeouts
+        const unsynced = cloudFiles.filter(cf =>
+            !bridgeFiles.some(bf => bf.name === cf.name) &&
+            !cf.name.startsWith('generated_')
+        );
 
-        let payload;
-        if (isBinary) {
-          const blob = await res.blob();
-          const base64 = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(blob);
-          });
-          payload = { name: file.name, content: base64, encoding: 'base64' };
-        } else {
-          const data = await res.json();
-          payload = { name: file.name, content: data.content };
+        if (unsynced.length > 0 && confirm('Sync ' + unsynced.length + ' cloud files to local? (Images skipped)')) {
+            let count = 0;
+            for (const file of unsynced) {
+                count++;
+                if (statusEl) statusEl.innerText = 'Syncing... (' + count + '/' + unsynced.length + ')';
+
+                // Helper for throttled fetch with retries
+                const fetchWithRetry = async (url, options, retries = 3) => {
+                    for (let attempt = 0; attempt < retries; attempt++) {
+                        const r = await fetch(url, options);
+                        if (r.status === 429) {
+                            const wait = (attempt + 1) * 1000;
+                            console.warn('Rate limited. Waiting ' + wait + 'ms...');
+                            await new Promise(res => setTimeout(res, wait));
+                            continue;
+                        }
+                        return r;
+                    }
+                    throw new Error('Max retries reached for ' + file.name);
+                };
+
+                const res = await fetchWithRetry('/api/fs/file?name=' + encodeURIComponent(file.name));
+                const data = await res.json();
+
+                await fetch(BRIDGE_URL + '/api/fs/file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: file.name, content: data.content })
+                });
+
+                // Throttling: Wait 200ms between files
+                await new Promise(r => setTimeout(r, 200));
+            }
+            if (statusEl) window.updateModeIndicator('local');
+            window.refreshFiles();
         }
-
-        await fetch(BRIDGE_URL + '/api/fs/file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      }
-      window.refreshFiles();
+    } catch (e) {
+        console.error('Sync Error:', e);
+        if (statusEl) statusEl.innerText = 'Sync Error';
     }
-  } catch (e) {
-    console.error('Sync Error:', e);
-  }
 };
 
 // Override refreshFiles to use bridge
