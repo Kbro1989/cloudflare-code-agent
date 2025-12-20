@@ -2,6 +2,7 @@ import { Ai } from '@cloudflare/ai';
 import Cloudflare from 'cloudflare';
 import { IDE_HTML, UI_JS } from './ui-new';
 import { BRIDGE_INTEGRATION } from './ui-bridge';
+import { CodeAgent } from './agent';
 
 export interface Env {
   CACHE: KVNamespace;
@@ -23,6 +24,7 @@ export interface Env {
   OPENROUTER_API_KEY?: string;
   HUGGINGFACE_API_KEY?: string;
   DISPATCHER?: any;
+  CODE_AGENT: DurableObjectNamespace;
 
   // Public Vars
   MAX_FILE_SIZE: number;
@@ -1104,45 +1106,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
 
   // --- Project Bible Grounding ---
   let bibleContext = '';
-  try {
-    const loreObj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + 'BIBLE_LORE.md');
-    if (loreObj) bibleContext += `\nProject Lore:\n${await loreObj.text()}\n`;
+  const url = new URL(request.url);
+  const id = env.CODE_AGENT.idFromName("default");
+  const agent = env.CODE_AGENT.get(id);
 
-    const taskObj = await env.R2_ASSETS.get(WORKSPACE_PREFIX + 'BIBLE_TASKS.json');
-    if (taskObj) bibleContext += `\nActive Tasks:\n${await taskObj.text()}\n`;
-  } catch (e) { }
-
-  // Use structured messages for better instruction following
-  const messages = [
-    { role: 'system', content: `${SYSTEM_PROMPT}\n${bibleContext}` },
-    ...history.map((m: any) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: message }
-  ];
-
-  try {
-    const result = await generateCompletion(env, messages, 1024, model, 0.3);
-
-    // Recommendation 4: Adaptive Memory Batching
-    ctx.waitUntil(saveProjectMemory(env, ctx, 'default', {
-      lastMessage: message,
-      lastResponse: result.completion,
-      timestamp: Date.now()
-    }));
-
-    ctx.waitUntil(incrementKVQuota(env));
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: result.completion, provider: result.provider })}\n\n`));
-        controller.close();
-      }
-    });
-
-    return new Response(stream, { headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' } });
-  } catch (e: any) {
-    return errorResponse(`Chat Error: ${e.message}`, 500, corsHeaders);
-  }
+  // Forward the request to the Agent Durable Object
+  return agent.fetch(request);
 }
 
 // ----------------------------------------------------------------------------
@@ -1382,3 +1351,4 @@ function errorResponse(message: string, status = 500, corsHeaders = {}): Respons
     headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
   });
 }
+export { CodeAgent };

@@ -8,6 +8,10 @@
       {
         "name": "RATE_LIMITER",
         "class_name": "RateLimiter"
+      },
+      {
+        "name": "CODE_AGENT",
+        "class_name": "CodeAgent"
       }
     ]
   },
@@ -22,6 +26,12 @@
       "tag": "v5",
       "new_sqlite_classes": [
         "RateLimiter"
+      ]
+    },
+    {
+      "tag": "v6",
+      "new_sqlite_classes": [
+        "CodeAgent"
       ]
     }
   ],

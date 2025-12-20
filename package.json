@@ -11,6 +11,9 @@
     },
     "dependencies": {
         "@cloudflare/ai": "^1.2.2",
+        "@cloudflare/ai-utils": "^1.0.1",
+        "agents": "^0.2.32",
+        "ai": "^5.0.115",
         "cloudflare": "^5.2.0",
         "diff": "^5.2.0"
     },
