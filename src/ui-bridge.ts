@@ -88,7 +88,7 @@ window.syncCloudToLocal = async function() {
             !cf.name.startsWith('generated_')
         );
 
-        if (unsynced.length > 0 && confirm('Sync ' + unsynced.length + ' cloud files to local? (Images skipped)')) {
+        if (unsynced.length > 0 && confirm('Sync ' + unsynced.length + ' cloud files to local? (Generated images skipped)')) {
             let count = 0;
             for (const file of unsynced) {
                 count++;
@@ -106,16 +106,36 @@ window.syncCloudToLocal = async function() {
                         }
                         return r;
                     }
-                    throw new Error('Max retries reached for ' + file.name);
+                    return null;
                 };
 
                 const res = await fetchWithRetry('/api/fs/file?name=' + encodeURIComponent(file.name));
-                const data = await res.json();
+                if (!res) continue;
+
+                const isBinary = file.name.match(/\\.(png|jpg|jpeg|glb|gltf|gif|webp|ico)$/i);
+                let payload;
+
+                if (isBinary) {
+                    const blob = await res.blob();
+                    const base64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const res = reader.result;
+                            if (typeof res === 'string') resolve(res.split(',')[1]);
+                            else resolve('');
+                        };
+                        reader.readAsDataURL(blob);
+                    });
+                    payload = { name: file.name, content: base64, encoding: 'base64' };
+                } else {
+                    const data = await res.json();
+                    payload = { name: file.name, content: data.content };
+                }
 
                 await fetch(BRIDGE_URL + '/api/fs/file', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: file.name, content: data.content })
+                    body: JSON.stringify(payload)
                 });
 
                 // Throttling: Wait 200ms between files
