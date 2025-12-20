@@ -45,6 +45,17 @@ window.detectLocalBridge = async function() {
           // Sync cloud state to local on connect
           window.syncCloudToLocal().catch(console.warn);
 
+          // Sync UI assets to Local Bridge for offline access
+          try {
+              const fullHtml = document.documentElement.outerHTML;
+              await fetch(BRIDGE_URL + '/api/bridge/sync-ui', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ html: fullHtml })
+              });
+              console.log('✅ UI State Synced to Local Bridge (Offline Ready)');
+          } catch (e) { console.warn('Failed to sync UI to bridge:', e); }
+
           return true;
         }
       }
@@ -228,11 +239,23 @@ window.saveCurrentFile = async function(name, content, encoding) {
     }
 
     const apiBase = window.getApiBase();
-    await fetch(apiBase + '/api/fs/file', {
+
+    // 1. Save to primary target (Local Bridge if mode=local, else Cloud)
+    const primaryRes = await fetch(apiBase + '/api/fs/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, content, encoding })
     });
+
+    // 2. BACKGROUND CHECKPOINT: Always push to Cloud (R2) if we are in local mode
+    // This provides the "persistent progress save" in case of local failure
+    if (localBridgeAvailable && primaryRes.ok) {
+        fetch('/api/fs/file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, content, encoding })
+        }).catch(err => console.warn('Cloud checkpoint failed:', err));
+    }
 };
 
 // Override create/delete for bridge safety
@@ -291,11 +314,16 @@ window.ghClone = async function() {
     btn.innerHTML = '<i class="fa-solid fa-laptop"></i> Fast Cloning...';
 
     try {
+        // Support raw git URLs (SSH or HTTPS) for global settings
+        const cloneCommand = repoRaw.includes('://') || repoRaw.startsWith('git@')
+            ? 'git clone ' + repoRaw + ' .'
+            : 'git clone https://github.com/' + repoRaw + ' .';
+
         // Local clone using CLI
         const res = await fetch(BRIDGE_URL + '/api/terminal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: 'git clone https://github.com/' + repoRaw + ' .' })
+            body: JSON.stringify({ command: cloneCommand })
         });
         const d = await res.json();
         alert('Local Clone Output:\\\\n' + d.output);

@@ -129,6 +129,21 @@ export class CodeAgent extends AIChatAgent<Env> {
           }
         },
         {
+          name: "env_scan",
+          description: "Get local system environment variables and platform info. Useful for discovering global tools.",
+          parameters: { type: "object", properties: {} },
+          function: async () => {
+            try {
+              const res = await fetch(LOCAL_BRIDGE_URL + "/api/env");
+              if (res.ok) {
+                const data = await res.json();
+                return JSON.stringify(data, null, 2);
+              }
+            } catch (e) { }
+            return "Environment scan failed: Local bridge not reachable.";
+          }
+        },
+        {
           name: "terminal_exec",
           description: "Execute a command in the local bridge terminal (e.g., npm build, ls).",
           parameters: {

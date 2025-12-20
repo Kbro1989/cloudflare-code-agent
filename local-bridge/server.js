@@ -19,6 +19,56 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' }));
 
+// Serve the IDE dashboard locally for offline-first resilience
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>Cloudflare Code Agent (Local)</title>
+        <style>
+          body { background: #020617; color: #67e8f9; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .btn { background: #164e63; color: #22d3ee; padding: 1rem 2rem; border-radius: 0.5rem; text-decoration: none; border: 1px solid #22d3ee40; transition: all 0.2s; }
+          .btn:hover { background: #0891b2; border-color: #22d3ee; }
+        </style>
+      </head>
+      <body>
+        <h1 style="margin-bottom: 2rem;">🛡️ Local IDE Bridge Active</h1>
+        <a href="/ide" class="btn">Launch Hybrid IDE</a>
+        <p style="margin-top: 2rem; color: #475569; font-size: 0.8rem;">Syncing: ${WORKSPACE_ROOT}</p>
+      </body>
+    </html>
+  `);
+});
+
+// Proxy for the IDE HTML (this will be populated from the worker)
+let cloudIdeHtml = '';
+app.get('/ide', (req, res) => {
+  if (!cloudIdeHtml) {
+    return res.send(`
+            <html>
+                <body style="background:#020617; color:#67e8f9; font-family:monospace; padding:2rem;">
+                    <h1>IDE UI Not Synced</h1>
+                    <p>Connect to the Cloud Worker once while online to sync the latest UI assets.</p>
+                    <button onclick="location.reload()">Retry</button>
+                </body>
+            </html>
+        `);
+  }
+  res.send(cloudIdeHtml);
+});
+
+// Endpoint for worker to push its latest UI assets to local bridge
+app.post('/api/bridge/sync-ui', (req, res) => {
+  const { html } = req.body;
+  if (html) {
+    cloudIdeHtml = html;
+    console.log('✨ UI Assets Synced from Cloud Worker');
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: 'Missing HTML' });
+  }
+});
+
 // Working directory (configurable)
 // Working directory (configurable)
 // Default to ./workspace to avoid cluttering the agent root
@@ -94,7 +144,7 @@ app.get('/api/fs/file', async (req, res) => {
     const content = await fs.readFile(filePath, 'utf-8');
     res.json({ content });
   } catch (error) {
-    console.error(`❌ GET /api/fs/file error: ${error.message}`);
+    console.error(`❌ GET / api / fs / file error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
@@ -129,7 +179,7 @@ app.post('/api/fs/file', async (req, res) => {
     console.log(`💾 Saved file: ${name}`);
     res.json({ success: true });
   } catch (error) {
-    console.error(`❌ POST /api/fs/file error (${req.body.name}): ${error.message}`);
+    console.error(`❌ POST / api / fs / file error(${req.body.name}): ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });
@@ -161,15 +211,15 @@ app.delete('/api/fs/file', async (req, res) => {
           return res.json({ success: true, note: 'Deleted from projects/default/' });
         } catch {
           // Both failed
-          return res.status(404).json({ error: `File not found for deletion: ${name}` });
+          return res.status(404).json({ error: `File not found for deletion: ${name} ` });
         }
       }
-      return res.status(404).json({ error: `File not found for deletion: ${name}` });
+      return res.status(404).json({ error: `File not found for deletion: ${name} ` });
     }
 
     res.json({ success: true });
   } catch (error) {
-    console.error(`❌ DELETE /api/fs/file error: ${error.message}`);
+    console.error(`❌ DELETE / api / fs / file error: ${error.message} `);
     res.status(500).json({ error: error.message });
   }
 });
@@ -226,7 +276,7 @@ app.post('/api/terminal', async (req, res) => {
     const { command } = req.body;
     if (!command) return res.status(400).json({ error: 'Missing command' });
 
-    console.log(`💻 Executing: ${command}`);
+    console.log(`💻 Executing: ${command} `);
 
     try {
       const { stdout, stderr } = await execAsync(command, {
@@ -281,7 +331,7 @@ app.post('/api/blender/run', async (req, res) => {
     // Build command: blender -b -P script.py -- args
     // -b: Background mode
     // -P: Run python script
-    const blenderCmd = `"${BLENDER_EXECUTABLE}" -b -P "${tempScriptPath}" -- ${args.join(' ')}`;
+    const blenderCmd = `"${BLENDER_EXECUTABLE}" - b - P "${tempScriptPath}" -- ${args.join(' ')} `;
 
     console.log(`🎬 Running Blender Task...`);
 
