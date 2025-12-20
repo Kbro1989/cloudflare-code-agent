@@ -367,6 +367,10 @@ export default {
         });
       }
 
+      if (url.pathname === '/favicon.ico') {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+
       switch (url.pathname) {
         case '/api/complete':
           return handleComplete(request, env, ctx, corsHeaders);
