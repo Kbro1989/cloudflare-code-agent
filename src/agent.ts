@@ -126,7 +126,7 @@ export class CodeAgent extends AIChatAgent<Env> {
       // This handles the thought -> tool-call -> tool-result -> response loop automatically.
       const result = await (runWithTools as any)(
         AI,
-        "@hf/nousresearch/hermes-2-pro-mistral-7b",
+        "@cf/meta/llama-3.3-70b-instruct-fp8-low-latency",
         {
           messages: (this.messages as any[]).map(m => ({
             role: m.role,
@@ -136,6 +136,8 @@ export class CodeAgent extends AIChatAgent<Env> {
         }
       );
 
+      // Persist messages to the Agent's SQLite store and return response
+      return new Response(JSON.stringify(result));
     } catch (e: any) {
       console.error("CodeAgent Error:", e.message);
       return new Response(JSON.stringify({

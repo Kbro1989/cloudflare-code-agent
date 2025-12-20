@@ -177,7 +177,7 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
   const accountId = env.CLOUDFLARE_ACCOUNT_ID;
   const gatewayId = env.AI_GATEWAY_ID;
   const cfApiToken = env.WORKERS_AI_KEY || env.CLOUDFLARE_API_TOKEN;
-  const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
+  const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY;
 
   // --- BYPASS GATEWAY FOR BINARY-HEAVY MODELS (Performance & Reliability) ---
   const isBinaryModel = model.includes('whisper') || model.includes('melo') || model.includes('aura') || model.includes('flux') || model.includes('stable-diffusion') || model.includes('resnet');
@@ -228,7 +228,7 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
         method: 'POST',
         headers,
         body: body as any,
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(60000) // Increased for images
       });
 
       if (res.ok) {
@@ -720,10 +720,23 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
       num_steps: style === 'quality' ? 50 : 20
     });
 
-    const arrayBuffer = await new Response(response as any).arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
+    // Handle both raw buffer and potential results object
+    let arrayBuffer: ArrayBuffer;
+    if (response instanceof Uint8Array || response instanceof ArrayBuffer) {
+      arrayBuffer = response instanceof Uint8Array ? response.buffer : response;
+    } else if (response instanceof ReadableStream) {
+      arrayBuffer = await new Response(response).arrayBuffer();
+    } else if (typeof response === 'object' && response !== null) {
+      // Some gateway/provider results wrap the binary or base64
+      const body = response.image || response.result || response;
+      arrayBuffer = await new Response(body as any).arrayBuffer();
+    } else {
+      arrayBuffer = await new Response(response as any).arrayBuffer();
+    }
 
+    const bytes = new Uint8Array(arrayBuffer);
     const filename = `generated_${Date.now()}.png`;
+
     await env.R2_ASSETS.put(WORKSPACE_PREFIX + filename, arrayBuffer, {
       httpMetadata: { contentType: 'image/png' }
     });
@@ -903,7 +916,7 @@ async function generateCompletion(
   const providers = [
     {
       name: 'gemini',
-      check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY),
+      check: !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY),
       health: healthTracker.gemini,
       run: async () => {
         let contents;
@@ -1106,15 +1119,10 @@ async function handleComplete(request: Request, env: Env, ctx: ExecutionContext,
 // ----------------------------------------------------------------------------
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
   if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
-  const { message, history = [], model } = await request.json() as any;
 
-  // --- Project Bible Grounding ---
-  let bibleContext = '';
-  const url = new URL(request.url);
+  // Forward the request to the Agent Durable Object without consuming body here
   const id = env.CODE_AGENT.idFromName("default");
   const agent = env.CODE_AGENT.get(id);
-
-  // Forward the request to the Agent Durable Object
   return agent.fetch(request);
 }
 
@@ -1352,7 +1360,7 @@ function redact(str: string): string {
 function errorResponse(message: string, status = 500, corsHeaders = {}): Response {
   return new Response(redact(message), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+    headers: { ...corsHeaders, 'Content-Type': 'text/plain', 'X-Error-Details': redact(message).substring(0, 100) }
   });
 }
 export { CodeAgent };
