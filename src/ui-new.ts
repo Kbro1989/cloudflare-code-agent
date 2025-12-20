@@ -4,6 +4,11 @@ export const IDE_HTML = `<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloudflare Web IDE</title>
+    <script>
+      // Silence Tailwind Production Warning (Must be before tailwind script)
+      window.tailwind = { config: { silent: true } };
+      localStorage.setItem('tailwind-config-warn', 'false');
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
@@ -16,11 +21,6 @@ export const IDE_HTML = `<!DOCTYPE html>
         }
     </script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.1.1/model-viewer.min.js"></script>
-    <script>
-      // Silence Tailwind Production Warning
-      window.tailwind = { config: { silent: true } };
-      localStorage.setItem('tailwind-config-warn', 'false');
-    </script>
     <style>
         body { background: #020617; color: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; position: relative; }
         body::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% -20%, rgba(34, 211, 238, 0.05), transparent 60%); pointer-events: none; }

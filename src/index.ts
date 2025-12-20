@@ -103,6 +103,7 @@ const MODELS = {
 
   // --- Audio Pipeline ---
   STT: '@cf/openai/whisper-large-v3-turbo',
+  FLUX_STT: '@cf/deepgram/flux',
   TTS: '@cf/myshell-ai/melotts',
   AURA: '@cf/deepgram/aura-2-en',
   AURA_ES: '@cf/deepgram/aura-2-es',
@@ -191,6 +192,7 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
 
   if (accountId && gatewayId && cfApiToken) {
     try {
+      // ... (gateway logic)
       const providers: Record<string, string> = {
         'workers-ai': 'workers-ai',
         'gemini': 'google-ai-studio'
@@ -211,13 +213,11 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
         url += `/${model}`;
       }
 
-      // JSON body only for text models, unless it's a binary instance
       let body;
       if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
         body = input;
         headers['Content-Type'] = 'application/octet-stream';
       } else if (input.audio && (input.audio instanceof Uint8Array || input.audio instanceof ArrayBuffer)) {
-        // Direct mapping for Workers AI / Gateway pattern that expects binary
         body = input.audio;
         headers['Content-Type'] = 'application/octet-stream';
       } else {
@@ -235,12 +235,13 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
         const data = await res.json() as any;
         return data.result || data;
       }
+
       const errorBody = await res.text();
-      throw new Error(`Gateway Error (${res.status}): ${errorBody}`);
+      console.warn(`Gateway Error (${res.status}): ${errorBody}. Falling back to direct AI...`);
+      // FALL THROUGH TO DIRECT AI
     } catch (e: any) {
-      console.error(`Gateway (${provider}) error:`, e.message);
-      // Ensure failure propagates so fallback triggers
-      throw e;
+      console.warn(`Gateway (${provider}) failed: ${e.message}. Falling back to direct AI...`);
+      // FALL THROUGH TO DIRECT AI
     }
   }
 
