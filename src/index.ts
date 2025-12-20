@@ -2,7 +2,8 @@ import { Ai } from '@cloudflare/ai';
 import Cloudflare from 'cloudflare';
 import { IDE_HTML, UI_JS } from './ui-new';
 import { BRIDGE_INTEGRATION } from './ui-bridge';
-import { CodeAgent } from './agent';
+import { routeAgentRequest } from 'agents';
+import { CodeAgent as LocalCodeAgent } from './agent';
 
 export interface Env {
   CACHE: KVNamespace;
@@ -1123,9 +1124,15 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext, cor
   const id = env.CODE_AGENT.idFromName("default");
   const agent = env.CODE_AGENT.get(id);
 
-  // CRITICAL: The Cloudflare Agents library requires these headers for internal routing
+  const origHeaders: any = {};
+  request.headers.forEach((v, k) => { origHeaders[k] = v; });
+  console.log("📍 index.ts: handleChat original headers:", JSON.stringify(origHeaders));
+
+  // CRITICAL: The Cloudflare Agents / PartyServer libraries require these headers
   const headers = new Headers(request.headers);
-  headers.set("X-Agents-Namespace", "CodeAgent");
+  headers.set("x-partykit-room", "default");
+  headers.set("x-partykit-namespace", "code-agent");
+  headers.set("X-Agents-Namespace", "code-agent");
   headers.set("X-Agents-Room", "default");
 
   const newReq = new Request(request, { headers });
@@ -1371,4 +1378,4 @@ function errorResponse(message: string, status = 500, corsHeaders = {}): Respons
     headers: { ...corsHeaders, 'Content-Type': 'text/plain', 'X-Error-Details': redact(message).substring(0, 100) }
   });
 }
-export { CodeAgent };
+export { LocalCodeAgent as CodeAgent };

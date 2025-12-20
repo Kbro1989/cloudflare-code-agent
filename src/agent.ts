@@ -6,18 +6,59 @@ import { Env } from "./index";
 const WORKSPACE_PREFIX = 'projects/default/';
 
 export class CodeAgent extends AIChatAgent<Env> {
-  async onChatMessage(): Promise<Response | undefined> {
+  async onRequest(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    console.log(`📡 CodeAgent: onRequest triggered for ${request.method} ${url.pathname}`);
+    if (url.pathname.endsWith('/api/chat') && request.method === 'POST') {
+      return this.handleChatRequest(request);
+    }
+    return super.onRequest(request);
+  }
+
+  async handleChatRequest(request: Request): Promise<Response> {
     try {
       const { AI } = this.env;
       if (!AI) throw new Error("AI Binding is missing in the Agent environment.");
 
+      // Read the entire body as text first to avoid partial reads due to Content-Length mismatches
+      const rawText = (await request.text()).trim();
+      console.log("📥 CodeAgent: Raw request body length:", rawText.length);
+      console.log("🔢 Body start charCodes:", Array.from(rawText.substring(0, 20)).map(c => c.charCodeAt(0)));
+
+      const allHeaders: any = {};
+      request.headers.forEach((v, k) => { allHeaders[k] = v; });
+      console.log("📑 CodeAgent: Request headers:", JSON.stringify(allHeaders));
+
+      if (!rawText) {
+        throw new Error("Empty request body received.");
+      }
+
+      let body: any;
+      try {
+        body = JSON.parse(rawText);
+      } catch (jsonErr: any) {
+        console.error("JSON Parse Error Snippet:", rawText.substring(0, 100));
+        throw new Error(`Malformed JSON in request body: ${jsonErr.message}`);
+      }
+      let messages: any[] = [];
+      if (body.messages) {
+        messages = body.messages;
+      } else if (body.message) {
+        messages = [{ role: 'user', content: body.message }];
+      }
+      if (body.history) {
+        messages = [...body.history, ...messages];
+      }
+
       console.log("📨 CodeAgent: Received message...");
 
-      // Defensively handle this.messages which might be an object or getter
-      const rawMessages = (this as any).messages;
-      const msgs = Array.isArray(rawMessages) ? rawMessages : (typeof rawMessages?.getMessages === 'function' ? await rawMessages.getMessages() : []);
+      // If no messages provided in request, fall back to agent state
+      if (messages.length === 0) {
+        const rawMessages = (this as any).messages;
+        messages = Array.isArray(rawMessages) ? rawMessages : (typeof rawMessages?.getMessages === 'function' ? await rawMessages.getMessages() : []);
+      }
 
-      console.log(`📜 Message count: ${msgs.length}`);
+      console.log(`📜 Message count: ${messages.length}`);
 
       const tools: any = [
         {
@@ -154,7 +195,7 @@ export class CodeAgent extends AIChatAgent<Env> {
         AI,
         modelId,
         {
-          messages: msgs.map((m: any) => ({
+          messages: messages.map((m: any) => ({
             role: m.role,
             content: typeof m.content === 'string' ? m.content : (m.parts?.[0]?.text || String(m.content || ""))
           })),
@@ -163,11 +204,30 @@ export class CodeAgent extends AIChatAgent<Env> {
       );
 
       console.log("✅ CodeAgent: Response generated.");
-      return new Response(JSON.stringify(result));
+
+      // Return as SSE stream for the UI
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          const data = { token: (result as any).response || (result as any).text || JSON.stringify(result) };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+          controller.close();
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
+      });
     } catch (e: any) {
       console.error("CodeAgent Error:", e.message);
+      console.error("CodeAgent Stack:", e.stack);
       return new Response(JSON.stringify({
         error: `Agent Error: ${e.message}`,
+        stack: e.stack,
         provider: 'error-handler'
       }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
