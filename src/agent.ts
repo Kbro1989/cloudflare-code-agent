@@ -1,7 +1,8 @@
 import { AIChatAgent } from "agents/ai-chat-agent";
 import { ModelMessage as Message } from "ai";
 import { runWithTools } from "@cloudflare/ai-utils";
-import { Env } from "./index";
+import { Env, MODELS } from "./index";
+import { classifyTask, getModelDisplayName, getTaskIcon, type ModelKey } from "./modelRouter";
 
 const WORKSPACE_PREFIX = 'projects/default/';
 const LOCAL_BRIDGE_URL = 'http://127.0.0.1:3040';
@@ -201,8 +202,27 @@ export class CodeAgent extends AIChatAgent<Env> {
         }
       ];
 
-      const modelId = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-      console.log(`🤖 Agent thinking with ${modelId}...`);
+      // === INTELLIGENT MODEL ROUTING ===
+      // Get the last user message for classification
+      const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
+      const userText = lastUserMessage?.content || '';
+      const activeFile = body.activeFile || '';
+      const hasImage = body.image ? true : false;
+
+      // Classify the task and get optimal model
+      const classification = classifyTask(userText, activeFile, hasImage);
+
+      // Use requested model from UI if provided, otherwise use auto-selected
+      const requestedModel = body.model?.toUpperCase() as ModelKey;
+      const finalModelKey: ModelKey = requestedModel && MODELS[requestedModel]
+        ? requestedModel
+        : classification.suggestedModel;
+
+      const modelId = MODELS[finalModelKey] || MODELS.DEFAULT;
+
+      console.log(`🎯 Task Classification: ${getTaskIcon(classification.task)} ${classification.task}`);
+      console.log(`🤖 Model Selected: ${getModelDisplayName(finalModelKey)} (${finalModelKey})`);
+      console.log(`📊 Confidence: ${(classification.confidence * 100).toFixed(0)}% | Reason: ${classification.reasoning}`);
 
       const result = await (runWithTools as any)(
         AI,

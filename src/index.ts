@@ -74,7 +74,7 @@ export class RateLimiter {
 // ----------------------------------------------------------------------------
 // Model Registry - The Brains & Artists
 // ----------------------------------------------------------------------------
-const MODELS = {
+export const MODELS = {
   // --- High-Performance Reasoning & Production ---
   GPT_OSS: '@cf/openai/gpt-oss-120b',
   LLAMA4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
@@ -526,7 +526,7 @@ async function handleTerminal(request: Request, env: Env, ctx: ExecutionContext,
     switch (cmd) {
       case 'ls':
         const listed = await env.R2_ASSETS.list();
-        output = listed.objects.map(o => o.key).join('\n');
+        output = listed.objects.length > 0 ? listed.objects.map(o => o.key).join('\n') : '(R2 bucket is empty)';
         break;
       case 'cat':
         if (!target) { output = 'Usage: cat <filename>'; break; }
@@ -539,17 +539,31 @@ async function handleTerminal(request: Request, env: Env, ctx: ExecutionContext,
         await env.R2_ASSETS.delete(target);
         output = `Deleted ${target}`;
         break;
+      case 'pwd':
+        output = 'cloudflare://cloud-agent/vfs/';
+        break;
+      case 'whoami':
+        output = 'code-agent-runtime';
+        break;
+      case 'date':
+        output = new Date().toISOString();
+        break;
       case 'echo':
         output = args.slice(1).join(' ');
         break;
+      case 'help':
+        output = 'Cloud Terminal (R2 VFS Mode)\nAvailable commands: ls, cat, rm, pwd, whoami, date, echo, help\n\nConnect Local Bridge for full system access.';
+        break;
       default:
-        output = `Command not found: ${cmd}. Try: ls, cat, rm, echo`;
+        output = `Command not found: ${cmd}. Try "help" or connect Local Bridge for system access.`;
+        return json({ output, success: false }, 200, corsHeaders);
     }
   } catch (e: any) {
     output = `Error: ${e.message}`;
+    return json({ output, success: false }, 200, corsHeaders);
   }
 
-  return json({ output }, 200, corsHeaders);
+  return json({ output, success: true }, 200, corsHeaders);
 }
 
 async function handleGithub(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {

@@ -192,8 +192,8 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
 
             <!-- Model Selector -->
-            <div class="p-2 border-b border-cyan-900/20 bg-black/10">
                 <select id="modelSelector" class="w-full bg-slate-950 border border-cyan-900/40 text-[10px] p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-500 font-mono uppercase tracking-wider">
+                    <option value="auto" selected>✨ AUTO-SELECT (Intelligent)</option>
                     <optgroup label="Neural Reasoning" class="bg-slate-950 text-cyan-400">
                         <option value="gpt_oss">GPT-OSS 120B</option>
                         <option value="llama4_scout">Llama 4 Scout</option>
@@ -201,7 +201,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                         <option value="qwq_32b">QwQ 32B (Thinking)</option>
                     </optgroup>
                     <optgroup label="Logic Engines" class="bg-slate-950">
-                        <option value="coding" selected>Qwen 2.5 Coding</option>
+                        <option value="coding">Qwen 2.5 Coding</option>
                         <option value="default">Llama 3.3 Turbo</option>
                         <option value="mistral_small">Mistral Small</option>
                         <option value="gemma_3">Gemma 3</option>
@@ -913,7 +913,8 @@ window.sendMessage = async function() {
                 history: chatHistory.slice(-10), // Send last 10 messages for context
                 prompt: text,
                 style: model === 'sdxl' ? 'realism' : 'speed',
-                model,
+                model: model === 'auto' ? null : model,
+                activeFile: activeFile,
                 image: activeImage
             })
         });
