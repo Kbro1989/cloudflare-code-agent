@@ -206,9 +206,14 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
         url += `/${model}`;
       }
 
+      // JSON body only for text models, unless it's a binary instance
       let body;
       if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
         body = input;
+        headers['Content-Type'] = 'application/octet-stream';
+      } else if (input.audio && (input.audio instanceof Uint8Array || input.audio instanceof ArrayBuffer)) {
+        // Direct mapping for Workers AI / Gateway pattern that expects binary
+        body = input.audio;
         headers['Content-Type'] = 'application/octet-stream';
       } else {
         body = JSON.stringify(input);
@@ -746,18 +751,21 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     }
 
     try {
-      // Simplified STT call: Workers AI Whisper V3 can take { audio: Uint8Array }
-      const response = await runAI(env, MODELS.STT, {
-        audio: Array.from(audioArray)
-      });
+      // Direct pass of Uint8Array for maximum reliability
+      const response = await runAI(env, MODELS.STT, audioArray);
       return json(response, 200, corsHeaders);
     } catch (e1: any) {
       console.error('STT Failure:', e1.message);
       return new Response(`STT Error: ${e1.message}`, { status: 500, headers: corsHeaders });
     }
-  } catch (e: any) {
-    return errorResponse(`STT Buffer Error: ${e.message}`, 500, corsHeaders);
+    return json(response, 200, corsHeaders);
+  } catch (e1: any) {
+    console.error('STT Failure:', e1.message);
+    return new Response(`STT Error: ${e1.message}`, { status: 500, headers: corsHeaders });
   }
+} catch (e: any) {
+  return errorResponse(`STT Buffer Error: ${e.message}`, 500, corsHeaders);
+}
 }
 
 async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Promise<Response> {
@@ -1158,7 +1166,7 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   status_report.DEBUG_KEYS = Object.keys(env).map(k => k.replace(/API_KEY|TOKEN|SECRET|PASSWORD/i, '[REDACTED]'));
 
   // Check Secrets (Presence only)
-  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY);
+  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || (env as any).GOOGLE_API_KEY);
   status_report.CLOUDFLARE_AUTH = !!env.CLOUDFLARE_API_TOKEN;
   status_report.OLLAMA_SECRET = !!env.OLLAMA_URL;
 
