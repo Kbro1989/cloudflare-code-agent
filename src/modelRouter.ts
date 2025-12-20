@@ -9,16 +9,18 @@
 
 // Model keys matching the MODELS registry in index.ts
 export type ModelKey =
-  | 'GPT_OSS' | 'LLAMA4_SCOUT' | 'REASONING' | 'QWQ_32B'
+  | 'GPT_OSS' | 'GPT_OSS_20B' | 'LLAMA4_SCOUT' | 'REASONING' | 'QWQ_32B' | 'GRANITE_MICRO'
   | 'DEFAULT' | 'CODING' | 'DEEPSEEK_CODER' | 'MISTRAL_SMALL' | 'GEMMA_3' | 'QWEN3_30B'
-  | 'KIMI' | 'GPT4O' | 'CLAUDE3'
+  | 'LLAMA_3_2_1B' | 'LLAMA_3_2_3B'
+  | 'GEMINI_2_0' | 'GEMINI_1_5_PRO' | 'KIMI' | 'GPT4O' | 'CLAUDE3'
   | 'FLUX_DEV' | 'FLUX' | 'SDXL' | 'DREAMSHAPER' | 'LUCID' | 'PHOENIX'
-  | 'STT' | 'FLUX_STT' | 'TTS' | 'AURA' | 'AURA_ES'
-  | 'LLAVA' | 'RESNET';
+  | 'STT' | 'STT_TURBO' | 'FLUX_STT' | 'TTS' | 'AURA' | 'AURA_ES' | 'AURA_V1'
+  | 'LLAVA' | 'LLAMA_3_2_11B_VISION' | 'RESNET';
 
 export type TaskType =
   | 'code_generate' | 'code_review' | 'code_fix' | 'code_explain'
   | 'reasoning' | 'math' | 'architecture'
+  | 'agentic_flow' | 'low_latency' | 'summarization'
   | 'image_generate' | 'image_quick'
   | 'audio_speak' | 'audio_transcribe'
   | 'vision_analyze'
@@ -66,10 +68,24 @@ const TASK_PATTERNS: Array<{
     },
     {
       task: 'reasoning',
-      patterns: [/^\/think\s+/i, /^\/reason\s+/i, /think\s+through/i, /step\s+by\s+step/i, /chain\s+of\s+thought/i],
+      patterns: [/^\/think\s+/i, /^\/reason\s+/i, /think\s+through/i, /step\s+by\s+step/i, /chain\s+of\s+thought/i, /deep\s+reasoning/i],
       model: 'QWQ_32B',
       endpoint: '/api/chat',
       priority: 97
+    },
+    {
+      task: 'agentic_flow',
+      patterns: [/^run\s+task/i, /^execute\s+workflow/i, /^agent\s+/i, /^follow\s+instructions/i, /^step\s+through/i, /function\s+calling/i],
+      model: 'GRANITE_MICRO',
+      endpoint: '/api/chat',
+      priority: 96
+    },
+    {
+      task: 'low_latency',
+      patterns: [/^fast\s+/i, /^quick\s+/i, /^instant\s+/i, /^speed\s+/i],
+      model: 'GPT_OSS_20B',
+      endpoint: '/api/chat',
+      priority: 95
     },
 
     // === CODE OPERATIONS ===
@@ -118,19 +134,37 @@ const TASK_PATTERNS: Array<{
       priority: 69
     },
 
+    // === SUMMARIZATION ===
+    {
+      task: 'summarization',
+      patterns: [/summarize/i, /tl;dr/i, /shorten/i, /recap/i, /briefly\s+explain/i],
+      model: 'LLAMA_3_2_3B',
+      endpoint: '/api/chat',
+      priority: 55
+    },
+
     // === VISION ===
     {
       task: 'vision_analyze',
-      patterns: [/analyze\s+this\s+image/i, /what's\s+in\s+this\s+image/i, /describe\s+the\s+image/i, /look\s+at\s+this/i],
-      model: 'LLAVA',
+      patterns: [/analyze\s+this\s+image/i, /what's\s+in\s+this\s+image/i, /describe\s+the\s+image/i, /look\s+at\s+this/i, /image\s+reasoning/i],
+      model: 'LLAMA_3_2_11B_VISION',
       endpoint: '/api/chat',
       priority: 60
+    },
+
+    // === AUDIO ===
+    {
+      task: 'audio_transcribe',
+      patterns: [/transcribe/i, /speech\s+to\s+text/i, /what\s+did\s+they\s+say/i, /listen\s+to/i],
+      model: 'STT_TURBO',
+      endpoint: '/api/audio/stt',
+      priority: 58
     },
 
     // === GENERAL CHAT ===
     {
       task: 'chat_detailed',
-      patterns: [/detailed/i, /comprehensive/i, /in\s+depth/i, /thoroughly/i, /elaborate/i],
+      patterns: [/detailed/i, /comprehensive/i, /in\s+depth/i, /thoroughly/i, /elaborate/i, /multimodal/i],
       model: 'LLAMA4_SCOUT',
       endpoint: '/api/chat',
       priority: 50
@@ -138,7 +172,7 @@ const TASK_PATTERNS: Array<{
     {
       task: 'chat_quick',
       patterns: [/^hi$/i, /^hello$/i, /^hey$/i, /^thanks$/i, /^ok$/i, /^yes$/i, /^no$/i],
-      model: 'DEFAULT',
+      model: 'GPT_OSS_20B',
       endpoint: '/api/chat',
       priority: 10
     }
@@ -191,9 +225,9 @@ export function classifyTask(message: string, activeFile?: string, hasImageAttac
     return {
       task: 'vision_analyze',
       confidence: 0.95,
-      suggestedModel: 'LLAVA',
+      suggestedModel: 'LLAMA_3_2_11B_VISION',
       endpoint: '/api/chat',
-      reasoning: 'Image attachment detected - using vision model'
+      reasoning: 'Image attachment detected - using multimodal Llama 3.2 Vision'
     };
   }
 
@@ -249,15 +283,21 @@ export function classifyTask(message: string, activeFile?: string, hasImageAttac
 export function getModelDisplayName(modelKey: ModelKey): string {
   const names: Record<ModelKey, string> = {
     'GPT_OSS': 'GPT-OSS 120B',
-    'LLAMA4_SCOUT': 'Llama 4 Scout',
+    'GPT_OSS_20B': 'GPT-OSS 20B (Fast)',
+    'LLAMA4_SCOUT': 'Llama 4 Scout (Multimodal)',
     'REASONING': 'DeepSeek R1',
     'QWQ_32B': 'QwQ (Thinking)',
+    'GRANITE_MICRO': 'Granite 4.0 Micro (Agentic)',
     'DEFAULT': 'Llama 3.3',
     'CODING': 'Qwen Coder',
     'DEEPSEEK_CODER': 'DeepSeek Coder',
     'MISTRAL_SMALL': 'Mistral Small',
     'GEMMA_3': 'Gemma 3',
     'QWEN3_30B': 'Qwen3 30B',
+    'LLAMA_3_2_1B': 'Llama 3.2 1B (Micro)',
+    'LLAMA_3_2_3B': 'Llama 3.2 3B',
+    'GEMINI_2_0': 'Gemini 2.0 Flash',
+    'GEMINI_1_5_PRO': 'Gemini 1.5 Pro',
     'KIMI': 'Kimi K1.5',
     'GPT4O': 'GPT-4o',
     'CLAUDE3': 'Claude 3.5',
@@ -268,11 +308,14 @@ export function getModelDisplayName(modelKey: ModelKey): string {
     'LUCID': 'Lucid Origin',
     'PHOENIX': 'Phoenix',
     'STT': 'Whisper',
+    'STT_TURBO': 'Whisper Turbo',
     'FLUX_STT': 'Deepgram STT',
     'TTS': 'MeloTTS',
     'AURA': 'Aura 2',
     'AURA_ES': 'Aura 2 (ES)',
+    'AURA_V1': 'Aura 1 (Legacy)',
     'LLAVA': 'LLaVA Vision',
+    'LLAMA_3_2_11B_VISION': 'Llama 3.2 Vision',
     'RESNET': 'ResNet-50'
   };
   return names[modelKey] || modelKey;
@@ -295,6 +338,9 @@ export function getTaskIcon(task: TaskType): string {
     'audio_speak': '🔊',
     'audio_transcribe': '🎙️',
     'vision_analyze': '👁️',
+    'agentic_flow': '🤖',
+    'low_latency': '⚡',
+    'summarization': '📄',
     'chat_quick': '💬',
     'chat_detailed': '📝'
   };

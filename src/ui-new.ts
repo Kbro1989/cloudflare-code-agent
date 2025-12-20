@@ -194,19 +194,34 @@ export const IDE_HTML = `<!DOCTYPE html>
             <!-- Model Selector -->
                 <select id="modelSelector" class="w-full bg-slate-950 border border-cyan-900/40 text-[10px] p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-500 font-mono uppercase tracking-wider">
                     <option value="auto" selected>✨ AUTO-SELECT (Intelligent)</option>
-                    <optgroup label="Neural Reasoning" class="bg-slate-950 text-cyan-400">
+
+                    <optgroup label="Intelligence Hub (Elite Reasoning)" class="bg-slate-950 text-cyan-400">
                         <option value="gpt_oss">GPT-OSS 120B</option>
-                        <option value="llama4_scout">Llama 4 Scout</option>
+                        <option value="gpt_oss_20b">GPT-OSS 20B (Agentic)</option>
+                        <option value="llama4_scout">Llama 4 Scout (Mix-of-Experts)</option>
                         <option value="reasoning">DeepSeek R1</option>
                         <option value="qwq_32b">QwQ 32B (Thinking)</option>
+                        <option value="granite_micro">Granite 4.0 Micro</option>
                     </optgroup>
-                    <optgroup label="Logic Engines" class="bg-slate-950">
+
+                    <optgroup label="Coding & Logic" class="bg-slate-950 text-cyan-100">
                         <option value="coding">Qwen 2.5 Coding</option>
                         <option value="default">Llama 3.3 Turbo</option>
-                        <option value="mistral_small">Mistral Small</option>
+                        <option value="mistral_small">Mistral Small 3.1</option>
                         <option value="gemma_3">Gemma 3</option>
+                        <option value="llama_3_2_3b">Llama 3.2 3B</option>
                     </optgroup>
-                    <optgroup label="External Clusters" class="bg-slate-950">
+
+                    <optgroup label="Multimodal & Media" class="bg-slate-950 text-emerald-400">
+                        <option value="gemini_2_0">Gemini 2.0 Flash</option>
+                        <option value="gemini_1_5_pro">Gemini 1.5 Pro</option>
+                        <option value="llama_3_2_11b_vision">Llama 3.2 Vision</option>
+                        <option value="llava">LLaVA 1.5</option>
+                        <option value="flux_dev">Flux 2 Dev</option>
+                        <option value="flux">Flux Schnell</option>
+                    </optgroup>
+
+                    <optgroup label="External Clusters (Cloud)" class="bg-slate-950 text-orange-400">
                         <option value="kimi">Kimi K1.5</option>
                         <option value="gpt4o">GPT-4o (Elite)</option>
                         <option value="claude3">Claude 3.5</option>

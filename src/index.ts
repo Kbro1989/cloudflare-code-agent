@@ -77,9 +77,11 @@ export class RateLimiter {
 export const MODELS = {
   // --- High-Performance Reasoning & Production ---
   GPT_OSS: '@cf/openai/gpt-oss-120b',
+  GPT_OSS_20B: '@cf/openai/gpt-oss-20b',
   LLAMA4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
   REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
   QWQ_32B: '@cf/qwen/qwq-32b',
+  GRANITE_MICRO: '@cf/ibm/granite-4.0-h-micro',
 
   // --- Standard Logic & Coding ---
   DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
@@ -88,8 +90,12 @@ export const MODELS = {
   MISTRAL_SMALL: '@cf/mistralai/mistral-small-3.1-24b-instruct',
   GEMMA_3: '@cf/google/gemma-3-12b-it',
   QWEN3_30B: '@cf/qwen/qwen3-30b-a3b-fp8',
+  LLAMA_3_2_1B: '@cf/meta/llama-3.2-1b-instruct',
+  LLAMA_3_2_3B: '@cf/meta/llama-3.2-3b-instruct',
 
   // --- External Elite (API-driven) ---
+  GEMINI_2_0: 'gemini-2.0-flash-exp',
+  GEMINI_1_5_PRO: 'gemini-1.5-pro',
   KIMI: 'fireworks/kimi-k1.5',
   GPT4O: 'openrouter/openai/gpt-4o',
   CLAUDE3: 'openrouter/anthropic/claude-3.5-sonnet',
@@ -101,13 +107,16 @@ export const MODELS = {
   DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
   LUCID: '@cf/leonardo/lucid-origin',
   PHOENIX: '@cf/leonardo/phoenix-1.0',
+  LLAMA_3_2_11B_VISION: '@cf/meta/llama-3.2-11b-vision-instruct',
 
   // --- Audio Pipeline ---
   STT: '@cf/openai/whisper',
+  STT_TURBO: '@cf/openai/whisper-large-v3-turbo',
   FLUX_STT: '@cf/deepgram/flux',
   TTS: '@cf/myshell-ai/melotts',
   AURA: '@cf/deepgram/aura-2-en',
   AURA_ES: '@cf/deepgram/aura-2-es',
+  AURA_V1: '@cf/deepgram/aura-1',
 
   // --- Vision & Perception ---
   LLAVA: '@cf/llava-hf/llava-1.5-7b-hf',
@@ -115,11 +124,11 @@ export const MODELS = {
 };
 
 const MODEL_GROUPS = [
-  { name: 'Elite Reasoning', models: ['GPT_OSS', 'LLAMA4_SCOUT', 'REASONING', 'QWQ_32B'] },
-  { name: 'Coding & Logic', models: ['CODING', 'DEEPSEEK_CODER', 'DEFAULT', 'MISTRAL_SMALL', 'GEMMA_3'] },
-  { name: 'External Elite', models: ['KIMI', 'GPT4O', 'CLAUDE3'] },
+  { name: 'Elite Reasoning', models: ['GPT_OSS', 'GPT_OSS_20B', 'LLAMA4_SCOUT', 'REASONING', 'QWQ_32B', 'GRANITE_MICRO'] },
+  { name: 'Coding & Logic', models: ['CODING', 'DEEPSEEK_CODER', 'DEFAULT', 'MISTRAL_SMALL', 'GEMMA_3', 'LLAMA_3_2_3B'] },
+  { name: 'External Elite', models: ['GEMINI_2_0', 'GEMINI_1_5_PRO', 'KIMI', 'GPT4O', 'CLAUDE3'] },
   { name: 'Visual Studio', models: ['FLUX_DEV', 'FLUX', 'SDXL', 'LUCID', 'PHOENIX'] },
-  { name: 'Audio & Vision', models: ['AURA', 'STT', 'TTS', 'LLAVA'] }
+  { name: 'Audio & Vision', models: ['AURA', 'STT', 'STT_TURBO', 'TTS', 'LLAVA', 'LLAMA_3_2_11B_VISION'] }
 ];
 
 // --- Recommendation 6: Provider Health Tracking ---
