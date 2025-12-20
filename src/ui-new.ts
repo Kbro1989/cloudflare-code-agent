@@ -345,7 +345,7 @@ window.deployProject = async function() {
         const result = await res.json();
 
         if (res.ok) {
-            alert("🚀 Success! Deployed to namespace " + result.result.namespace + "\\nScript: " + result.result.script);
+            alert("🚀 Success! Deployed to namespace " + result.result.namespace + "\\\\nScript: " + result.result.script);
         } else {
              alert('Deployment Failed: ' + (result.error || 'Unknown Error'));
         }
@@ -930,7 +930,7 @@ window.sendMessage = async function() {
             if (done) break;
             const chunk = decoder.decode(value);
             // DEBUG: console.log('Chunk received:', chunk);
-            const lines = chunk.split('\\n\\n');
+            const lines = chunk.split('\\\\n\\\\n');
             for (const line of lines) {
                 const trimmed = line.trim();
                 if (!trimmed) continue;
@@ -982,7 +982,7 @@ window.sendMessage = async function() {
                     body: JSON.stringify({ token, owner, repo, branch, message })
                 }).then(r => r.json()).then(gData => {
                     if (gData.success) {
-                        window.addMessage('ai', '✅ *Push Successful!* \\\\nFinal product delivered to ' + BACKTICK + repoPath + BACKTICK + ' on branch ' + BACKTICK + branch + BACKTICK + '. \\\\nSHA: ' + BACKTICK + gData.sha + BACKTICK);
+                        window.addMessage('ai', '✅ *Push Successful!* \\\\\\\\nFinal product delivered to ' + BACKTICK + repoPath + BACKTICK + ' on branch ' + BACKTICK + branch + BACKTICK + '. \\\\\\\\nSHA: ' + BACKTICK + gData.sha + BACKTICK);
                     } else {
                         window.addMessage('ai', '❌ *Push Failed:* ' + (gData.error || 'Unknown error'));
                     }
@@ -1005,7 +1005,7 @@ window.sendMessage = async function() {
                 body: JSON.stringify({ command })
             }).then(r => r.json()).then(tData => {
                 const output = tData.output || 'Command executed';
-                window.addMessage('ai', '🏁 *Terminal Result:* \\\\n' + BACKTICK + BACKTICK + BACKTICK + '\\\\n' + output.slice(-1000) + '\\\\n' + BACKTICK + BACKTICK + BACKTICK);
+                window.addMessage('ai', '🏁 *Terminal Result:* \\\\\\\\n' + BACKTICK + BACKTICK + BACKTICK + '\\\\\\\\n' + output.slice(-1000) + '\\\\\\\\n' + BACKTICK + BACKTICK + BACKTICK);
                 window.refreshFiles();
             }).catch(err => {
                 window.addMessage('ai', '❌ *Terminal Error:* \\\\n' + BACKTICK + err.message + BACKTICK);
@@ -1024,7 +1024,7 @@ window.sendMessage = async function() {
             }).then(r => r.json()).then(bData => {
                 if (bData.success) {
                     const output = bData.output ? bData.output.slice(-500) : 'Done';
-                    window.addMessage('ai', '✅ *Blender Task Complete!* \\\\n' + BACKTICK + BACKTICK + BACKTICK + '\\\\n' + output + '\\\\n' + BACKTICK + BACKTICK + BACKTICK);
+                    window.addMessage('ai', '✅ *Blender Task Complete!* \\\\\\\\n' + BACKTICK + BACKTICK + BACKTICK + '\\\\\\\\n' + output + '\\\\\\\\n' + BACKTICK + BACKTICK + BACKTICK);
                     window.refreshFiles();
                 } else {
                     const errText = bData.error || 'Unknown error';
@@ -1051,9 +1051,9 @@ window.sendMessage = async function() {
                 body: JSON.stringify({ pattern })
             }).then(r => r.json()).then(sData => {
                 if (sData.results && sData.results.length > 0) {
-                    let resHtml = '✅ *Search Results for "' + pattern + '":*\\\\n';
+                    let resHtml = '✅ *Search Results for "' + pattern + '":*\\\\\\\\n';
                     sData.results.slice(0, 10).forEach(r => {
-                        resHtml += '• [' + r.file + '](file://' + r.file + ') (Line ' + r.line + '): ' + BACKTICK + r.content + BACKTICK + '\\\\n';
+                        resHtml += '• [' + r.file + '](file://' + r.file + ') (Line ' + r.line + '): ' + BACKTICK + r.content + BACKTICK + '\\\\\\\\n';
                     });
                     if (sData.results.length > 10) resHtml += '*...and ' + (sData.results.length - 10) + ' more results.*';
                     window.addMessage('ai', resHtml);
@@ -1075,7 +1075,7 @@ window.sendMessage = async function() {
                 .then(r => r.json())
                 .then(fData => {
                     if (fData.content) {
-                        window.addMessage('ai', '📄 *Content of ' + path + ':*\\\\n' + window.formatToken(BACKTICK + BACKTICK + BACKTICK + '\\\\n// file: ' + path + '\\\\n' + fData.content + '\\\\n' + BACKTICK + BACKTICK + BACKTICK));
+                        window.addMessage('ai', '📄 *Content of ' + path + ':*\\\\\\\\n' + window.formatToken(BACKTICK + BACKTICK + BACKTICK + '\\\\\\\\n// file: ' + path + '\\\\\\\\n' + fData.content + '\\\\\\\\n' + BACKTICK + BACKTICK + BACKTICK));
                     } else {
                         window.addMessage('ai', '❌ *Could not read ' + path + '*');
                     }
