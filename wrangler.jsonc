@@ -2,7 +2,7 @@
   "name": "cloudflare-code-agent",
   "main": "src/index.ts",
   "compatibility_date": "2024-12-16",
-  "account_id": "6872653edcee9c787c1b783173793",
+  "account_id": "6872653edcee9c791787c1b783173793",
   "durable_objects": {
     "bindings": [
       {
