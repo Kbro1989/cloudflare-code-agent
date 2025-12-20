@@ -744,7 +744,6 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     const audioArray = new Uint8Array(audioBuffer);
 
     console.log(`🎙️ STT Request: ${audioArray.byteLength} bytes`);
-    console.log("UI_VERSION_HOLD_FIX_V8 Loaded");
 
     if (audioArray.byteLength < 100) {
       return new Response('Audio buffer too small', { status: 400, headers: corsHeaders });
@@ -758,14 +757,9 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
       console.error('STT Failure:', e1.message);
       return new Response(`STT Error: ${e1.message}`, { status: 500, headers: corsHeaders });
     }
-    return json(response, 200, corsHeaders);
-  } catch (e1: any) {
-    console.error('STT Failure:', e1.message);
-    return new Response(`STT Error: ${e1.message}`, { status: 500, headers: corsHeaders });
+  } catch (e: any) {
+    return errorResponse(`STT Buffer Error: ${e.message}`, 500, corsHeaders);
   }
-} catch (e: any) {
-  return errorResponse(`STT Buffer Error: ${e.message}`, 500, corsHeaders);
-}
 }
 
 async function handleAudioTTS(request: Request, env: Env, corsHeaders: any): Promise<Response> {
