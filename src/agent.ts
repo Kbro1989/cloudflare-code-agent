@@ -93,15 +93,12 @@ export class CodeAgent extends AIChatAgent<Env> {
 
     // Core Agent Brain: Use runWithTools to orchestrate the conversation
     // This handles the thought -> tool-call -> tool-result -> response loop automatically.
-    // @ts-ignore
-    const result = await runWithTools(
+    const result = await (runWithTools as any)(
       AI,
       "@hf/nousresearch/hermes-2-pro-mistral-7b",
       {
-        // @ts-ignore
-        messages: this.messages.map(m => ({
+        messages: (this.messages as any[]).map(m => ({
           role: m.role,
-          // @ts-ignore
           content: typeof m.content === 'string' ? m.content : (m.parts?.[0]?.text || "")
         })),
         tools: tools,

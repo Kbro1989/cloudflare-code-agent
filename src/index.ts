@@ -14,6 +14,9 @@ export interface Env {
   // Secrets
   GEMINI_API_KEY?: string;
   VITE_GEMINI_API_KEY?: string;
+  GOOGLE_API_KEY?: string;
+  GEMINI_KEY?: string;
+  GOOGLE_KEY?: string;
   OLLAMA_URL?: string;
   OLLAMA_AUTH_TOKEN?: string;
   OLLAMA_API_KEY?: string;
@@ -851,7 +854,7 @@ async function handleHealth(request: Request, env: Env, ctx: ExecutionContext, c
   status.kvWriteQuota = Math.round((parseInt(writeCount) / 1000) * 100);
 
   // Gemini Check
-  if (env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY) {
+  if (env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY) {
     const isFailing = await env.CACHE.get('geminiCircuitBreaker') === 'true';
     status.providers.push({
       name: 'gemini',
@@ -1154,7 +1157,7 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   status_report.DEBUG_KEYS = Object.keys(env).map(k => k.replace(/API_KEY|TOKEN|SECRET|PASSWORD/i, '[REDACTED]'));
 
   // Check Secrets (Presence only)
-  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || (env as any).GOOGLE_API_KEY || (env as any).GEMINI_KEY || (env as any).GOOGLE_KEY);
+  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.GOOGLE_KEY);
   status_report.CLOUDFLARE_AUTH = !!env.CLOUDFLARE_API_TOKEN;
   status_report.OLLAMA_SECRET = !!env.OLLAMA_URL;
 
@@ -1162,7 +1165,7 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   if (!env.R2_ASSETS) issues.push('R2_ASSETS binding missing');
   if (!env.MEMORY) issues.push('MEMORY (KV) binding missing');
   if (!env.RATE_LIMITER) issues.push('RATE_LIMITER (DO) binding missing');
-  if (!status_report.GEMINI_SECRET) issues.push('Gemini API secret missing (VITE_GEMINI_API_KEY or GEMINI_API_KEY)');
+  if (!status_report.GEMINI_SECRET) issues.push('Gemini API secret missing (Add GOOGLE_API_KEY or GEMINI_API_KEY as Cloudflare Secret)');
 
   // Check Quota
   const today = new Date().toISOString().split('T')[0];

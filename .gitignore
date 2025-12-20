@@ -11,6 +11,9 @@ npm-debug.log*
 *.pem
 wrangler.toml.backup
 .secrets
+.dev.vars
+deploy_err.txt
+dev_log.txt
 
 # IDEs
 .vscode/settings.json
