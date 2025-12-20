@@ -230,9 +230,12 @@ async function runAI(env: Env, model: string, input: any, provider = 'workers-ai
         const data = await res.json() as any;
         return data.result || data;
       }
-      console.warn(`Gateway (${provider}) status ${res.status}. Falling back...`);
-    } catch (e) {
-      console.error(`Gateway (${provider}) error:`, e);
+      const errorBody = await res.text();
+      throw new Error(`Gateway Error (${res.status}): ${errorBody}`);
+    } catch (e: any) {
+      console.error(`Gateway (${provider}) error:`, e.message);
+      // If it was the primary provider, let it throw so fallback works
+      if (provider !== 'workers-ai') throw e;
     }
   }
 
@@ -750,8 +753,19 @@ async function handleAudioSTT(request: Request, env: Env, corsHeaders: any): Pro
     }
 
     try {
-      // Direct pass of Uint8Array for maximum reliability
-      const response = await runAI(env, MODELS.STT, audioArray);
+      // 5006 fix: Some models require { audio: binary } vs raw binary
+      // We try raw first as it's more efficient, then wrap if it fails with schema error
+      let response;
+      try {
+        response = await runAI(env, MODELS.STT, audioArray);
+      } catch (e: any) {
+        if (e.message.includes('required properties') || e.message.includes('5006')) {
+          // Fallback to array format if binary is rejected
+          response = await runAI(env, MODELS.STT, { audio: Array.from(audioArray) });
+        } else {
+          throw e;
+        }
+      }
       return json(response, 200, corsHeaders);
     } catch (e1: any) {
       console.error('STT Failure:', e1.message);
@@ -937,7 +951,10 @@ async function generateCompletion(
         }
 
         const response = await runAI(env, modelId, input);
-        return (response.response || response).trim();
+        if (!response) throw new Error("Empty response from AI");
+        const text = (response.response || response.message?.content || (typeof response === 'string' ? response : ''));
+        if (!text) throw new Error("Could not extract text from AI response");
+        return text.trim();
       }
     },
     {
@@ -1160,7 +1177,7 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   status_report.DEBUG_KEYS = Object.keys(env).map(k => k.replace(/API_KEY|TOKEN|SECRET|PASSWORD/i, '[REDACTED]'));
 
   // Check Secrets (Presence only)
-  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || (env as any).GOOGLE_API_KEY);
+  status_report.GEMINI_SECRET = !!(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || (env as any).GOOGLE_API_KEY || (env as any).GEMINI_KEY);
   status_report.CLOUDFLARE_AUTH = !!env.CLOUDFLARE_API_TOKEN;
   status_report.OLLAMA_SECRET = !!env.OLLAMA_URL;
 
