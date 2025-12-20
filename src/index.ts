@@ -993,8 +993,9 @@ async function generateCompletion(
     }
   ];
 
-  // If a specific model is requested, we prefer Workers AI if healthy
-  if (requestedModel && requestedModel !== 'auto' && providers[1].health.isHealthy()) {
+  // If a specific model is requested, we prefer Workers AI if healthy, UNLESS it's a Gemini/Flash model
+  const isExplicitGemini = requestedModel && (requestedModel.toLowerCase().includes('gemini') || requestedModel.toLowerCase().includes('flash'));
+  if (requestedModel && requestedModel !== 'auto' && !isExplicitGemini && providers[1].health.isHealthy()) {
     try {
       const completion = await providers[1].run();
       if (completion) {
@@ -1159,7 +1160,7 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   if (!env.R2_ASSETS) issues.push('R2_ASSETS binding missing');
   if (!env.MEMORY) issues.push('MEMORY (KV) binding missing');
   if (!env.RATE_LIMITER) issues.push('RATE_LIMITER (DO) binding missing');
-  if (!status_report.GEMINI_SECRET) issues.push('GEMINI_API_KEY secret missing (Flash fallback will fail)');
+  if (!status_report.GEMINI_SECRET) issues.push('Gemini API secret missing (VITE_GEMINI_API_KEY or GEMINI_API_KEY)');
 
   // Check Quota
   const today = new Date().toISOString().split('T')[0];
