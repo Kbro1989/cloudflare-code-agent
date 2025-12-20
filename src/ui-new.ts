@@ -6,11 +6,14 @@ export const IDE_HTML = `<!DOCTYPE html>
     <title>Cloudflare Web IDE</title>
     <script>
       (function() {
-        // Silence Tailwind Production Warning (Must be at the very top)
+        // Silence Tailwind Production Warning (Aggressive Mode)
         window.tailwind = { config: { silent: true } };
-        localStorage.setItem('tailwind-config-warn', 'false');
         if (typeof Proxy !== 'undefined') {
           window.tailwind = new Proxy(window.tailwind || {}, {
+            get: (target, prop) => {
+              if (prop === 'config') return { silent: true, theme: target.config?.theme || {} };
+              return target[prop];
+            },
             set: (target, prop, value) => {
               if (prop === 'config' && value) value.silent = true;
               target[prop] = value;
@@ -18,6 +21,12 @@ export const IDE_HTML = `<!DOCTYPE html>
             }
           });
         }
+        // Patch console.warn to ignore the specific Tailwind message
+        const _warn = console.warn;
+        console.warn = function(...args) {
+          if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+          _warn.apply(console, args);
+        };
       })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>

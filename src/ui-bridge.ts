@@ -267,6 +267,63 @@ window.deleteFile = async function(name) {
     }
 };
 
+// Override ghClone for local bridge
+const oldGhClone = window.ghClone;
+window.ghClone = async function() {
+    if (!localBridgeAvailable) return oldGhClone ? oldGhClone() : null;
+
+    const repoInput = document.getElementById('ghRepo');
+    const repoRaw = repoInput?.value;
+    if (!repoRaw) return alert("Enter repo (owner/repo)");
+
+    const btn = document.querySelector('button[onclick="window.ghClone()"]');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-laptop"></i> Fast Cloning...';
+
+    try {
+        // Local clone using CLI
+        const res = await fetch(BRIDGE_URL + '/api/terminal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'git clone https://github.com/' + repoRaw + ' .' })
+        });
+        const d = await res.json();
+        alert('Local Clone Output:\n' + d.output);
+        window.refreshFiles();
+    } catch (e) {
+        alert('Local Clone Failed: ' + e.message);
+    } finally { btn.innerHTML = oldText; }
+};
+
+// Add interceptor for [GITHUB: push] to use local git if available
+const originalAddMessage = window.addMessage;
+window.addMessage = function(role, text, isMarkdown) {
+    if (role === 'ai' && localBridgeAvailable) {
+        // Use simpler regex to avoid escaping hell in nested template literals
+        const githubMatch = text.match(/\[GITHUB: push (.*?):(.*?):(.*?)]/i);
+        if (githubMatch) {
+            const [_, repoPath, branch, msg] = githubMatch;
+            console.log('🚀 Redirecting GitHub push to Local Bridge...');
+
+            const runPush = async () => {
+                try {
+                    // Local Git sequence
+                    await fetch(BRIDGE_URL + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git add .' }) });
+                    await fetch(BRIDGE_URL + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git commit -m "' + msg + '"' }) });
+                    const res = await fetch(BRIDGE_URL + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git push origin ' + branch }) });
+                    const d = await res.json();
+                    originalAddMessage('ai', '✅ **Local Git Push Complete**\\n' + d.output, true);
+                } catch (e) {
+                    originalAddMessage('ai', '❌ **Local Git Push Failed**: ' + e.message, true);
+                }
+            };
+            runPush();
+            return; // Intercepted
+        }
+    }
+    return originalAddMessage ? originalAddMessage(role, text, isMarkdown) : null;
+};
+
 // Init on page load
 window.addEventListener('load', async function() {
     await window.detectLocalBridge();

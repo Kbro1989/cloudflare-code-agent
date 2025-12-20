@@ -92,6 +92,31 @@ export class CodeAgent extends AIChatAgent<Env> {
           }
         },
         {
+          name: "git_exec",
+          description: "Execute git commands locally (e.g., git status, git add, git commit). Requires local bridge.",
+          parameters: {
+            type: "object",
+            properties: {
+              command: { type: "string", description: "The git command to execute (e.g., 'status', 'add .')." }
+            },
+            required: ["command"]
+          },
+          function: async ({ command }: { command: string }) => {
+            try {
+              // Ensure it's a git command
+              const fullCommand = command.startsWith("git ") ? command : `git ${command}`;
+              const res = await fetch("http://127.0.0.1:3030/api/terminal", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ command: fullCommand })
+              });
+              return await res.text();
+            } catch (e) {
+              return "Error: Local bridge not reachable for git operations.";
+            }
+          }
+        },
+        {
           name: "blender_run",
           description: "Run a Python script in Blender (background mode) to generate or edit 3D models (.glb).",
           parameters: {
