@@ -1316,7 +1316,7 @@ window.formatToken = function(text) {
     });
 
     // Use the BACKTICK variable to avoid literal backticks in the worker string
-    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\w+)?\\n(?:\\/\\/\\s*file:\\s*([^\\n\\r]+)\\n)?([\\s\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
+    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\\\w+)?\\\\n(?:\\\\/\\\\/\\\\s*file:\\\\s*([^\\\\n\\\\r]+)\\\\n)?([\\\\s\\\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
     return formattedText.replace(pattern, (m, lang, file, code) => {
         const encoded = encodeURIComponent(code);
         const safeFile = file ? encodeURIComponent(file) : '';
@@ -1327,7 +1327,7 @@ window.formatToken = function(text) {
             '</div>' +
             '<pre class="text-xs overflow-x-auto">' + window.escapeHtml(code) + '</pre>' +
         '</div>';
-    }).replace(/\[REFRESH\]/g, '').replace(/\\n/g, '<br>');
+    }).replace(/\\\[REFRESH\\\]/g, '').replace(/\\\\n/g, '<br>');
 };
 
 window.applyCode = async function(encodedCode, file) {
