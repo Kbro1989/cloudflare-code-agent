@@ -2,7 +2,50 @@
 export const BRIDGE_INTEGRATION = String.raw`
 // Local Bridge State
 let localBridgeAvailable = false;
+let taskQueueMode = false; // True when using cloud-to-local task queue
 const originalAddMessage = (typeof window !== "undefined") ? window.addMessage : null;
+
+// Task Queue Helper - Submits task to cloud and polls for result
+window.runLocalTask = async function(type, payload, timeoutMs = 30000) {
+  const res = await fetch('/api/task/queue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, payload })
+  });
+  const { taskId } = await res.json();
+
+  // Poll for result
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    await new Promise(r => setTimeout(r, 500)); // Wait 500ms between polls
+    const resultRes = await fetch('/api/task/result?taskId=' + taskId);
+    const result = await resultRes.json();
+    if (result.status === 'complete') {
+      if (result.error) throw new Error(result.error);
+      return result.result;
+    }
+  }
+  throw new Error('Task timeout: ' + type);
+};
+
+// Check if Task Queue is available (Task Runner CLI is running)
+window.checkTaskQueueMode = async function() {
+  if (window.location.protocol !== 'https:') return false;
+  try {
+    // Submit a quick health check task
+    const result = await window.runLocalTask('fs.list', { path: '' }, 5000);
+    if (result && Array.isArray(result)) {
+      taskQueueMode = true;
+      console.log('🔄 Task Queue Mode: Active (Task Runner CLI connected)');
+      window.updateModeIndicator('local');
+      return true;
+    }
+  } catch (e) {
+    console.log('☁️ Task Queue Mode: Inactive (Start Task Runner CLI for local file access)');
+  }
+  return false;
+};
+
 
 // Detect Local Bridge with retries
 window.detectLocalBridge = async function() {
@@ -67,6 +110,17 @@ window.detectLocalBridge = async function() {
   localBridgeAvailable = false;
   console.log('☁️  Using Cloud Mode (R2)');
   window.updateModeIndicator('cloud');
+
+  // Try Task Queue Mode (requires Task Runner CLI to be running)
+  if (window.location.protocol === 'https:') {
+    console.log('🔄 Checking Task Queue Mode...');
+    const taskQueueAvailable = await window.checkTaskQueueMode();
+    if (taskQueueAvailable) {
+      return true; // Task queue working, local file access enabled
+    }
+    console.log('💡 To enable local file access: node local-bridge/task-runner.js');
+  }
+
   return false;
 };
 
@@ -173,16 +227,26 @@ window.syncCloudToLocal = async function() {
     }
 };
 
-// Override refreshFiles to use bridge
+// Override refreshFiles to use bridge or task queue
 window.refreshFiles = async function() {
     const listEl = document.getElementById('fileList');
     if (listEl) listEl.innerHTML = '<div class="text-slate-500 text-xs p-2">Loading...</div>';
     try {
-        const apiBase = window.getApiBase();
-        const res = await fetch(apiBase + '/api/fs/list');
-        if (!res.ok) throw new Error('API down');
-        const data = await res.json();
-
+        let data;
+        if (localBridgeAvailable) {
+            const apiBase = window.getApiBase();
+            const res = await fetch(apiBase + '/api/fs/list');
+            if (!res.ok) throw new Error('API down');
+            data = await res.json();
+        } else if (taskQueueMode) {
+            // Use task queue for local file access from production URL
+            data = await window.runLocalTask('fs.list', { path: '' }, 10000);
+        } else {
+            // Fall back to cloud R2
+            const res = await fetch('/api/fs/list');
+            if (!res.ok) throw new Error('API down');
+            data = await res.json();
+        }
         fileTree = data;
         window.renderFileList(data);
     } catch (e) {

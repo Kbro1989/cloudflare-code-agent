@@ -461,6 +461,15 @@ export default {
           return handleHealth(request, env, ctx, corsHeaders);
         case '/api/models':
           return json({ catalog: MODELS, groups: MODEL_GROUPS }, 200, corsHeaders);
+        // --- Task Queue for PNA Bypass ---
+        case '/api/task/queue':
+          return handleTaskQueue(request, env, corsHeaders);
+        case '/api/task/pending':
+          return handleTaskPending(request, env, corsHeaders);
+        case '/api/task/complete':
+          return handleTaskComplete(request, env, corsHeaders);
+        case '/api/task/result':
+          return handleTaskResult(request, env, corsHeaders);
         default:
           return new Response('Not Found', { status: 404, headers: corsHeaders });
       }
@@ -494,6 +503,77 @@ async function handleContextMap(request: Request, env: Env, corsHeaders: any): P
     return errorResponse(e.message, 500, corsHeaders);
   }
 }
+
+// ----------------------------------------------------------------------------
+// Task Queue - PNA Bypass via Polling
+// ----------------------------------------------------------------------------
+const TASK_QUEUE_PREFIX = 'task_queue:';
+const TASK_RESULT_PREFIX = 'task_result:';
+
+async function handleTaskQueue(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+
+  const { type, payload } = await request.json() as any;
+  if (!type) return errorResponse('Missing task type', 400, corsHeaders);
+
+  const taskId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const task = { id: taskId, type, payload, status: 'pending', createdAt: Date.now() };
+
+  // Store in KV with 5 minute TTL
+  await env.CACHE.put(`${TASK_QUEUE_PREFIX}${taskId}`, JSON.stringify(task), { expirationTtl: 300 });
+
+  return json({ taskId, status: 'queued' }, 200, corsHeaders);
+}
+
+async function handleTaskPending(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  // List all pending tasks for the CLI to pick up
+  const list = await env.CACHE.list({ prefix: TASK_QUEUE_PREFIX });
+  const tasks: any[] = [];
+
+  for (const key of list.keys) {
+    const taskData = await env.CACHE.get(key.name);
+    if (taskData) {
+      const task = JSON.parse(taskData);
+      if (task.status === 'pending') {
+        tasks.push(task);
+        // Mark as "processing" to prevent double pickup
+        task.status = 'processing';
+        await env.CACHE.put(key.name, JSON.stringify(task), { expirationTtl: 300 });
+      }
+    }
+  }
+
+  return json({ tasks }, 200, corsHeaders);
+}
+
+async function handleTaskComplete(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+
+  const { taskId, result, error } = await request.json() as any;
+  if (!taskId) return errorResponse('Missing taskId', 400, corsHeaders);
+
+  // Remove from queue
+  await env.CACHE.delete(`${TASK_QUEUE_PREFIX}${taskId}`);
+
+  // Store result for polling (30 second TTL)
+  await env.CACHE.put(`${TASK_RESULT_PREFIX}${taskId}`, JSON.stringify({ result, error, completedAt: Date.now() }), { expirationTtl: 30 });
+
+  return json({ success: true }, 200, corsHeaders);
+}
+
+async function handleTaskResult(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  const url = new URL(request.url);
+  const taskId = url.searchParams.get('taskId');
+  if (!taskId) return errorResponse('Missing taskId', 400, corsHeaders);
+
+  const resultData = await env.CACHE.get(`${TASK_RESULT_PREFIX}${taskId}`);
+  if (!resultData) {
+    return json({ status: 'pending' }, 200, corsHeaders);
+  }
+
+  return json({ status: 'complete', ...JSON.parse(resultData) }, 200, corsHeaders);
+}
+
 
 // ----------------------------------------------------------------------------
 // Deployment Handler (Self-Replication)
