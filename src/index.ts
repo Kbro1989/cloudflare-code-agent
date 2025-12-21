@@ -38,6 +38,8 @@ export interface Env {
   AI_GATEWAY_ID: string;
 }
 
+const WORKSPACE_PREFIX = 'projects/default/';
+
 // Durable Object: Rate limiting only
 export class RateLimiter {
   state: DurableObjectState;
@@ -76,16 +78,19 @@ export class RateLimiter {
 // ----------------------------------------------------------------------------
 export const MODELS = {
   // --- High-Performance Reasoning & Production ---
-  GPT_OSS: '@cf/openai/gpt-oss-120b',
-  GPT_OSS_20B: '@cf/openai/gpt-oss-20b',
+  GPT_OSS: '@cf/meta/llama-3.1-70b-instruct',
+  GPT_OSS_20B: '@cf/meta/llama-3.1-8b-instruct',
   LLAMA4_SCOUT: '@cf/meta/llama-4-scout-17b-16e-instruct',
   REASONING: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
   QWQ_32B: '@cf/qwen/qwq-32b',
   GRANITE_MICRO: '@cf/ibm/granite-4.0-h-micro',
+  THINK: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  AGENT: '@cf/ibm/granite-4.0-h-micro',
 
   // --- Standard Logic & Coding ---
-  DEFAULT: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  DEFAULT: '@cf/meta/llama-3.1-8b-instruct',
   CODING: '@cf/qwen/qwen2.5-coder-32b-instruct',
+  CODE: '@cf/qwen/qwen2.5-coder-32b-instruct',
   DEEPSEEK_CODER: '@cf/thebloke/deepseek-coder-6.7b-instruct-awq',
   MISTRAL_SMALL: '@cf/mistralai/mistral-small-3.1-24b-instruct',
   GEMMA_3: '@cf/google/gemma-3-12b-it',
@@ -103,6 +108,7 @@ export const MODELS = {
   // --- Visual Arts (Image Generation) ---
   FLUX_DEV: '@cf/black-forest-labs/flux-2-dev',
   FLUX: '@cf/black-forest-labs/flux-1-schnell',
+  IMAGE: '@cf/black-forest-labs/flux-1-schnell',
   SDXL: '@cf/bytedance/stable-diffusion-xl-lightning',
   DREAMSHAPER: '@cf/lykon/dreamshaper-8-lcm',
   LUCID: '@cf/leonardo/lucid-origin',
@@ -183,7 +189,7 @@ async function saveProjectMemory(env: Env, ctx: ExecutionContext, projectId: str
   }
 }
 
-async function runAI(env: Env, model: string, input: any, provider = 'workers-ai'): Promise<any> {
+export async function runAI(env: Env, model: string, input: any, provider = 'workers-ai'): Promise<any> {
   const accountId = env.CLOUDFLARE_ACCOUNT_ID;
   const gatewayId = env.AI_GATEWAY_ID;
   const cfApiToken = env.WORKERS_AI_KEY || env.CLOUDFLARE_API_TOKEN;
@@ -746,7 +752,8 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
     // @ts-ignore
     const response = await runAI(env, modelId, {
       prompt,
-      num_steps: style === 'quality' ? 50 : 20
+      // Flux Schnell/Lightning models fail if num_steps > 4 or 8
+      num_steps: (modelId.includes('schnell') || modelId.includes('lightning')) ? 4 : (style === 'quality' ? 20 : 10)
     });
 
     // Handle both raw buffer and potential results object
@@ -783,6 +790,7 @@ async function handleImage(request: Request, env: Env, ctx: ExecutionContext, co
       provider: modelId
     }, 200, corsHeaders);
   } catch (e: any) {
+    console.error(`ERROR in handleImage: ${e.message}\nStack: ${e.stack}`);
     return errorResponse(`Art Gen Failed: ${e.message}`, 500, corsHeaders);
   }
 }
@@ -1231,7 +1239,7 @@ async function handleDoctor(request: Request, env: Env, ctx: ExecutionContext, c
   }, 200, corsHeaders);
 }
 
-const WORKSPACE_PREFIX = 'projects/default/';
+
 
 // Helper: Refresh KV File Index
 async function refreshKVIndex(env: Env): Promise<void> {

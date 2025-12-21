@@ -9,6 +9,14 @@ const http = require('http');
 const WebSocket = require('ws');
 
 const execAsync = promisify(exec);
+const LOG_FILE = path.join(process.cwd(), 'bridge.log');
+
+async function logBridge(msg) {
+  const timestamp = new Date().toISOString();
+  await fs.appendFile(LOG_FILE, `[${timestamp}] ${msg}\n`).catch(() => { });
+}
+
+logBridge("Bridge Server Starting...");
 const app = express();
 const PORT = 3040;
 
@@ -241,6 +249,67 @@ app.all('/api/fs/search', async (req, res) => {
     res.json({ results });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Synchronous Exec (for agentic tool calls)
+app.post('/api/exec', async (req, res) => {
+  try {
+    const { command, persistent = false } = req.body;
+    if (!command) return res.status(400).json({ error: 'Missing command' });
+
+    await logBridge(`EXEC (persistent=${persistent}): ${command}`);
+    console.log(`💻 Executing: ${command}`);
+
+    if (persistent) {
+      const shell = getActiveShell();
+      const sentinel = `___SENTINEL_${Date.now()}___`;
+      let output = '';
+
+      const onData = (data) => {
+        const str = data.toString();
+        if (str.includes(sentinel)) {
+          output += str.replace(sentinel, '');
+          finish();
+        } else {
+          output += str;
+        }
+      };
+
+      const cleanup = () => {
+        shell.stdout.removeListener('data', onData);
+        shell.stderr.removeListener('data', onData);
+        clearTimeout(timeout);
+      };
+
+      const timeout = setTimeout(() => {
+        cleanup();
+        res.json({ success: false, error: 'Command timed out', stdout: output });
+      }, 30000);
+
+      const finish = () => {
+        cleanup();
+        res.json({ success: true, stdout: output.trim() });
+      };
+
+      shell.stdout.on('data', onData);
+      shell.stderr.on('data', onData);
+
+      shell.stdin.write(`${command}; echo "${sentinel}"\n`);
+      return;
+    }
+
+    // Standard single-shot execution
+    const shellCmd = process.platform === 'win32' ? 'powershell.exe' : '/bin/sh';
+    const shellArgs = process.platform === 'win32' ? ['-NoLogo', '-NoProfile', '-Command', command] : ['-c', command];
+    const { stdout, stderr } = await execAsync(`"${shellCmd}" ${shellArgs.slice(2).join(' ')}`, {
+      cwd: WORKSPACE_ROOT,
+      timeout: 30000,
+      env: { ...process.env }
+    });
+    res.json({ stdout: stdout || '', stderr: stderr || '', success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stdout: error.stdout || '', stderr: error.stderr || '', success: false });
   }
 });
 

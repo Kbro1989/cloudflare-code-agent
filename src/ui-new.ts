@@ -86,7 +86,7 @@ export const IDE_HTML = `<!DOCTYPE html>
         <!-- Sidebar -->
         <aside class="w-64 border-r border-cyan-900/50 flex flex-col bg-slate-950/80 transition-all duration-300 ease-in-out group/sidebar overflow-hidden relative z-20">
             <div class="p-3 border-b border-cyan-900/30 flex justify-between items-center bg-cyan-950/20">
-                <span class="text-[10px] font-bold text-cyan-700 uppercase tracking-widest">Navigation</span>
+                <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Navigation</span>
                 <div class="flex gap-1">
                     <button onclick="window.toggleExplorerMode()" id="explorerToggle" title="Toggle Gallery" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-table-cells text-sm"></i></button>
                     <button onclick="window.toggleAudioStudio()" id="audioStudioToggle" title="Sound Studio" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-microphone-lines text-sm"></i></button>
@@ -115,12 +115,12 @@ export const IDE_HTML = `<!DOCTYPE html>
                     <div id="kanbanBoard" class="hidden space-y-4">
                         <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-900 mb-2 border-b border-cyan-950 pb-1">Backlog</h4><div id="todoList"></div></div>
                         <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-500 mb-2 border-b border-cyan-900/20 pb-1">Active</h4><div id="doingList"></div></div>
-                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-700 mb-2 border-b border-cyan-900/10 pb-1">Finalized</h4><div id="doneList"></div></div>
+                        <div class="kanban-col"><h4 class="text-[8px] uppercase text-cyan-400 mb-2 border-b border-cyan-900/10 pb-1">Finalized</h4><div id="doneList"></div></div>
                     </div>
                 </div>
             </div>
             <div id="audioStudioPanel" class="flex-1 overflow-y-auto hidden p-3 bg-slate-950/40">
-                <h3 class="text-[10px] uppercase font-bold text-cyan-700 mb-4 tracking-widest">Vocal Synthesis</h3>
+                <h3 class="text-[10px] uppercase font-bold text-cyan-400 mb-4 tracking-widest">Vocal Synthesis</h3>
                 <div class="space-y-4">
                     <div>
                         <textarea id="audioInput" rows="4" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-100 placeholder:text-cyan-900" placeholder="Source Text..."></textarea>
@@ -143,12 +143,21 @@ export const IDE_HTML = `<!DOCTYPE html>
             </div>
 
 
-            <!-- GitHub Settings -->
+            <!-- Project Settings -->
             <div class="p-3 border-t border-cyan-900/50 flex flex-col gap-2 bg-slate-950">
-                <input id="ghRepo" placeholder="owner/repo" class="w-full bg-slate-900 border border-cyan-900/50 text-[10px] px-2 py-1.5 rounded text-cyan-400 placeholder:text-cyan-950 outline-none focus:border-cyan-400 font-mono">
-                <div class="flex items-center justify-between text-[10px] text-cyan-900 font-mono">
-                    <span class="truncate max-w-[100px]" id="ghRepoStatus">Not Linked</span>
-                    <button onclick="window.toggleGithubSettings()" class="hover:text-cyan-400 transition"><i class="fa-solid fa-gear"></i></button>
+                <div class="flex items-center justify-between group/settings">
+                    <span class="text-[9px] font-bold text-cyan-900 uppercase tracking-widest">Environment</span>
+                    <button onclick="window.toggleSettingsModal()" class="text-cyan-900 hover:text-cyan-400 transition"><i class="fa-solid fa-sliders"></i></button>
+                </div>
+                <div class="flex flex-col gap-1.5 pt-1">
+                    <div class="flex items-center gap-2 group">
+                        <i class="fa-solid fa-link text-[10px] text-cyan-900 group-hover:text-cyan-400 transition"></i>
+                        <input id="bridgeUrlInput" placeholder="Bridge: http://127.0.0.1:3040" class="flex-1 bg-transparent border-none text-[10px] text-cyan-400 placeholder:text-cyan-950 outline-none focus:text-cyan-300 font-mono transition" onchange="window.saveBridgeUrl(this.value)">
+                    </div>
+                    <div class="flex items-center gap-2 group">
+                        <i class="fa-brands fa-github text-[10px] text-cyan-900 group-hover:text-cyan-400 transition"></i>
+                        <input id="ghRepo" placeholder="owner/repo" class="flex-1 bg-transparent border-none text-[10px] text-cyan-400 placeholder:text-cyan-950 outline-none focus:text-cyan-300 font-mono transition">
+                    </div>
                 </div>
             </div>
         </aside>
@@ -173,9 +182,9 @@ export const IDE_HTML = `<!DOCTYPE html>
                         <span class="tracking-widest">Command Interface</span>
                     </div>
                 </div>
-                <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto whitespace-pre-wrap text-cyan-700/80"></div>
+                <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto whitespace-pre-wrap text-cyan-300"></div>
                 <div class="p-2 border-t border-cyan-900/10 flex bg-black/20">
-                    <span class="text-cyan-600 font-mono text-xs mr-2 animate-pulse">>>></span>
+                    <span class="text-cyan-400 font-mono text-xs mr-2 animate-pulse">>>></span>
                     <input id="terminalInput" type="text" class="flex-1 bg-transparent border-none outline-none font-mono text-xs text-cyan-400 placeholder:text-cyan-950" placeholder="System Input...">
                 </div>
             </div>
@@ -188,49 +197,48 @@ export const IDE_HTML = `<!DOCTYPE html>
                     <i class="fa-solid fa-sparkles text-cyan-400 glow-text"></i>
                     <span class="text-xs font-bold uppercase tracking-[0.2em] text-cyan-500">Nova Core v4</span>
                 </div>
-                <div id="providerBadge" class="text-[8px] bg-cyan-900/30 px-2 py-0.5 rounded border border-cyan-500/10 text-cyan-700 tracking-widest font-mono">LINKED</div>
+                <div id="providerBadge" class="text-[8px] bg-cyan-900/30 px-2 py-0.5 rounded border border-cyan-500/10 text-cyan-400 tracking-widest font-mono">LINKED</div>
             </div>
 
             <!-- Model Selector -->
-                <select id="modelSelector" class="w-full bg-slate-950 border border-cyan-900/40 text-[10px] p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-500 font-mono uppercase tracking-wider">
-                    <option value="auto" selected>✨ AUTO-SELECT (Intelligent)</option>
+                <select id="modelSelector" name="modelSelector" class="w-full bg-slate-950 border border-cyan-900/40 text-[10px] p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-400 font-mono uppercase tracking-wider">
 
-                    <optgroup label="Intelligence Hub (Elite Reasoning)" class="bg-slate-950 text-cyan-400">
-                        <option value="gpt_oss">GPT-OSS 120B</option>
-                        <option value="gpt_oss_20b">GPT-OSS 20B (Agentic)</option>
-                        <option value="llama4_scout">Llama 4 Scout (Mix-of-Experts)</option>
-                        <option value="reasoning">DeepSeek R1</option>
-                        <option value="qwq_32b">QwQ 32B (Thinking)</option>
-                        <option value="granite_micro">Granite 4.0 Micro</option>
+                    <optgroup label="⚡ WORKERS AI (Unlimited Free)" class="bg-slate-950 text-cyan-400">
+                        <option value="reasoning" selected>🧠 DeepSeek R1 (Tool-Enabled)</option>
+                        <option value="coding">🔧 Qwen 2.5 Coder 32B</option>
+                        <option value="qwq_32b">💭 QwQ 32B (Chain-of-Thought)</option>
+                        <option value="gpt_oss">🦙 Llama 3.1 70B</option>
+                        <option value="gpt_oss_20b">🦙 Llama 3.1 8B (Fast)</option>
+                        <option value="llama4_scout">🦙 Llama 4 Scout 17B</option>
+                        <option value="mistral_small">🌀 Mistral Small 3.1</option>
+                        <option value="gemma_3">💎 Gemma 3 12B</option>
+                        <option value="granite_micro">🪨 Granite 4.0 Micro</option>
+                        <option value="default">⚡ Llama 3.2 3B (Ultrafast)</option>
                     </optgroup>
 
-                    <optgroup label="Coding & Logic" class="bg-slate-950 text-cyan-100">
-                        <option value="coding">Qwen 2.5 Coding</option>
-                        <option value="default">Llama 3.3 Turbo</option>
-                        <option value="mistral_small">Mistral Small 3.1</option>
-                        <option value="gemma_3">Gemma 3</option>
-                        <option value="llama_3_2_3b">Llama 3.2 3B</option>
+                    <optgroup label="🎨 WORKERS AI - MEDIA (Unlimited)" class="bg-slate-950 text-emerald-400">
+                        <option value="flux_dev">🖼️ Flux 2 Dev (High Quality)</option>
+                        <option value="flux">⚡ Flux Schnell (Fast)</option>
+                        <option value="llama_3_2_11b_vision">👁️ Llama 3.2 Vision</option>
+                        <option value="llava">👁️ LLaVA 1.5</option>
                     </optgroup>
 
-                    <optgroup label="Multimodal & Media" class="bg-slate-950 text-emerald-400">
-                        <option value="gemini_2_0">Gemini 2.0 Flash</option>
-                        <option value="gemini_1_5_pro">Gemini 1.5 Pro</option>
-                        <option value="llama_3_2_11b_vision">Llama 3.2 Vision</option>
-                        <option value="llava">LLaVA 1.5</option>
-                        <option value="flux_dev">Flux 2 Dev</option>
-                        <option value="flux">Flux Schnell</option>
+                    <optgroup label="🌐 AI GATEWAY (Via Cloudflare)" class="bg-slate-950 text-blue-400">
+                        <option value="auto">✨ Auto-Route (Smart)</option>
                     </optgroup>
 
-                    <optgroup label="External Clusters (Cloud)" class="bg-slate-950 text-orange-400">
-                        <option value="kimi">Kimi K1.5</option>
-                        <option value="gpt4o">GPT-4o (Elite)</option>
-                        <option value="claude3">Claude 3.5</option>
+                    <optgroup label="☁️ EXTERNAL APIs (Limited Free Tier)" class="bg-slate-950 text-orange-400">
+                        <option value="gemini_2_0">🔮 Gemini 2.0 Flash</option>
+                        <option value="gemini_1_5_pro">🔮 Gemini 1.5 Pro</option>
+                        <option value="kimi">🔥 Kimi K1.5 (Fireworks)</option>
+                        <option value="gpt4o">💚 GPT-4o (OpenRouter)</option>
+                        <option value="claude3">🟣 Claude 3.5 (OpenRouter)</option>
                     </optgroup>
                 </select>
             </div>
 
             <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs text-cyan-100/60 bg-[#020617]/50 scrollbar-hide">
-                <div class="chat-message p-3 rounded-lg border border-cyan-950 bg-cyan-950/5 text-cyan-700 italic font-mono">
+                <div class="chat-message p-3 rounded-lg border border-cyan-950 bg-cyan-950/5 text-cyan-400 italic font-mono">
                     [SYSTEM] Neural link established. Waiting for directive...
                 </div>
             </div>
@@ -253,7 +261,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                     <div id="voiceStatus" class="hidden text-[8px] text-cyan-500 animate-pulse font-mono tracking-widest uppercase">Intercepting...</div>
                 </div>
                 <div class="relative group">
-                    <textarea id="chatInput" class="w-full bg-[#010409] border border-cyan-900/40 rounded p-3 pr-12 text-xs focus:border-cyan-400 outline-none resize-none text-cyan-100 placeholder:text-cyan-900 transition-all shadow-inner font-mono" placeholder="Input directive..." rows="3"></textarea>
+                    <textarea id="chatInput" name="chatInput" class="w-full bg-[#010409] border border-cyan-900/40 rounded p-3 pr-12 text-xs focus:border-cyan-400 outline-none resize-none text-cyan-100 placeholder:text-cyan-600 transition-all shadow-inner font-mono" placeholder="Input directive..." rows="3"></textarea>
                     <button id="chatSendButton" class="absolute bottom-4 right-3 p-2 text-cyan-900 group-focus-within:text-cyan-400 hover:scale-110 transition-all">
                         <i class="fa-solid fa-chevron-right"></i>
                     </button>
@@ -280,10 +288,10 @@ export const IDE_HTML = `<!DOCTYPE html>
     </div>
 
     <!-- Status Bar -->
-    <footer class="h-6 border-t border-cyan-900/50 bg-slate-950 flex items-center justify-between px-3 text-[9px] text-cyan-950 font-mono uppercase tracking-[0.2em] relative z-20">
+    <footer class="h-6 border-t border-cyan-900/50 bg-slate-950 flex items-center justify-between px-3 text-[9px] text-cyan-500 font-mono uppercase tracking-[0.2em] relative z-20">
         <div class="flex items-center gap-5">
-            <div class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-cyan-900"></i> Local Bridge</div>
-            <div class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-cyan-500 text-[4px] animate-glow"></i> Optimized</div>
+            <div class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-cyan-600"></i> Local Bridge</div>
+            <div class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-cyan-400 text-[4px] animate-glow"></i> Optimized</div>
         </div>
         <div class="flex items-center gap-5">
             <div id="quotaStatus" class="flex items-center gap-1.5 overflow-hidden">
@@ -291,7 +299,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <span id="quotaPercent">0%</span>
             </div>
             <div id="cursorPos">C:[<span id="cursorLine">1</span>:<span id="cursorCol">1</span>]</div>
-            <div class="opacity-30">ENC:NEON-8</div>
+            <div class="text-cyan-600">ENC:NEON-8</div>
         </div>
     </footer>
 </body></html>`;
@@ -316,6 +324,8 @@ let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
 let autoAudio = false;
+let lastMessageWasVoice = false;
+window.lastMessageWasVoice = lastMessageWasVoice;
 
 // Helper: Escape string for JS inclusion
 function escapeJsString(str) {
@@ -478,13 +488,22 @@ termInput?.addEventListener('keydown', async (e) => {
         termOutput.scrollTop = termOutput.scrollHeight;
     }
 });
-});
 
-// GitHub
-window.toggleGithubSettings = function() {
-    const current = localStorage.getItem('gh_token') || '';
-    const token = prompt("Enter GitHub PAT:", current);
+// Settings & Persistence
+window.toggleSettingsModal = function() {
+    const token = prompt("Enter GitHub PAT (optional):", localStorage.getItem('gh_token') || '');
     if (token !== null) localStorage.setItem('gh_token', token);
+};
+
+window.saveBridgeUrl = function(url) {
+    if (!url) return;
+    localStorage.setItem('bridge_url', url);
+    console.log('🔗 Bridge URL Updated:', url);
+    if (window.detectLocalBridge) window.detectLocalBridge();
+};
+
+window.getBridgeUrl = function() {
+    return localStorage.getItem('bridge_url') || 'http://127.0.0.1:3040';
 };
 
 window.ghClone = async function() {
@@ -953,14 +972,16 @@ window.sendMessage = async function() {
 
         const res = await fetch(endpoint, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: text,
-                history: chatHistory.slice(-10), // Send last 10 messages for context
+                history: chatHistory.slice(-10),
                 prompt: text,
                 style: model === 'sdxl' ? 'realism' : 'speed',
                 model: model === 'auto' ? null : model,
                 activeFile: activeFile,
-                image: activeImage
+                image: activeImage,
+                bridge_url: window.getBridgeUrl()
             })
         });
 
@@ -980,18 +1001,25 @@ window.sendMessage = async function() {
         const decoder = new TextDecoder();
         aiDiv.innerHTML = '';
         let fullText = '';
+        let sseBuffer = '';
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value);
-            // DEBUG: console.log('Chunk received:', chunk);
-            const lines = chunk.split('\\\\n\\\\n');
-            for (const line of lines) {
-                const trimmed = line.trim();
+
+            sseBuffer += decoder.decode(value, { stream: true });
+            const events = sseBuffer.split('\\n\\n');
+
+            // Keep the last partial event in the buffer
+            sseBuffer = events.pop() || '';
+
+            for (const event of events) {
+                const trimmed = event.trim();
                 if (!trimmed) continue;
                 if (trimmed.startsWith('data: ')) {
                     try {
-                        const data = JSON.parse(trimmed.slice(6));
+                        const jsonStr = trimmed.slice(6);
+                        const data = JSON.parse(jsonStr);
                         if (data.token) {
                             fullText += data.token;
                             aiDiv.innerHTML = window.formatToken(fullText);
@@ -1001,6 +1029,12 @@ window.sendMessage = async function() {
                     }
                 }
             }
+        }
+
+        // Detect UI refresh trigger
+        if (fullText.includes('[REFRESH]')) {
+            console.log("🔄 AI requested workspace refresh...");
+            window.refreshFiles();
         }
 
         // Add to history and check for triggers
@@ -1148,7 +1182,10 @@ window.sendMessage = async function() {
             // AI will now follow up with multiple code blocks to build this manually
         }
 
-        if (autoAudio) window.speakResponse(fullText);
+        if (autoAudio || window.lastMessageWasVoice) {
+            window.speakResponse(fullText);
+            window.lastMessageWasVoice = false;
+        }
     } catch(e) { aiDiv.innerText = 'Error: ' + e.message; }
 };
 
@@ -1227,7 +1264,11 @@ window.startSpeechToText = async function() {
 
         mediaRecorder.start();
         isRecording = true;
-        document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-cyan-600 text-white animate-pulse transition shadow-[0_0_15px_rgba(34,211,238,0.5)]';
+        const btn = document.getElementById('voiceBtn');
+        if (btn) {
+            btn.className = 'p-2 rounded-full bg-red-500/20 text-red-500 animate-pulse border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all';
+            btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+        }
         document.getElementById('voiceStatus').classList.remove('hidden');
         document.getElementById('voiceStatus').innerText = 'Intercepting Audio...';
     } catch (e) { alert('Microphone access denied or not supported'); }
@@ -1236,7 +1277,14 @@ window.startSpeechToText = async function() {
 window.stopSpeechToText = function() {
     if (mediaRecorder) mediaRecorder.stop();
     isRecording = false;
-    document.getElementById('voiceBtn').className = 'p-1.5 rounded-full bg-slate-900 text-slate-500 border border-transparent hover:border-cyan-500/30 transition shadow-sm';
+    const btn = document.getElementById('voiceBtn');
+    if (btn) {
+        btn.className = 'p-2 rounded-full bg-slate-900 border border-cyan-900/20 text-cyan-900 transition-all';
+        btn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
+    }
+
+    // Flag for sendMessage to know we want auto-TTS
+    window.lastMessageWasVoice = true;
 };
 
 window.addMessage = function(role, text, loading) {
@@ -1270,7 +1318,7 @@ window.formatToken = function(text) {
             '</div>' +
             '<pre class="text-xs overflow-x-auto">' + window.escapeHtml(code) + '</pre>' +
         '</div>';
-    }).replace(/\\\\n/g, '<br>');
+    }).replace(/\\\[REFRESH\\\]/g, '').replace(/\\\\n/g, '<br>');
 };
 
 window.applyCode = async function(encodedCode, file) {
@@ -1417,6 +1465,10 @@ setInterval(updateHealthStatus, 60000);
 document.addEventListener('DOMContentLoaded', () => {
     updateHealthStatus();
     fetchModels();
+
+    // Load persisted settings
+    const bridgeInput = document.getElementById('bridgeUrlInput');
+    if (bridgeInput) bridgeInput.value = window.getBridgeUrl();
 });
 
 window.updateHealthStatus = updateHealthStatus;

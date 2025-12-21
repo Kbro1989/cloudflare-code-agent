@@ -15,7 +15,8 @@ export type ModelKey =
   | 'GEMINI_2_0' | 'GEMINI_1_5_PRO' | 'KIMI' | 'GPT4O' | 'CLAUDE3'
   | 'FLUX_DEV' | 'FLUX' | 'SDXL' | 'DREAMSHAPER' | 'LUCID' | 'PHOENIX'
   | 'STT' | 'STT_TURBO' | 'FLUX_STT' | 'TTS' | 'AURA' | 'AURA_ES' | 'AURA_V1'
-  | 'LLAVA' | 'LLAMA_3_2_11B_VISION' | 'RESNET';
+  | 'LLAVA' | 'LLAMA_3_2_11B_VISION' | 'RESNET'
+  | 'THINK' | 'CODE' | 'IMAGE' | 'AGENT';
 
 export type TaskType =
   | 'code_generate' | 'code_review' | 'code_fix' | 'code_explain'
@@ -48,15 +49,15 @@ const TASK_PATTERNS: Array<{
     {
       task: 'image_generate',
       patterns: [/^\/image\s+/i, /\[IMAGE:\s*/i, /^generate\s+image/i, /^draw\s+/i, /^create\s+art/i, /^paint\s+/i],
-      model: 'FLUX_DEV',
-      endpoint: '/api/image',
+      model: 'IMAGE',
+      endpoint: '/api/chat',
       priority: 100
     },
     {
       task: 'image_quick',
       patterns: [/quick\s+sketch/i, /thumbnail/i, /preview\s+image/i, /fast\s+image/i],
-      model: 'FLUX',
-      endpoint: '/api/image',
+      model: 'IMAGE',
+      endpoint: '/api/chat',
       priority: 99
     },
     {
@@ -76,7 +77,7 @@ const TASK_PATTERNS: Array<{
     {
       task: 'agentic_flow',
       patterns: [/^run\s+task/i, /^execute\s+workflow/i, /^agent\s+/i, /^follow\s+instructions/i, /^step\s+through/i, /function\s+calling/i],
-      model: 'GRANITE_MICRO',
+      model: 'AGENT',
       endpoint: '/api/chat',
       priority: 96
     },
@@ -92,21 +93,21 @@ const TASK_PATTERNS: Array<{
     {
       task: 'code_generate',
       patterns: [/^write\s+(a\s+)?code/i, /^implement\s+/i, /^create\s+function/i, /^add\s+method/i, /^generate\s+class/i, /build\s+a\s+/i],
-      model: 'CODING',
+      model: 'CODE',
       endpoint: '/api/chat',
       priority: 80
     },
     {
       task: 'code_review',
       patterns: [/review\s+(this\s+)?code/i, /code\s+review/i, /security\s+audit/i, /check\s+for\s+bugs/i, /analyze\s+this\s+code/i],
-      model: 'REASONING',
+      model: 'THINK',
       endpoint: '/api/chat',
       priority: 79
     },
     {
       task: 'code_fix',
       patterns: [/fix\s+(this\s+)?bug/i, /debug\s+/i, /^fix\s+/i, /error\s+in/i, /broken/i, /not\s+working/i, /doesn't\s+work/i],
-      model: 'CODING',
+      model: 'CODE',
       endpoint: '/api/chat',
       priority: 78
     },
@@ -181,37 +182,31 @@ const TASK_PATTERNS: Array<{
 // File extension to model mapping for context-aware routing
 const FILE_CONTEXT_MODELS: Record<string, ModelKey> = {
   // Code files → Coding model
-  '.ts': 'CODING',
-  '.tsx': 'CODING',
-  '.js': 'CODING',
-  '.jsx': 'CODING',
-  '.py': 'CODING',
-  '.rs': 'CODING',
-  '.go': 'CODING',
-  '.java': 'CODING',
-  '.c': 'CODING',
-  '.cpp': 'CODING',
-  '.cs': 'CODING',
-  '.rb': 'CODING',
-  '.php': 'CODING',
-  '.swift': 'CODING',
-  '.kt': 'CODING',
-
-  // Config/Data → Fast general model
+  '.ts': 'CODE',
+  '.tsx': 'CODE',
+  '.js': 'CODE',
+  '.jsx': 'CODE',
+  '.py': 'CODE',
+  '.rs': 'CODE',
+  '.go': 'CODE',
+  '.java': 'CODE',
+  '.c': 'CODE',
+  '.cpp': 'CODE',
+  '.cs': 'CODE',
+  '.rb': 'CODE',
+  '.php': 'CODE',
+  '.swift': 'CODE',
+  '.kt': 'CODE',
   '.json': 'DEFAULT',
   '.yaml': 'DEFAULT',
   '.yml': 'DEFAULT',
   '.toml': 'DEFAULT',
   '.xml': 'DEFAULT',
-
-  // Markdown/Docs → Reasoning for better analysis
   '.md': 'DEFAULT',
   '.txt': 'DEFAULT',
-
-  // Shaders/Graphics → Specialized
-  '.glsl': 'CODING',
-  '.hlsl': 'CODING',
-  '.wgsl': 'CODING',
+  '.glsl': 'CODE',
+  '.hlsl': 'CODE',
+  '.wgsl': 'CODE',
 };
 
 /**
@@ -316,7 +311,11 @@ export function getModelDisplayName(modelKey: ModelKey): string {
     'AURA_V1': 'Aura 1 (Legacy)',
     'LLAVA': 'LLaVA Vision',
     'LLAMA_3_2_11B_VISION': 'Llama 3.2 Vision',
-    'RESNET': 'ResNet-50'
+    'RESNET': 'ResNet-50',
+    'THINK': 'DeepSeek R1 (Thinker)',
+    'CODE': 'Qwen 2.5 Coder (Action)',
+    'IMAGE': 'Flux Schnell',
+    'AGENT': 'Granite 4.0 Micro'
   };
   return names[modelKey] || modelKey;
 }
