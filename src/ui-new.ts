@@ -95,7 +95,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                     <button onclick="window.refreshFiles()" title="Refresh" class="p-1 hover:text-cyan-400 text-cyan-900 transition"><i class="fa-solid fa-rotate text-sm"></i></button>
                     <label class="p-1 hover:text-cyan-400 text-cyan-900 transition cursor-pointer">
                         <i class="fa-solid fa-upload text-sm"></i>
-                        <input type="file" class="hidden" onchange="window.uploadFile(this)">
+                        <input id="fileUploadInput" name="fileUploadInput" type="file" class="hidden" onchange="window.uploadFile(this)">
                     </label>
                 </div>
             </div>
@@ -123,9 +123,9 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <h3 class="text-[10px] uppercase font-bold text-cyan-400 mb-4 tracking-widest">Vocal Synthesis</h3>
                 <div class="space-y-4">
                     <div>
-                        <textarea id="audioInput" rows="4" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-100 placeholder:text-cyan-900" placeholder="Source Text..."></textarea>
+                        <textarea id="audioInput" name="audioInput" rows="4" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-100 placeholder:text-cyan-900" placeholder="Source Text..."></textarea>
                     </div>
-                    <select id="audioModel" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-1.5 rounded outline-none focus:border-cyan-400 transition text-cyan-400">
+                    <select id="audioModel" name="audioModel" class="w-full bg-slate-900 border border-cyan-900/50 text-xs p-1.5 rounded outline-none focus:border-cyan-400 transition text-cyan-400">
                         <option value="aura">Aura (Default)</option>
                         <option value="melo">Melo (Fast)</option>
                     </select>
@@ -135,7 +135,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                     <div id="audioPreview" class="hidden border-t border-cyan-900/30 pt-4 mt-4">
                         <audio id="previewPlayer" controls class="w-full h-8 mb-4 opacity-50"></audio>
                         <div class="flex gap-2">
-                            <input id="audioName" type="text" placeholder="output.mp3" class="flex-1 bg-slate-900 border border-cyan-900/50 text-xs px-2 py-1.5 rounded text-white italic outline-none focus:border-cyan-400">
+                            <input id="audioName" name="audioName" type="text" placeholder="output.mp3" class="flex-1 bg-slate-900 border border-cyan-900/50 text-xs px-2 py-1.5 rounded text-white italic outline-none focus:border-cyan-400">
                             <button onclick="window.saveGeneratedAudio()" class="bg-cyan-900/50 hover:bg-cyan-800 text-cyan-400 text-[10px] px-3 py-1.5 rounded font-bold border border-cyan-400/20 uppercase">Save</button>
                         </div>
                     </div>
@@ -152,11 +152,11 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <div class="flex flex-col gap-1.5 pt-1">
                     <div class="flex items-center gap-2 group">
                         <i class="fa-solid fa-link text-[10px] text-cyan-900 group-hover:text-cyan-400 transition"></i>
-                        <input id="bridgeUrlInput" placeholder="Bridge: http://127.0.0.1:3040" class="flex-1 bg-transparent border-none text-[10px] text-cyan-400 placeholder:text-cyan-950 outline-none focus:text-cyan-300 font-mono transition" onchange="window.saveBridgeUrl(this.value)">
+                        <input id="bridgeUrlInput" name="bridgeUrlInput" placeholder="Bridge: http://127.0.0.1:3040" class="flex-1 bg-transparent border-none text-[10px] text-cyan-400 placeholder:text-cyan-950 outline-none focus:text-cyan-300 font-mono transition" onchange="window.saveBridgeUrl(this.value)">
                     </div>
                     <div class="flex items-center gap-2 group">
                         <i class="fa-brands fa-github text-[10px] text-cyan-900 group-hover:text-cyan-400 transition"></i>
-                        <input id="ghRepo" placeholder="owner/repo" class="flex-1 bg-transparent border-none text-[10px] text-cyan-400 placeholder:text-cyan-950 outline-none focus:text-cyan-300 font-mono transition">
+                        <input id="ghRepo" name="ghRepo" placeholder="owner/repo" class="flex-1 bg-transparent border-none text-[10px] text-cyan-400 placeholder:text-cyan-950 outline-none focus:text-cyan-300 font-mono transition">
                     </div>
                 </div>
             </div>
@@ -185,7 +185,7 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto whitespace-pre-wrap text-cyan-300"></div>
                 <div class="p-2 border-t border-cyan-900/10 flex bg-black/20">
                     <span class="text-cyan-400 font-mono text-xs mr-2 animate-pulse">>>></span>
-                    <input id="terminalInput" type="text" class="flex-1 bg-transparent border-none outline-none font-mono text-xs text-cyan-400 placeholder:text-cyan-950" placeholder="System Input...">
+                    <input id="terminalInput" name="terminalInput" type="text" class="flex-1 bg-transparent border-none outline-none font-mono text-xs text-cyan-400 placeholder:text-cyan-950" placeholder="System Input...">
                 </div>
             </div>
         </section>
@@ -305,11 +305,26 @@ export const IDE_HTML = `<!DOCTYPE html>
 </body></html>`;
 
 
-export const UI_JS = `
+export const UI_JS = String.raw`
 // Safe definition of backtick to avoid template literal collisions
 const BACKTICK = String.fromCharCode(96);
 const DOLLAR = "$";
-console.log("UI_VERSION_HOLD_FIX_V27.6 Loaded - Deployment Stability Patch Active");
+console.log("UI_VERSION_HOLD_FIX_V27.8 Loaded - Deployment Stability Patch Active");
+
+// Global PNA Fetch Wrapper for Private Network Access
+const originalFetch = window.fetch;
+window.fetch = function(input, init) {
+    let url = (typeof input === 'string') ? input : (input instanceof URL ? input.toString() : (input instanceof Request ? input.url : ''));
+    if (url.includes('127.0.0.1') || url.includes('localhost')) {
+        const pnaInit = { ...(init || {}), targetAddressSpace: 'local' };
+        if (input instanceof Request) {
+            // @ts-ignore
+            return originalFetch(new Request(input, pnaInit));
+        }
+        return originalFetch(input, pnaInit);
+    }
+    return originalFetch(input, init);
+};
 
 let explorerMode = 'list';
 let chatHistory = [];
@@ -400,6 +415,16 @@ if (window.require || typeof require !== 'undefined') {
             value: '// Select a file to view content',
             language: 'typescript', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }, fontSize: 13
         });
+
+        // Fix for missing id/name on Monaco's internal textarea (Chrome warning mitigation)
+        setTimeout(() => {
+            const monacoTextArea = document.querySelector('.monaco-editor textarea');
+            if (monacoTextArea) {
+                monacoTextArea.id = 'monacoInputarea';
+                monacoTextArea.setAttribute('name', 'monacoInputarea');
+                console.log('✅ Monaco textarea attributes injected');
+            }
+        }, 1200);
 
         editor.onDidChangeCursorPosition((e) => {
             const ln = document.getElementById('cursorLine');
@@ -614,12 +639,12 @@ window.renderFileList = function(files) {
     files.forEach(file => {
         const div = document.createElement('div');
         div.className = 'group flex items-center justify-between px-3 py-1.5 text-slate-300 hover:bg-slate-700/50 cursor-pointer rounded-md';
-        const safeName = escapeJsString(file.name);
-        div.innerHTML = '<div class="flex items-center gap-2 truncate flex-1" onclick="window.loadFile(\\'' + safeName + '\\')">' +
+        const encName = encodeURIComponent(file.name);
+        div.innerHTML = '<div class="flex items-center gap-2 truncate flex-1" onclick="window.loadFile(decodeURIComponent(&quot;' + encName + '&quot;))">' +
                         '<i class="fa-regular fa-file-code text-slate-500 group-hover:text-indigo-400"></i>' +
                         '<span>' + file.name + '</span>' +
                         '</div>' +
-                        '<button class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400" onclick="event.stopPropagation(); window.deleteFile(\\'' + safeName + '\\')"><i class="fa-solid fa-trash text-xs"></i></button>';
+                        '<button class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400" onclick="event.stopPropagation(); window.deleteFile(decodeURIComponent(&quot;' + encName + '&quot;))"><i class="fa-solid fa-trash text-xs"></i></button>';
         listEl.appendChild(div);
     });
 };
@@ -801,7 +826,7 @@ window.renderAssetGallery = function(files) {
     grid.innerHTML = '';
 
     // Filter for media files (Enhanced for Phase 3)
-    const mediaFiles = files.filter(f => f.name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf|mp3|wav|ogg)$/i));
+    const mediaFiles = files.filter(f => f.name.match(/\.(png|jpg|jpeg|gif|webp|glb|gltf|mp3|wav|ogg)$/i));
 
     if (mediaFiles.length === 0) {
         grid.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 text-xs">No media assets found</div>';
@@ -814,8 +839,8 @@ window.renderAssetGallery = function(files) {
         const safeName = escapeJsString(file.name);
         card.onclick = () => window.loadFile(file.name);
 
-        const is3D = file.name.match(/\\.(glb|gltf)$/i);
-        const isAudio = file.name.match(/\\.(mp3|wav|ogg)$/i);
+        const is3D = file.name.match(/\.(glb|gltf)$/i);
+        const isAudio = file.name.match(/\.(mp3|wav|ogg)$/i);
         const apiBase = (typeof window.getApiBase === "function") ? window.getApiBase() : "";
 
         card.innerHTML = '<div class="flex items-center justify-center h-full"><i class="fa-solid fa-spinner fa-spin text-slate-700"></i></div>' +
@@ -863,7 +888,7 @@ window.deleteFile = async function(name) {
 window.loadFile = async function(name) {
     activeFile = name;
     const previewContainer = document.getElementById('previewContainer');
-    const isMedia = name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i);
+    const isMedia = name.match(/\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i);
 
     if (isMedia) {
         previewContainer.style.display = 'block';
@@ -874,7 +899,7 @@ window.loadFile = async function(name) {
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
 
-            if (name.match(/\\.(glb|gltf)$/i)) {
+            if (name.match(/\.(glb|gltf)$/i)) {
                 previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
             } else {
                 previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900/50 backdrop-blur-sm p-4">' +
@@ -913,8 +938,8 @@ window.renderTabs = function() {
         const isActive = (t === activeFile);
         div.className = 'px-3 py-2 text-xs flex items-center gap-2 cursor-pointer ' + (isActive ? 'bg-slate-800 border-t-2 border-indigo-500 text-slate-200' : 'bg-slate-900/50 text-slate-500');
         div.onclick = () => window.loadFile(t);
-        const safeTab = escapeJsString(t);
-        div.innerHTML = '<span>' + t + '</span><i class="fa-solid fa-times hover:text-red-400" onclick="event.stopPropagation(); window.closeTab(\\'' + safeTab + '\\')"></i>';
+        const encTab = encodeURIComponent(t);
+        div.innerHTML = '<span>' + t + '</span><i class="fa-solid fa-times hover:text-red-400" onclick="event.stopPropagation(); window.closeTab(decodeURIComponent(&quot;' + encTab + '&quot;))"></i>';
         container.appendChild(div);
     });
 };
@@ -927,7 +952,7 @@ window.closeTab = function(name) {
 };
 
 window.saveCurrentFile = async function(name, content) {
-    if (editor && !name.match(/\\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i)) content = editor.getValue();
+    if (editor && !name.match(/\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i)) content = editor.getValue();
     await fetch('/api/fs/file', { method: 'POST', body: JSON.stringify({ name, content }) });
 };
 
@@ -985,12 +1010,16 @@ window.sendMessage = async function() {
             })
         });
 
-        if (!res.ok) throw new Error('Status ' + res.status);
+        if (!res.ok) {
+            const errBody = await res.text().catch(() => "Unknown error");
+            throw new Error('Status ' + res.status + ': ' + errBody);
+        }
 
         if (endpoint === '/api/image') {
             const data = await res.json();
+            const encFile = encodeURIComponent(data.filename);
             aiDiv.innerHTML = '<div class="flex flex-col gap-2">' +
-                '<img src="' + data.image + '" class="rounded-lg shadow-xl cursor-pointer" onclick="window.loadFile(\\'' + data.filename + '\\')">' +
+                '<img src="' + data.image + '" class="rounded-lg shadow-xl cursor-pointer" onclick="window.loadFile(decodeURIComponent(&quot;' + encFile + '&quot;))">' +
                 '<span class="text-[10px] text-slate-500 italic">Saved as ' + data.filename + '</span>' +
                 '</div>';
             window.refreshFiles();
@@ -1008,7 +1037,7 @@ window.sendMessage = async function() {
             if (done) break;
 
             sseBuffer += decoder.decode(value, { stream: true });
-            const events = sseBuffer.split('\\n\\n');
+            const events = sseBuffer.split(/\n\n/);
 
             // Keep the last partial event in the buffer
             sseBuffer = events.pop() || '';
@@ -1042,7 +1071,7 @@ window.sendMessage = async function() {
 
         // Omni-Aware: Auto Image Trigger
         // Omni-Aware Art Triggers
-        const imageMatch = fullText.match(/\\[IMAGE:\\s*(.*?)\\]/i);
+        const imageMatch = fullText.match(/\[IMAGE:\s*(.*?)\]/i);
         if (imageMatch && imageMatch[1]) {
             const prompt = imageMatch[1];
             window.addMessage('ai', '🎨 *Generating image: "' + prompt + '"*...', true);
@@ -1052,13 +1081,14 @@ window.sendMessage = async function() {
             });
             if (imgRes.ok) {
                 const imgData = await imgRes.json();
-                window.addMessage('ai', '<img src="' + imgData.image + '" class="rounded-lg cursor-pointer" onclick="window.loadFile(\\'' + imgData.filename + '\\')">');
+                const encFile = encodeURIComponent(imgData.filename);
+                window.addMessage('ai', '<img src="' + imgData.image + '" class="rounded-lg cursor-pointer" onclick="window.loadFile(decodeURIComponent(&quot;' + encFile + '&quot;))">');
                 window.refreshFiles();
             }
         }
 
         // Detect GitHub Push Automation (Final Product Delivery)
-        const githubMatch = fullText.match(/\\[GITHUB: push (.*?):(.*?):(.*?)\\]/i);
+        const githubMatch = fullText.match(/\[GITHUB: push (.*?):(.*?):(.*?)\]/i);
         if (githubMatch) {
             const [_, repoPath, branch, message] = githubMatch;
             const [owner, repo] = repoPath.split('/');
@@ -1084,7 +1114,7 @@ window.sendMessage = async function() {
         }
 
         // Detect Terminal Automation (Autonomous Terminal)
-        const termMatch = fullText.match(/\\[TERM: (.*?)\\]/);
+        const termMatch = fullText.match(/\[TERM: (.*?)\]/);
         if (termMatch && termMatch[1] && window.getApiBase()) {
             const command = termMatch[1];
             window.addMessage('ai', '💻 *Running Terminal Command: "' + command + '"*...', true);
@@ -1102,7 +1132,7 @@ window.sendMessage = async function() {
         }
 
         // Detect Blender Automation
-        const blenderMatch = fullText.match(/\\[BLENDER: ([\\s\\S]*?)\\]/);
+        const blenderMatch = fullText.match(/\[BLENDER: ([\s\S]*?)\]/);
         if (blenderMatch && window.getApiBase()) {
             const script = blenderMatch[1];
             window.addMessage('ai', '🎬 *Running Blender Automation...*', true);
@@ -1125,13 +1155,13 @@ window.sendMessage = async function() {
         }
 
         // Detect Search Automation
-        const searchMatch = fullText.match(/\\\[SEARCH: (.*?)\\\]/);
+        const searchMatch = fullText.match(/\[SEARCH: (.*?)\]/);
         if (searchMatch && searchMatch[1]) {
             const pattern = searchMatch[1];
             window.addMessage('ai', '🔍 *Searching project for: "' + pattern + '"*...', true);
 
             // OPTIMIZATION: Prioritize Local Bridge Search
-            const localApi = (typeof localBridgeAvailable !== 'undefined' && localBridgeAvailable) ? 'http://127.0.0.1:3030' : '';
+            const localApi = (typeof localBridgeAvailable !== 'undefined' && localBridgeAvailable) ? 'http://127.0.0.1:3040' : '';
             const apiBase = localApi || ((typeof window.getApiBase === "function") ? window.getApiBase() : "");
 
             fetch(apiBase + '/api/fs/search', {
@@ -1200,11 +1230,11 @@ window.speakResponse = async function(text) {
     try {
         // Strip all code blocks, backticks, bold/italic, and URLs for clean speech
         const cleanText = text
-            .replace(new RegExp(BACKTICK.repeat(3) + '[\\\\s\\\\S]*?' + BACKTICK.repeat(3), 'g'), ' [code block] ')
-            .replace(new RegExp(BACKTICK + '[\\\\s\\\\S]*?' + BACKTICK, 'g'), '')
+            .replace(new RegExp(BACKTICK.repeat(3) + '[\\s\\S]*?' + BACKTICK.repeat(3), 'g'), ' [code block] ')
+            .replace(new RegExp(BACKTICK + '[\\s\\S]*?' + BACKTICK, 'g'), '')
             .replace(/[*_#~]/g, '')
-            .replace(/\\[.*?\\]\\(.*?\\)/g, '')
-            .replace(/https?:\\/\\/\\S+/g, '')
+            .replace(/\[.*?\]\(.*?\)/g, '')
+            .replace(/https?:\/\/\S+/g, '')
             .trim()
             .substring(0, 1000);
 
@@ -1311,23 +1341,23 @@ window.formatToken = function(text) {
     let formattedText = text.replace(/<think>([\s\S]*?)<\/think>/g, (match, content) => {
         return '<details class="text-[10px] text-cyan-800 bg-cyan-950/10 p-2 rounded border border-cyan-900/20 mb-2 cursor-help">' +
                '<summary class="font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition">Neural Process</summary>' +
-               '<div class="pt-2 italic font-mono opacity-70 border-t border-cyan-900/10 mt-1">' + window.escapeHtml(content) + '</div>' +
+               '<div class="pt-2 italic font-mono opacity-70 border-t border-cyan-900/10 mb-1">' + window.escapeHtml(content) + '</div>' +
                '</details>';
     });
 
     // Use the BACKTICK variable to avoid literal backticks in the worker string
-    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\\\w+)?\\\\n(?:\\\\/\\\\/\\\\s*file:\\\\s*([^\\\\n\\\\r]+)\\\\n)?([\\\\s\\\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
+    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\w+)?\\n(?:\\/\\/\\s*file:\\s*([^\\n\\r]+)\\n)?([\\s\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
     return formattedText.replace(pattern, (m, lang, file, code) => {
         const encoded = encodeURIComponent(code);
         const safeFile = file ? encodeURIComponent(file) : '';
         return '<div class="bg-black/40 rounded p-2 my-2 border border-slate-700 relative group">' +
             '<div class="flex justify-between text-[10px] text-slate-500 mb-1 uppercase">' +
                 '<span>' + (file || lang || 'code') + '</span>' +
-                '<button onclick="window.applyCode(\'' + encoded + '\', \'' + safeFile + '\')" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>' +
+                '<button onclick="window.applyCode(decodeURIComponent(&quot;' + encoded + '&quot;), decodeURIComponent(&quot;' + safeFile + '&quot;))" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>' +
             '</div>' +
             '<pre class="text-xs overflow-x-auto">' + window.escapeHtml(code) + '</pre>' +
         '</div>';
-    }).replace(/\\\[REFRESH\\\]/g, '').replace(/\\\\n/g, '<br>');
+    }).replace(/\[REFRESH\]/g, '').replace(/\\n/g, '<br>');
 };
 
 window.applyCode = async function(encodedCode, file) {

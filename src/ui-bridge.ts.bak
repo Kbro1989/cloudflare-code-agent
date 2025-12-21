@@ -17,9 +17,7 @@ window.detectLocalBridge = async function() {
 
       const res = await fetch(bridgeUrl + '/health', {
         signal: controller.signal,
-        cache: 'no-store',
-        // @ts-ignore
-        targetAddressSpace: 'local'
+        cache: 'no-store'
       });
       clearTimeout(timeoutId);
 
@@ -180,7 +178,6 @@ window.refreshFiles = async function() {
     try {
         const apiBase = window.getApiBase();
         const res = await fetch(apiBase + '/api/fs/list');
-        if (!res.ok) throw new Error('API down');
         const data = await res.json();
 
         fileTree = data;
@@ -331,7 +328,7 @@ window.ghClone = async function() {
             body: JSON.stringify({ command: cloneCommand })
         });
         const d = await res.json();
-        alert('Local Clone Output:\\n' + d.output);
+        alert('Local Clone Output:\\\\n' + d.output);
         window.refreshFiles();
     } catch (e) {
         alert('Local Clone Failed: ' + e.message);
@@ -350,14 +347,12 @@ window.connectTerminal = function() {
     terminalWs = new WebSocket(wsUrl);
 
     terminalWs.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            const output = document.getElementById('terminalOutput');
-            if (output && msg.data) {
-                output.innerText += msg.data;
-                output.scrollTop = output.scrollHeight;
-            }
-        } catch(e) {}
+        const msg = JSON.parse(event.data);
+        const output = document.getElementById('terminalOutput');
+        if (output && msg.data) {
+            output.innerText += msg.data;
+            output.scrollTop = output.scrollHeight;
+        }
     };
 
     terminalWs.onclose = () => {
@@ -386,7 +381,7 @@ document.getElementById('terminalInput')?.addEventListener('keydown', (e) => {
 window.deployProject = async function() {
     if (!localBridgeAvailable) return alert('Bridge required for local deployment.');
     const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
-    if (window.addMessage) window.addMessage('ai', '🚀 **Starting Local Deployment via Wrangler...**', true);
+    originalAddMessage('ai', '🚀 **Starting Local Deployment via Wrangler...**', true);
 
     try {
         const res = await fetch(bridgeUrl + '/api/exec', {
@@ -395,14 +390,37 @@ window.deployProject = async function() {
             body: JSON.stringify({ command: 'wrangler deploy' })
         });
         const d = await res.json();
-        if (window.addMessage) window.addMessage('ai', '✅ **Deployment Complete**\\n' + (d.stdout || d.error), true);
+        originalAddMessage('ai', '✅ **Deployment Complete**\\\\n' + (d.stdout || d.error), true);
     } catch (e) {
-        if (window.addMessage) window.addMessage('ai', '❌ **Deployment Failed**: ' + e.message, true);
+        originalAddMessage('ai', '❌ **Deployment Failed**: ' + e.message, true);
+    }
+};
+
+window.ghClone = async function() {
+    const repoInput = document.getElementById('ghRepo');
+    const repoRaw = repoInput?.value;
+    if (!repoRaw) return alert("Enter repo (owner/repo)");
+
+    if (localBridgeAvailable) {
+        const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+        originalAddMessage('ai', '📥 **Cloning repository locally...**', true);
+        try {
+            const res = await fetch(bridgeUrl + '/api/exec', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: 'git clone https://github.com/' + repoRaw + ' .' })
+            });
+            const d = await res.json();
+            originalAddMessage('ai', '✅ **Clone Complete**\\\\n' + (d.stdout || d.error), true);
+            window.refreshFiles();
+        } catch (e) {
+            originalAddMessage('ai', '❌ **Clone Failed**: ' + e.message, true);
+        }
     }
 };
 
 // Override addMessage to use original logic plus local redirects
-window.addMessageDirect = function(role, text, isMarkdown) {
+window.addMessage = function(role, text, isMarkdown) {
     if (role === 'ai' && localBridgeAvailable) {
         // Use single-escaped brackets for literal matching in regex
         const githubMatch = text.match(/\[GITHUB: push (.*?):(.*?):(.*?)\]/i);
@@ -418,16 +436,16 @@ window.addMessageDirect = function(role, text, isMarkdown) {
                     await fetch(bridgeUrl + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git commit -m "' + msg + '"' }) });
                     const res = await fetch(bridgeUrl + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git push origin ' + branch }) });
                     const d = await res.json();
-                    if (window.addMessage) window.addMessage('ai', '✅ **Local Git Push Complete**\\n' + d.output, true);
+                    originalAddMessage('ai', '✅ **Local Git Push Complete**\\\\n' + d.output, true);
                 } catch (e) {
-                    if (window.addMessage) window.addMessage('ai', '❌ **Local Git Push Failed**: ' + e.message, true);
+                    originalAddMessage('ai', '❌ **Local Git Push Failed**: ' + e.message, true);
                 }
             };
             runPush();
             return; // Intercepted
         }
     }
-    if (originalAddMessage) return originalAddMessage(role, text, isMarkdown);
+    return originalAddMessage ? originalAddMessage(role, text, isMarkdown) : null;
 };
 
 // Init on page load

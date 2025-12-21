@@ -210,6 +210,66 @@ const FILE_CONTEXT_MODELS: Record<string, ModelKey> = {
 };
 
 /**
+ * Model Expertise Weights
+ * Defines how models excel in specific dimensions
+ * Scale: 0-10
+ */
+export const MODEL_EXPERTISE: Record<ModelKey, { reasoning: number; coding: number; tool_use: number; speed: number }> = {
+  'REASONING': { reasoning: 10, coding: 7, tool_use: 6, speed: 2 },
+  'QWQ_32B': { reasoning: 10, coding: 6, tool_use: 5, speed: 1 },
+  'CODING': { reasoning: 7, coding: 10, tool_use: 8, speed: 4 },
+  'GRANITE_MICRO': { reasoning: 5, coding: 4, tool_use: 10, speed: 9 },
+  'GPT_OSS': { reasoning: 9, coding: 7, tool_use: 7, speed: 5 },
+  'GPT_OSS_20B': { reasoning: 6, coding: 5, tool_use: 6, speed: 10 },
+  'DEFAULT': { reasoning: 7, coding: 6, tool_use: 7, speed: 6 },
+  'GEMMA_3': { reasoning: 8, coding: 6, tool_use: 7, speed: 5 },
+  'MISTRAL_SMALL': { reasoning: 7, coding: 8, tool_use: 7, speed: 7 },
+  // Fallbacks
+  'CODE': { reasoning: 7, coding: 10, tool_use: 8, speed: 4 },
+  'AGENT': { reasoning: 5, coding: 4, tool_use: 10, speed: 9 },
+  'THINK': { reasoning: 10, coding: 7, tool_use: 6, speed: 2 },
+  'IMAGE': { reasoning: 0, coding: 0, tool_use: 0, speed: 5 },
+  // API based
+  'GEMINI_2_0': { reasoning: 9, coding: 9, tool_use: 9, speed: 8 },
+  'CLAUDE3': { reasoning: 10, coding: 10, tool_use: 9, speed: 7 },
+  'KIMI': { reasoning: 9, coding: 9, tool_use: 8, speed: 8 },
+  // Rest default to medium
+  'LLAMA_3_2_3B': { reasoning: 6, coding: 4, tool_use: 5, speed: 8 },
+  'LLAMA_3_2_1B': { reasoning: 4, coding: 3, tool_use: 4, speed: 10 },
+} as any;
+
+/**
+ * Get the optimal specialist for a specific task turn
+ */
+export function getSpecialistForTask(content: string, currentTurn: number): ModelKey {
+  const lowContent = content.toLowerCase();
+
+  // 0. Explicit Boss Directive (Look for "Switching to [Specialist]")
+  if (lowContent.includes('switching to coder') || lowContent.includes('delegate to coder')) return 'CODING';
+  if (lowContent.includes('switching to artist') || lowContent.includes('delegate to artist')) return 'IMAGE';
+  if (lowContent.includes('switching to agent') || lowContent.includes('delegate to agent')) return 'GRANITE_MICRO';
+  if (lowContent.includes('switching to thinker') || lowContent.includes('delegate to thinker')) return 'REASONING';
+
+  // 1. Tool Use / Execution Turn (High precision required)
+  if (lowContent.includes('tool_code') || lowContent.includes('call tool') || lowContent.includes('terminal_exec') || lowContent.includes('write_file')) {
+    return 'GRANITE_MICRO'; // Agentic specialist
+  }
+
+  // 2. Heavy Coding Turn
+  if (lowContent.includes('implement') || lowContent.includes('function') || lowContent.includes('class') || lowContent.includes('refactor') || lowContent.includes('write code')) {
+    return 'CODING';
+  }
+
+  // 3. Complex Reasoning / Planning Turn
+  if (currentTurn === 1 || lowContent.includes('plan') || lowContent.includes('complex logic') || lowContent.includes('architecture')) {
+    return 'REASONING';
+  }
+
+  // Default to a balanced fast model
+  return 'DEFAULT';
+}
+
+/**
  * Classify a user message and determine the optimal model
  */
 export function classifyTask(message: string, activeFile?: string, hasImageAttachment?: boolean): TaskClassification {

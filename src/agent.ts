@@ -1,31 +1,23 @@
 import { AIChatAgent } from "agents/ai-chat-agent";
 import { ModelMessage as Message } from "ai";
 import { Env, MODELS, runAI } from "./index";
-import { classifyTask, getModelDisplayName, getTaskIcon, type ModelKey } from "./modelRouter";
+import { classifyTask, getModelDisplayName, getTaskIcon, type ModelKey, getSpecialistForTask } from "./modelRouter";
 
 const WORKSPACE_PREFIX = 'projects/default/';
 const LOCAL_BRIDGE_URL = 'http://127.0.0.1:3040';
 
 const SYSTEM_INSTRUCTION_MODIFIER = `
-You are the **COMMANDER AGENT**. You are the "Boss" of this workspace.
-Your job is to orchestrate tasks by delegating them to your specialized tools (Processors).
-
-**YOUR ARSENAL:**
-- **Local Bridge (Sub-Agent Coder)**: 'read_file', 'write_file', 'list_files', 'terminal_exec'. Use these for ALL coding and tech tasks.
-- **Flux/SDXL (Sub-Agent Artist)**: 'generate_image'. Use this for visuals.
-- **DeepSeek (Sub-Agent Thinker)**: (Internal) Use your own reasoning capabilities before answering.
+You are the **COMMANDER AGENT** (Lead Architect).
+Your objective is to orchestrate complex tasks by delegating to specialized Sub-Agents (Tools).
 
 **CRITICAL PROTOCOLS:**
-1. **IMAGE COMMS**: If user asks for an image, you MUST REWRITE the prompt to be highly detailed and artistic before calling 'generate_image'. Do not use their raw simple text.
-   - Example: User "draw a cat" -> Tool call prompt "hyper-realistic close-up of a maine coon cat, cinematic lighting, 8k resolution..."
-2. **CODE COMMS**: If user asks for code, do not just write it. CHECK if files exist ('list_files', 'read_file') -> PLAN -> EXECUTE ('write_file').
-3. **VOICE/AUDIO**: If the user mentions voice/audio input, acknowledge that you are listening via the Neural Link.
-
-**EXECUTION RULES:**
-- IMMEDIATELY call tools. Do not wait.
-- Do not explain your plan, just execute the first step.
-- HIDE your internal monologue (it will be containerized by the system).
-- ALWAYS end with a [REFRESH] tag if you modified the workspace.
+1. **IMAGE COMMS (Artist)**: If user asks for an image, you MUST REWRITE the prompt to be highly detailed and artistic. Then call 'generate_image'.
+   - IMPORTANT: DO NOT output any [IMAGE: ...] tag yourself. The tool will handle the preview.
+2. **CODE COMMS (Coder)**: If user asks for code, do not just write it. CHECK files ('list_files', 'read_file') -> PLAN -> EXECUTE ('write_file' or 'terminal_exec').
+   - IMPORTANT: DO NOT output any [TERM: ...] tag yourself. Execute directly through the Coder Sub-Agent (Terminal Tool).
+3. **THOUGHTS (Thinker)**: Your reasoning will be containerized. Focus on the final DIRECTIVE in your response.
+4. **REFRESH**: If you modify the workspace, ALWAYS end your response with the tag [REFRESH] to update the UI.
+5. **OMNI-PIPELINE**: Coordinate the Sub-Agents to deliver a complete product. You have 5 turns to finalize the loop.
 `;
 
 export class CodeAgent extends AIChatAgent<Env> {
@@ -190,6 +182,83 @@ export class CodeAgent extends AIChatAgent<Env> {
               return `IMAGE_GENERATED: ${filename}\nPreview: data:image/png;base64,${btoa(binary)}`;
             } catch (e: any) { return `Image error: ${e.message}`; }
           }
+        },
+        {
+          name: "git_blame",
+          description: "Retrieve Git blame info for a file via GitKraken MCP.",
+          parameters: {
+            type: "object",
+            properties: { file: { type: "string" } },
+            required: ["file"]
+          },
+          function: async ({ file }: { file: string }) => {
+            try {
+              const res = await fetch(bridgeUrl + "/api/mcp/gitkraken", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  method: "tools/call",
+                  params: {
+                    name: "mcp_GitKraken_git_blame",
+                    arguments: { directory: ".", file }
+                  }
+                })
+              });
+              const data = await res.json() as any;
+              return JSON.stringify(data.result || data.error || data);
+            } catch (e) { return "GitKraken Bridge Error: " + (e as any).message; }
+          }
+        },
+        {
+          name: "git_log",
+          description: "Retrieve Git commit log via GitKraken MCP.",
+          parameters: {
+            type: "object",
+            properties: { n: { type: "number", default: 10 } },
+            required: ["n"]
+          },
+          function: async ({ n }: { n: number }) => {
+            try {
+              const res = await fetch(bridgeUrl + "/api/mcp/gitkraken", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  method: "tools/call",
+                  params: {
+                    name: "mcp_GitKraken_git_log_or_diff",
+                    arguments: { directory: ".", action: "log" }
+                  }
+                })
+              });
+              const data = await res.json() as any;
+              return JSON.stringify(data.result || data.error || data);
+            } catch (e) { return "GitKraken Bridge Error: " + (e as any).message; }
+          }
+        },
+        {
+          name: "ask_antigravity",
+          description: "Query the Antigravity IDE's internal soul (Senior Architect) for high-level project context.",
+          parameters: {
+            type: "object",
+            properties: { query: { type: "string" } },
+            required: ["query"]
+          },
+          function: async ({ query }: { query: string }) => {
+            try {
+              // Read context from bridge
+              const ctxRes = await fetch(bridgeUrl + "/api/antigravity/context");
+              const context = await ctxRes.json() as any;
+
+              // Forward to the Thinker model (DeepSeek R1) with contextual awareness
+              const response = await runAI(this.env, MODELS.THINK, {
+                messages: [
+                  { role: 'system', content: `You are the Senior Architect of Antigravity IDE. You have access to the user's settings, project logs, and global state. Answer the query based on this context.\n\nIDE CONTEXT:\n${JSON.stringify(context, null, 2)}` },
+                  { role: 'user', content: query }
+                ]
+              });
+              return response.response || response.choices?.[0]?.message?.content || "No response from Senior Architect.";
+            } catch (e) { return "Antigravity Bridge Error: " + (e as any).message; }
+          }
         }
       ];
 
@@ -219,10 +288,13 @@ export class CodeAgent extends AIChatAgent<Env> {
         finalModelKey = orchestrationDecision as ModelKey;
       }
 
-      const modelId = MODELS[finalModelKey] || MODELS.DEFAULT;
+      let modelId = MODELS[finalModelKey] || MODELS.DEFAULT;
       console.log(`🤖 Orchestrator: ${orchestrationDecision} -> specialist: ${finalModelKey} (${modelId})`);
-
       console.log(`🤖 Model: ${modelId} | Task: ${classification.task}`);
+
+      if (!this.env.AI && !modelId.includes('gemini') && !modelId.includes('fireworks')) {
+        throw new Error("Cloudflare AI binding is missing in this environment.");
+      }
 
       let resultText = "";
       if (modelId.startsWith('@cf/')) {
@@ -244,23 +316,47 @@ export class CodeAgent extends AIChatAgent<Env> {
         }
 
         let turn = 0;
-        while (turn < 3) {
+        let lastResponseContent = "";
+
+        while (turn < 5) {
           turn++;
-          const response = await (AI as any).run(modelId, { messages: currentMessages, tools });
-          if (!response) throw new Error("AI returned nothing");
 
-          const toolCalls = response.tool_calls || response.message?.tool_calls || [];
-          const responseText = response.response || response.message?.content || (typeof response === 'string' ? response : "");
+          // --- SYMPHONY LOGIC: Turn-Based Specialist Selector ---
+          // Every turn, the Boss (Commander) can switch to a specialist.
+          // Turn 1 is ALWAYS the Boss (Commander Planning Phase).
+          let turnModelKey = finalModelKey;
+          if (turn > 1) {
+            turnModelKey = getSpecialistForTask(lastResponseContent, turn);
+            const specialistId = MODELS[turnModelKey] || MODELS.DEFAULT;
+            modelId = specialistId; // Switch current model for this turn
+            console.log(`[SYMPHONY] Turn ${turn} Handoff -> ${turnModelKey} (${modelId})`);
+            // Add a marker for the UI if possible (optional, but good for logs)
+          }
 
-          if (toolCalls.length > 0) {
-            currentMessages.push({ role: "assistant", content: responseText || "One moment..." });
-            for (const call of toolCalls) {
-              const tool = tools.find(t => t.name === call.name);
-              const toolResult = tool ? await tool.function(call.arguments) : "Tool not found.";
-              (currentMessages as any).push({ role: "tool", content: toolResult, tool_call_id: call.id || call.name, name: call.name });
+          try {
+            const response = await (AI as any).run(modelId, { messages: currentMessages, tools });
+            if (!response) throw new Error("AI returned nothing");
+
+            const toolCalls = response.tool_calls || response.message?.tool_calls || [];
+            const responseText = response.response || response.message?.content || (typeof response === 'string' ? response : "");
+            lastResponseContent = responseText;
+
+            if (toolCalls.length > 0) {
+              console.log(`[SYMPHONY] Turn ${turn} Tool Calls:`, toolCalls.length);
+              currentMessages.push({ role: "assistant", content: responseText || "One moment..." });
+              for (const call of toolCalls) {
+                const tool = tools.find(t => t.name === call.name);
+                console.log(`[SYMPHONY] Calling Tool: ${call.name}`);
+                const toolResult = tool ? await tool.function(call.arguments) : "Tool not found.";
+                (currentMessages as any).push({ role: "tool", content: toolResult, tool_call_id: call.id || call.name, name: call.name });
+              }
+            } else {
+              resultText = responseText;
+              break;
             }
-          } else {
-            resultText = responseText;
+          } catch (e: any) {
+            console.error(`[SYMPHONY] Turn ${turn} Error:`, e.message);
+            resultText = `Error during turn ${turn}: ${e.message}`;
             break;
           }
         }
@@ -291,8 +387,16 @@ export class CodeAgent extends AIChatAgent<Env> {
         }
       });
     } catch (e: any) {
-      console.error("CodeAgent Error:", e.message);
-      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+      console.error("CodeAgent Fatal Error:", e.message);
+      const errorMsg = `[FATAL AGENT ERROR]: ${e.message}`;
+      return new Response(JSON.stringify({ error: errorMsg }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'X-Debug-Error': e.message.substring(0, 100)
+        }
+      });
     }
   }
 }

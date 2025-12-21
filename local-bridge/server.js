@@ -24,12 +24,20 @@ const PORT = 3040;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// CORS: Allow Web IDE to connect
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-}));
+// CORS: Allow Web IDE to connect and support Private Network Access (PNA)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
+  else res.setHeader('Access-Control-Allow-Origin', '*');
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-AI-Provider, Access-Control-Request-Private-Network');
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -321,6 +329,107 @@ app.post('/api/terminal', async (req, res) => {
     const shell = getActiveShell();
     shell.stdin.write(command + '\n');
     res.json({ output: 'Command sent to persistent shell...', success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Antigravity IDE Context API
+const ANTIGRAVITY_USER_DATA = path.join(process.env.APPDATA || '', 'Antigravity');
+const ANTIGRAVITY_SETTINGS = path.join(ANTIGRAVITY_USER_DATA, 'User', 'settings.json');
+const ANTIGRAVITY_MCP = path.join(ANTIGRAVITY_USER_DATA, 'User', 'mcp.json');
+
+app.get('/api/antigravity/context', async (req, res) => {
+  try {
+    const settings = await fs.readFile(ANTIGRAVITY_SETTINGS, 'utf-8').then(JSON.parse).catch(() => ({}));
+    const mcp = await fs.readFile(ANTIGRAVITY_MCP, 'utf-8').then(JSON.parse).catch(() => ({}));
+
+    // Get latest bridge logs as a proxy for "recent session context"
+    const logs = await fs.readFile(LOG_FILE, 'utf-8').catch(() => "");
+    const recentLogs = logs.split('\n').slice(-50).join('\n');
+
+    res.json({
+      settings,
+      mcp,
+      recentLogs,
+      workspaceRoot: WORKSPACE_ROOT,
+      bridgeActive: true
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- GitKraken MCP Bridge ---
+const GK_PATH = path.join(ANTIGRAVITY_USER_DATA, 'User', 'globalStorage', 'eamodio.gitlens', 'gk.exe');
+let gkProcess = null;
+const mcpRequests = new Map();
+
+function getGkProcess() {
+  if (gkProcess && !gkProcess.killed) return gkProcess;
+
+  console.log('🔗 Connecting to GitKraken MCP Server...');
+  gkProcess = spawn(GK_PATH, [
+    "mcp",
+    "--host=antigravity",
+    "--source=gitlens",
+    "--scheme=antigravity"
+  ], {
+    cwd: WORKSPACE_ROOT,
+    env: { ...process.env }
+  });
+
+  let buffer = '';
+  gkProcess.stdout.on('data', (data) => {
+    buffer += data.toString();
+    let lines = buffer.split('\n');
+    buffer = lines.pop(); // Keep partial line
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const response = JSON.parse(line);
+        if (response.id && mcpRequests.has(response.id)) {
+          mcpRequests.get(response.id)(response);
+          mcpRequests.delete(response.id);
+        }
+      } catch (e) {
+        console.error('Failed to parse MCP response:', line);
+      }
+    }
+  });
+
+  gkProcess.stderr.on('data', (data) => {
+    console.warn(`[GK-MCP ERROR] ${data.toString()}`);
+  });
+
+  gkProcess.on('exit', () => {
+    console.log('⚠️ GitKraken MCP exited.');
+    gkProcess = null;
+  });
+
+  return gkProcess;
+}
+
+app.post('/api/mcp/gitkraken', async (req, res) => {
+  try {
+    const gk = getGkProcess();
+    const requestId = Date.now().toString();
+    const payload = { ...req.body, jsonrpc: "2.0", id: requestId };
+
+    const timeout = setTimeout(() => {
+      if (mcpRequests.has(requestId)) {
+        mcpRequests.delete(requestId);
+        res.status(504).json({ error: 'GitKraken MCP Timeout' });
+      }
+    }, 10000);
+
+    mcpRequests.set(requestId, (response) => {
+      clearTimeout(timeout);
+      res.json(response);
+    });
+
+    gk.stdin.write(JSON.stringify(payload) + '\n');
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
