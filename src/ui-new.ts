@@ -204,8 +204,8 @@ export const IDE_HTML = `<!DOCTYPE html>
                 <select id="modelSelector" name="modelSelector" class="w-full bg-slate-950 border border-cyan-900/40 text-[10px] p-2 rounded outline-none focus:border-cyan-400 transition text-cyan-400 font-mono uppercase tracking-wider">
 
                     <optgroup label="⚡ WORKERS AI (Unlimited Free)" class="bg-slate-950 text-cyan-400">
-                        <option value="reasoning" selected>🧠 DeepSeek R1 (Tool-Enabled)</option>
-                        <option value="coding">🔧 Qwen 2.5 Coder 32B</option>
+                        <option value="reasoning" selected>🧠 DeepSeek R1 (Commander)</option>
+                        <option value="coding">🔧 Qwen 2.5 Coder 32B (Tool-Use)</option>
                         <option value="qwq_32b">💭 QwQ 32B (Chain-of-Thought)</option>
                         <option value="gpt_oss">🦙 Llama 3.1 70B</option>
                         <option value="gpt_oss_20b">🦙 Llama 3.1 8B (Fast)</option>
@@ -1306,19 +1306,28 @@ window.addMessage = function(role, text, loading) {
 
 window.formatToken = function(text) {
     if (!text) return '';
+
+    // Parse <think> tags into collapsible details
+    let formattedText = text.replace(/<think>([\s\S]*?)<\/think>/g, (match, content) => {
+        return '<details class="text-[10px] text-cyan-800 bg-cyan-950/10 p-2 rounded border border-cyan-900/20 mb-2 cursor-help">' +
+               '<summary class="font-bold uppercase tracking-widest opacity-50 hover:opacity-100 transition">Neural Process</summary>' +
+               '<div class="pt-2 italic font-mono opacity-70 border-t border-cyan-900/10 mt-1">' + window.escapeHtml(content) + '</div>' +
+               '</details>';
+    });
+
     // Use the BACKTICK variable to avoid literal backticks in the worker string
-    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\\\w+)?\\\\n(?:\\\\/\\\\/\\\\s*file:\\\\s*([^\\\\n\\\\r]+)\\\\n)?([\\\\s\\\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
-    return text.replace(pattern, (m, lang, file, code) => {
+    const pattern = new RegExp(BACKTICK + BACKTICK + BACKTICK + '(\\w+)?\\n(?:\\/\\/\\s*file:\\s*([^\\n\\r]+)\\n)?([\\s\\S]*?)' + BACKTICK + BACKTICK + BACKTICK, 'g');
+    return formattedText.replace(pattern, (m, lang, file, code) => {
         const encoded = encodeURIComponent(code);
         const safeFile = file ? encodeURIComponent(file) : '';
         return '<div class="bg-black/40 rounded p-2 my-2 border border-slate-700 relative group">' +
             '<div class="flex justify-between text-[10px] text-slate-500 mb-1 uppercase">' +
                 '<span>' + (file || lang || 'code') + '</span>' +
-                '<button onclick="window.applyCode(\\'' + encoded + '\\', \\'' + safeFile + '\\')" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>' +
+                '<button onclick="window.applyCode(\'' + encoded + '\', \'' + safeFile + '\')" class="text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition">Apply</button>' +
             '</div>' +
             '<pre class="text-xs overflow-x-auto">' + window.escapeHtml(code) + '</pre>' +
         '</div>';
-    }).replace(/\\\[REFRESH\\\]/g, '').replace(/\\\\n/g, '<br>');
+    }).replace(/\[REFRESH\]/g, '').replace(/\\n/g, '<br>');
 };
 
 window.applyCode = async function(encodedCode, file) {
