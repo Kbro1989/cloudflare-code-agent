@@ -8,7 +8,7 @@ const originalAddMessage = (typeof window !== "undefined") ? window.addMessage :
 window.detectLocalBridge = async function() {
   const maxRetries = 3;
   const retryDelay = 500; // ms
-  const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+  const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
 
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -93,14 +93,14 @@ window.updateModeIndicator = function(mode) {
 
 // Graceful degradation for failed bridge operations
 window.getApiBase = function() {
-  const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+  const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
   return localBridgeAvailable ? bridgeUrl : '';
 };
 
 window.syncCloudToLocal = async function() {
     const statusEl = document.getElementById('modeIndicator');
     try {
-        const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+        const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
         const cloudFiles = await fetch('/api/fs/list').then(r => r.json());
         const bridgeFiles = await fetch(bridgeUrl + '/api/fs/list').then(r => r.json());
 
@@ -154,7 +154,7 @@ window.syncCloudToLocal = async function() {
                     payload = { name: file.name, content: data.content };
                 }
 
-                const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+                const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
                 await fetch(bridgeUrl + '/api/fs/file', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -289,7 +289,7 @@ window.deleteFile = async function(name) {
 
         // 2. Delete from Local Bridge if available
         if (localBridgeAvailable) {
-            const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+            const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
             await fetch(bridgeUrl + '/api/fs/file', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
@@ -324,7 +324,7 @@ window.ghClone = async function() {
             : 'git clone https://github.com/' + repoRaw + ' .';
 
         // Local clone using CLI
-        const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+        const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
         const res = await fetch(bridgeUrl + '/api/terminal', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -343,7 +343,7 @@ let terminalWs = null;
 
 window.connectTerminal = function() {
     if (terminalWs) return;
-    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
     const wsUrl = bridgeUrl.replace('http', 'ws');
 
     console.log('🔌 Connecting Terminal WebSocket...');
@@ -385,7 +385,7 @@ document.getElementById('terminalInput')?.addEventListener('keydown', (e) => {
 // Redirect Deploy/Clone Hooks
 window.deployProject = async function() {
     if (!localBridgeAvailable) return alert('Bridge required for local deployment.');
-    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
     if (window.addMessage) window.addMessage('ai', '🚀 **Starting Local Deployment via Wrangler...**', true);
 
     try {
@@ -413,7 +413,7 @@ window.addMessageDirect = function(role, text, isMarkdown) {
             const runPush = async () => {
                 try {
                     // Local Git sequence
-                    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://127.0.0.1:3040";
+                    const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
                     await fetch(bridgeUrl + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git add .' }) });
                     await fetch(bridgeUrl + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git commit -m "' + msg + '"' }) });
                     const res = await fetch(bridgeUrl + '/api/terminal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'git push origin ' + branch }) });

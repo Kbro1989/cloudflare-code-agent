@@ -316,6 +316,7 @@ const originalFetch = window.fetch;
 window.fetch = function(input, init) {
     let url = (typeof input === 'string') ? input : (input instanceof URL ? input.toString() : (input instanceof Request ? input.url : ''));
     if (url.includes('127.0.0.1') || url.includes('localhost')) {
+        console.log('PNA: Intercepting request to ' + url + ' (Address Space: local)');
         const pnaInit = { ...(init || {}), targetAddressSpace: 'local' };
         if (input instanceof Request) {
             // @ts-ignore
@@ -528,7 +529,13 @@ window.saveBridgeUrl = function(url) {
 };
 
 window.getBridgeUrl = function() {
-    return localStorage.getItem('bridge_url') || 'http://127.0.0.1:3040';
+    let url = localStorage.getItem('bridge_url');
+    // Auto-migrate legacy default to localhost for PNA compliance
+    if (!url || url.includes('127.0.0.1:3040')) {
+        url = 'http://localhost:3040';
+        localStorage.setItem('bridge_url', url);
+    }
+    return url;
 };
 
 window.ghClone = async function() {
