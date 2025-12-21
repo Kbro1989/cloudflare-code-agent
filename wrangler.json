@@ -1,5 +1,5 @@
 {
-  "name": "hybrid-ide-production",
+  "name": "cloudflare-code-agent",
   "main": "src/index.ts",
   "compatibility_date": "2024-12-30",
   "compatibility_flags": [
@@ -19,16 +19,8 @@
   },
   "migrations": [
     {
-      "tag": "v1",
-      "new_sqlite_classes": [
-        "RateLimiter"
-      ]
-    },
-    {
-      "tag": "v2",
-      "new_sqlite_classes": [
-        "CodeAgent"
-      ]
+      "tag": "v6",
+      "renamed_classes": []
     }
   ],
   "kv_namespaces": [
