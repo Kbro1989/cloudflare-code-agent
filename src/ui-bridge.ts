@@ -6,18 +6,19 @@ let taskQueueMode = false; // True when using cloud-to-local task queue
 const originalAddMessage = (typeof window !== "undefined") ? window.addMessage : null;
 
 // Task Queue Helper - Submits task to cloud and polls for result
-window.runLocalTask = async function(type, payload, timeoutMs = 30000) {
+window.runLocalTask = async function(type, payload, timeoutMs = 60000) {
   const res = await fetch('/api/task/queue', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, payload })
   });
+  if (!res.ok) throw new Error('Failed to queue task: ' + res.status);
   const { taskId } = await res.json();
 
   // Poll for result
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
-    await new Promise(r => setTimeout(r, 500)); // Wait 500ms between polls
+    await new Promise(r => setTimeout(r, 200)); // Faster polling (200ms)
     const resultRes = await fetch('/api/task/result?taskId=' + taskId);
     const result = await resultRes.json();
     if (result.status === 'complete') {
@@ -32,8 +33,8 @@ window.runLocalTask = async function(type, payload, timeoutMs = 30000) {
 window.checkTaskQueueMode = async function() {
   if (window.location.protocol !== 'https:') return false;
   try {
-    // Submit a quick health check task
-    const result = await window.runLocalTask('fs.list', { path: '' }, 5000);
+    // Perform a quick list operation to verify connectivity
+    const result = await window.runLocalTask('fs.list', { path: '' }, 15000); // 15s timeout for first check
     if (result && Array.isArray(result)) {
       taskQueueMode = true;
       console.log('🔄 Task Queue Mode: Active (Task Runner CLI connected)');
@@ -41,7 +42,7 @@ window.checkTaskQueueMode = async function() {
       return true;
     }
   } catch (e) {
-    console.log('☁️ Task Queue Mode: Inactive (Start Task Runner CLI for local file access)');
+    console.log('☁️ Task Queue Mode: Inactive (' + e.message + ')');
   }
   return false;
 };
@@ -254,7 +255,7 @@ window.refreshFiles = async function() {
     }
 };
 
-// Override loadFile to use bridge
+// Override loadFile to use bridge or task queue
 window.loadFile = async function(name) {
     activeFile = name;
     const previewContainer = document.getElementById('previewContainer');
@@ -265,16 +266,27 @@ window.loadFile = async function(name) {
         previewContainer.style.display = 'block';
         previewContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-mono text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Media...</div>';
         try {
-            const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(name));
-            if (!res.ok) throw new Error('Failed to load media');
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
+            let url;
+            if (localBridgeAvailable) {
+                const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(name));
+                if (!res.ok) throw new Error('Failed to load media');
+                const blob = await res.blob();
+                url = URL.createObjectURL(blob);
+            } else if (taskQueueMode) {
+                const data = await window.runLocalTask('fs.read', { name, encoding: 'base64' }, 30000);
+                url = 'data:application/octet-stream;base64,' + data.content;
+            } else {
+                const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+                if (!res.ok) throw new Error('Failed to load media');
+                const blob = await res.blob();
+                url = URL.createObjectURL(blob);
+            }
 
             if (name.match(/\.(glb|gltf)$/i)) {
                 previewContainer.innerHTML = '<model-viewer src="' + url + '" camera-controls auto-rotate style="width:100%;height:100%"></model-viewer>';
             } else {
                 previewContainer.innerHTML = '<div class="flex items-center justify-center h-full bg-slate-900/50 backdrop-blur-sm p-4">' +
-                    '<img src="' + url + '" class="max-w-full max-h-full shadow-2xl rounded-lg border border-white/10" onload="window.URL.revokeObjectURL(this.src)">' +
+                    '<img src="' + url + '" class="max-w-full max-h-full shadow-2xl rounded-lg border border-white/10">' +
                     '</div>';
             }
         } catch (e) {
@@ -286,37 +298,66 @@ window.loadFile = async function(name) {
     } else {
         previewContainer.style.display = 'none';
         try {
-            const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(name));
-            const d = await res.json();
-            currentCode = d.content;
+            let content;
+            if (localBridgeAvailable) {
+                const res = await fetch(apiBase + '/api/fs/file?name=' + encodeURIComponent(name));
+                const d = await res.json();
+                content = d.content;
+            } else if (taskQueueMode) {
+                const data = await window.runLocalTask('fs.read', { name }, 10000);
+                content = data.content;
+            } else {
+                const res = await fetch('/api/fs/file?name=' + encodeURIComponent(name));
+                const d = await res.json();
+                content = d.content;
+            }
+
+            currentCode = content;
             if (editor) {
                 const model = editor.getModel();
                 monaco.editor.setModelLanguage(model, window.getLanguage(name));
-                editor.setValue(d.content);
+                editor.setValue(content);
             }
         } catch(e){}
     }
     window.renderTabs();
 };
 
-// Override saveCurrentFile to use bridge
+// Override saveCurrentFile to use bridge or task queue
 window.saveCurrentFile = async function(name, content, encoding) {
     if (window.editor && !name.match(/\.(png|jpg|jpeg|gif|webp|glb|gltf)$/i)) {
         content = window.editor.getValue();
     }
 
     const apiBase = window.getApiBase();
+    let primarySuccess = false;
 
-    // 1. Save to primary target (Local Bridge if mode=local, else Cloud)
-    const primaryRes = await fetch(apiBase + '/api/fs/file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, content, encoding })
-    });
+    // 1. Save to primary target
+    try {
+        if (localBridgeAvailable) {
+            const res = await fetch(apiBase + '/api/fs/file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, content, encoding })
+            });
+            primarySuccess = res.ok;
+        } else if (taskQueueMode) {
+            await window.runLocalTask('fs.write', { name, content, encoding }, 10000);
+            primarySuccess = true;
+        } else {
+            const res = await fetch('/api/fs/file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, content, encoding })
+            });
+            primarySuccess = res.ok;
+        }
+    } catch (e) {
+        console.error('Save failed:', e);
+    }
 
     // 2. BACKGROUND CHECKPOINT: Always push to Cloud (R2) if we are in local mode
-    // This provides the "persistent progress save" in case of local failure
-    if (localBridgeAvailable && primaryRes.ok) {
+    if ((localBridgeAvailable || taskQueueMode) && primarySuccess) {
         fetch('/api/fs/file', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -329,8 +370,14 @@ window.saveCurrentFile = async function(name, content, encoding) {
 window.createNewFile = async function() {
     const name = prompt("Filename:");
     if (name) {
-        const apiBase = window.getApiBase();
-        await fetch(apiBase + '/api/fs/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, content: '' }) });
+        if (localBridgeAvailable) {
+            const apiBase = window.getApiBase();
+            await fetch(apiBase + '/api/fs/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, content: '' }) });
+        } else if (taskQueueMode) {
+            await window.runLocalTask('fs.write', { name, content: '' }, 10000);
+        } else {
+            await fetch('/api/fs/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, content: '' }) });
+        }
         window.refreshFiles();
     }
 };
@@ -338,8 +385,6 @@ window.createNewFile = async function() {
 window.deleteFile = async function(name) {
     if (!confirm('Delete ' + name + '?')) return;
     try {
-        const apiBase = window.getApiBase();
-
         // 1. Delete from Cloud (R2) - ALWAYS do this for sync
         try {
             await fetch('/api/fs/file', {
@@ -359,6 +404,8 @@ window.deleteFile = async function(name) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
             });
+        } else if (taskQueueMode) {
+            await window.runLocalTask('fs.delete', { name }, 10000);
         }
 
         window.refreshFiles();
@@ -368,10 +415,10 @@ window.deleteFile = async function(name) {
     }
 };
 
-// Override ghClone for local bridge
+// Override ghClone for local bridge or task queue
 const oldGhClone = window.ghClone;
 window.ghClone = async function() {
-    if (!localBridgeAvailable) return oldGhClone ? oldGhClone() : null;
+    if (!localBridgeAvailable && !taskQueueMode) return oldGhClone ? oldGhClone() : null;
 
     const repoInput = document.getElementById('ghRepo');
     const repoRaw = repoInput?.value;
@@ -387,19 +434,54 @@ window.ghClone = async function() {
             ? 'git clone ' + repoRaw + ' .'
             : 'git clone https://github.com/' + repoRaw + ' .';
 
-        // Local clone using CLI
-        const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
-        const res = await fetch(bridgeUrl + '/api/terminal', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: cloneCommand })
-        });
-        const d = await res.json();
-        alert('Local Clone Output:\\n' + d.output);
+        let output;
+        if (localBridgeAvailable) {
+            const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
+            const res = await fetch(bridgeUrl + '/api/terminal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: cloneCommand })
+            });
+            const d = await res.json();
+            output = d.output;
+        } else {
+            const res = await window.runLocalTask('terminal.exec', { command: cloneCommand }, 120000); // 2 min timeout for clone
+            output = res.output || res.error;
+        }
+
+        alert('Local Clone Output:\\n' + output);
         window.refreshFiles();
     } catch (e) {
         alert('Local Clone Failed: ' + e.message);
     } finally { btn.innerHTML = oldText; }
+};
+
+// Redirect Deploy/Clone Hooks
+window.deployProject = async function() {
+    if (!localBridgeAvailable && !taskQueueMode) return alert('Bridge required for local deployment.');
+    if (window.addMessage) window.addMessage('ai', '🚀 **Starting Local Deployment via Wrangler...**', true);
+
+    const cmd = 'npx wrangler deploy';
+    try {
+        let output;
+        if (localBridgeAvailable) {
+            const bridgeUrl = (typeof window.getBridgeUrl === "function") ? window.getBridgeUrl() : "http://localhost:3040";
+            const res = await fetch(bridgeUrl + '/api/exec', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: cmd })
+            });
+            const d = await res.json();
+            output = d.output;
+        } else {
+            const res = await window.runLocalTask('terminal.exec', { command: cmd }, 60000);
+            output = res.output || res.error;
+        }
+
+        if (window.addMessage) window.addMessage('ai', 'Deployment Output:\\n\`\`\`\\n' + output + '\\n\`\`\`');
+    } catch (e) {
+        if (window.addMessage) window.addMessage('ai', '❌ Deployment failed: ' + e.message);
+    }
 };
 
 // --- Persistent Terminal Integration ---

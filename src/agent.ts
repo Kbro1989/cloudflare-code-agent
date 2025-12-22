@@ -41,6 +41,30 @@ export class CodeAgent extends AIChatAgent<Env> {
       const AI = this.env.AI;
       const bridgeUrl = body.bridge_url || LOCAL_BRIDGE_URL;
 
+      // Helper for Task Queue Execution (PNA Bypass)
+      const executeLocalTask = async (type: string, payload: any): Promise<any> => {
+        const taskId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const TASK_QUEUE_PREFIX = 'task_queue:';
+        const TASK_RESULT_PREFIX = 'task_result:';
+
+        // 1. Queue Task in KV
+        const task = { id: taskId, type, payload, status: 'pending', createdAt: Date.now() };
+        await this.env.CACHE.put(`${TASK_QUEUE_PREFIX}${taskId}`, JSON.stringify(task), { expirationTtl: 300 });
+
+        // 2. Poll for Result in KV (30s timeout)
+        const startTime = Date.now();
+        while (Date.now() - startTime < 30000) {
+          await new Promise(r => setTimeout(r, 500));
+          const resultData = await this.env.CACHE.get(`${TASK_RESULT_PREFIX}${taskId}`);
+          if (resultData) {
+            const result = JSON.parse(resultData);
+            if (result.error) throw new Error(result.error);
+            return result.result;
+          }
+        }
+        throw new Error("Task timed out (Local Task Runner may not be running).");
+      };
+
       // Define Tools
       const tools = [
         {
@@ -52,16 +76,11 @@ export class CodeAgent extends AIChatAgent<Env> {
             required: ["name"]
           },
           function: async ({ name }: { name: string }) => {
-            // 1. Try Bridge first
+            // 1. Try Bridge first (Task Queue)
             try {
-              const res = await fetch(bridgeUrl + "/api/exec", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ command: `cat ${name}` })
-              });
-              const data = await res.json() as any;
-              if (data.success && data.stdout) return data.stdout;
-            } catch (e) { console.warn("Bridge read failed, falling back to R2"); }
+              const res = await executeLocalTask('fs.read', { name });
+              if (res && res.content) return res.content;
+            } catch (e) { console.warn("Bridge read failed (TaskQueue), falling back to R2:", e); }
 
             // 2. Fallback to R2
             const obj = await this.env.R2_ASSETS.get(WORKSPACE_PREFIX + name);
@@ -81,14 +100,9 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ name, content }: { name: string, content: string }) => {
             try {
-              // We use /api/fs/file on the bridge for reliable binary/text writing
-              const res = await fetch(bridgeUrl + "/api/fs/file", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, content })
-              });
-              const data = await res.json() as any;
-              return data.success ? "File saved successfully." : `Error: ${data.error}`;
+              // Task Queue Write
+              await executeLocalTask('fs.write', { name, content });
+              return "File saved successfully (Local Task).";
             } catch (e) { return "Bridge error: " + (e as any).message; }
           }
         },
@@ -102,13 +116,9 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ path }: { path: string }) => {
             try {
-              const res = await fetch(bridgeUrl + "/api/exec", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ command: `cat ${path}` })
-              });
-              const data = await res.json() as any;
-              return data.stdout || data.error || "No output.";
+              // Reuse fs.read for cat
+              const res = await executeLocalTask('fs.read', { name: path });
+              return res && res.content ? res.content : "No output.";
             } catch (e) { return "Bridge error: " + (e as any).message; }
           }
         },
@@ -122,13 +132,9 @@ export class CodeAgent extends AIChatAgent<Env> {
           },
           function: async ({ command }: { command: string }) => {
             try {
-              const res = await fetch(bridgeUrl + "/api/exec", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ command, persistent: true })
-              });
-              const data = await res.json() as any;
-              return data.success ? (data.stdout || "Success.") : `Error: ${data.error}`;
+              // Task Queue Terminal Execution
+              const res = await executeLocalTask('terminal.exec', { command });
+              return res.output || res.error || "Command executed (No output).";
             } catch (e) { return "Bridge error: " + (e as any).message; }
           }
         },

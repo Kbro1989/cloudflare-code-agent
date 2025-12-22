@@ -18,11 +18,14 @@ console.log(`📡 Worker URL: ${WORKER_URL}`);
 console.log(`📁 Workspace: ${WORKSPACE}`);
 console.log(`⏱️  Poll Interval: ${POLL_INTERVAL}ms\n`);
 
+// Track current working directory
+let currentDir = WORKSPACE;
+
 // Task Handlers
 const handlers = {
   // File system operations
   'fs.list': async (payload) => {
-    const dir = path.join(WORKSPACE, payload.path || '');
+    const dir = path.join(currentDir, payload.path || ''); // Use currentDir
     const files = await fs.readdir(dir, { withFileTypes: true });
     return files.map(f => ({
       name: f.name,
@@ -33,6 +36,11 @@ const handlers = {
 
   'fs.read': async (payload) => {
     const filePath = path.join(WORKSPACE, payload.name);
+    const isBinary = payload.encoding === 'base64';
+    if (isBinary) {
+      const buf = await fs.readFile(filePath);
+      return { name: payload.name, content: buf.toString('base64'), encoding: 'base64' };
+    }
     const content = await fs.readFile(filePath, 'utf-8');
     return { name: payload.name, content };
   },
@@ -55,10 +63,29 @@ const handlers = {
     return { success: true };
   },
 
+
   // Terminal command execution
   'terminal.exec': async (payload) => {
+    let command = payload.command;
+
+    // Handle CD (Change Directory) logic
+    if (command.trim().startsWith('cd ')) {
+      const targetDir = command.trim().substring(3).trim();
+      try {
+        const newDir = path.resolve(currentDir, targetDir);
+        // Verify dir exists
+        const stats = await fs.stat(newDir);
+        if (!stats.isDirectory()) throw new Error('Not a directory');
+
+        currentDir = newDir;
+        return { output: `Changed directory to: ${currentDir}`, exitCode: 0 };
+      } catch (e) {
+        return { error: `cd failed: ${e.message}`, exitCode: 1 };
+      }
+    }
+
     return new Promise((resolve, reject) => {
-      exec(payload.command, { cwd: WORKSPACE, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      exec(payload.command, { cwd: currentDir, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err) {
           resolve({ error: stderr || err.message, exitCode: err.code });
         } else {
