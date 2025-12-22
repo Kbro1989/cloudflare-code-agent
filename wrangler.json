@@ -1,5 +1,5 @@
 {
-  "name": "cloudflare-code-agent",
+  "name": "hybrid-ide-production",
   "main": "src/index.ts",
   "compatibility_date": "2024-12-30",
   "compatibility_flags": [
