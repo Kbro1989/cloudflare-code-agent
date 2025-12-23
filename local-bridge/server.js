@@ -11,6 +11,17 @@ const WebSocket = require('ws');
 const execAsync = promisify(exec);
 const LOG_FILE = path.join(process.cwd(), 'bridge.log');
 
+// User-specified paths configuration
+const TOOL_PATHS = [
+  'C:\\Windows\\System32\\WindowsPowerShell\\v1.0',
+  'C:\\Users\\Destiny\\AppData\\Roaming\\npm',
+  'C:\\Users\\Destiny'
+];
+
+// Update process PATH immediately
+process.env.PATH = `${TOOL_PATHS.join(';')};${process.env.PATH}`;
+
+
 async function logBridge(msg) {
   const timestamp = new Date().toISOString();
   await fs.appendFile(LOG_FILE, `[${timestamp}] ${msg}\n`).catch(() => { });
@@ -478,10 +489,51 @@ function shouldIgnore(name) {
   return ['node_modules', '.git', 'dist', 'build', '.next', '.env', '.DS_Store'].includes(name) || name.startsWith('.');
 }
 
+// --- Cloudflare Tunnel ---
+const CLOUDFLARED_PATH = 'cloudflared'; // Assume cloudflared is in PATH
+let tunnelProcess = null;
+
+async function startTunnel(port) {
+  console.log('🚇 Starting Cloudflare Tunnel...');
+  try {
+    // Start a quick tunnel
+    tunnelProcess = spawn(CLOUDFLARED_PATH, ['tunnel', '--url', `http://localhost:${port}`]);
+
+    tunnelProcess.stderr.on('data', (data) => {
+      const str = data.toString();
+      // Look for the tunnel URL in stderr (where cloudflared outputs it)
+      const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+      if (match) {
+        const tunnelUrl = match[0];
+        console.log(`\n🌐 Public Tunnel Active: ${tunnelUrl}`);
+        console.log(`   (Use this URL in the online app settings to connect)\n`);
+        logBridge(`Tunnel URL: ${tunnelUrl}`);
+      }
+    });
+
+    tunnelProcess.on('exit', (code) => {
+      console.log(`🚇 Cloudflare Tunnel exited with code ${code}`);
+    });
+  } catch (e) {
+    console.error('❌ Failed to start cloudflared:', e.message);
+  }
+}
+
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`\n🌉 Local Bridge Server running on http://127.0.0.1:${PORT}`);
   console.log(`🔌 WebSocket Stream Active on port ${PORT}`);
+
+  // Start tunnel automatically
+  startTunnel(PORT);
 });
 
 process.on('uncaughtException', (err) => console.error('💥 Uncaught Exception:', err));
 process.on('unhandledRejection', (reason) => console.error('💥 Unhandled Rejection:', reason));
+
+// Cleanup on exit
+process.on('SIGINT', () => {
+  if (tunnelProcess) tunnelProcess.kill();
+  if (activeShell) activeShell.kill();
+  if (gkProcess) gkProcess.kill();
+  process.exit();
+});

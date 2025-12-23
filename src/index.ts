@@ -461,6 +461,13 @@ export default {
           return handleHealth(request, env, ctx, corsHeaders);
         case '/api/models':
           return json({ catalog: MODELS, groups: MODEL_GROUPS }, 200, corsHeaders);
+        // --- Neural Control Plane ---
+        case '/api/orchestrate':
+          return handleOrchestrate(request, env, ctx, corsHeaders);
+        case '/api/local/execute':
+          return handleLocalExecute(request, env, corsHeaders);
+        case '/api/mesh/status':
+          return handleMeshStatus(request, env, corsHeaders);
         // --- Task Queue for PNA Bypass ---
         case '/api/task/queue':
           return handleTaskQueue(request, env, corsHeaders);
@@ -1481,6 +1488,90 @@ function json(data: any, status = 200, corsHeaders: any = {}): Response {
 function redact(str: string): string {
   if (!str) return str;
   return str.replace(/GEMINI_API_KEY|OLLAMA_AUTH_TOKEN|CLOUDFLARE_API_TOKEN|ACCOUNT_ID|AIza[A-Za-z0-9_-]+|fw_[a-zA-Z0-9]{20,}|key_[a-zA-Z0-9]{20,}/gi, '[REDACTED]');
+}
+
+// ----------------------------------------------------------------------------
+// Neural Control Plane Handlers
+// ----------------------------------------------------------------------------
+
+async function handleOrchestrate(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: any): Promise<Response> {
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+
+  try {
+    const { message, context, model } = await request.json() as any;
+
+    // Use QwQ-32B or DeepSeek R1 for high-level reasoning/decomposition
+    const reasoningModel = model || MODELS.REASONING || '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
+
+    const systemPrompt = `
+    You are the **Neural Orchestrator**, the central brain of the Willow Neural Mesh.
+    Your goal is to break down complex user requests into atomic, executable steps for other workers.
+
+    Analyze the request and return a JSON object with:
+    - "intent": strict summary of goal
+    - "steps": array of { "worker": "vault"|"local"|"code", "action": string, "params": object }
+    - "thought_process": brief explanation of your plan
+
+    Context: ${JSON.stringify(context || {})}
+    `;
+
+    const response = await runAI(env, reasoningModel, {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ]
+    });
+
+    return json({
+      success: true,
+      decomposition: response,
+      model: reasoningModel
+    }, 200, corsHeaders);
+
+  } catch (e: any) {
+    return errorResponse(`Orchestration Failed: ${e.message}`, 500, corsHeaders);
+  }
+}
+
+async function handleLocalExecute(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  // Wrapper around Task Queue for "Symphony Bridge" style execution
+  // This allows the neural-bridge-pages to offload local execution here if needed
+  if (request.method !== 'POST') return errorResponse('Method Not Allowed', 405, corsHeaders);
+
+  try {
+    const body = await request.json() as any;
+    const { command, type, path } = body;
+
+    // Create a task for the local runner (task-runner.js polling)
+    const taskType = type || 'terminal';
+    const payload = command ? { command, cwd: path } : body;
+
+    const taskId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const task = { id: taskId, type: taskType, payload, status: 'pending', createdAt: Date.now() };
+
+    // Reuse TASK_QUEUE_PREFIX from existing scope if available, or define locally
+    const QUEUE_PREFIX = 'task_queue:';
+    await env.CACHE.put(`${QUEUE_PREFIX}${taskId}`, JSON.stringify(task), { expirationTtl: 300 });
+
+    return json({
+      success: true,
+      taskId,
+      status: 'queued',
+      note: 'Command queued for local-bridge polling'
+    }, 200, corsHeaders);
+
+  } catch (e: any) {
+    return errorResponse(`Local Execution Env Failed: ${e.message}`, 500, corsHeaders);
+  }
+}
+
+async function handleMeshStatus(request: Request, env: Env, corsHeaders: any): Promise<Response> {
+  return json({
+    role: 'orchestrator',
+    status: 'online',
+    version: '2.0.0-neural',
+    services: ['ai', 'task-queue', 'github-bridge']
+  }, 200, corsHeaders);
 }
 
 function errorResponse(message: string, status = 500, corsHeaders = {}): Response {

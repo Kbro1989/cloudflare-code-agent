@@ -13,7 +13,21 @@ const WORKER_URL = process.env.WORKER_URL || 'https://cloudflare-code-agent.kris
 const POLL_INTERVAL = process.env.POLL_INTERVAL || 2000; // 2 seconds
 const WORKSPACE = process.env.WORKSPACE_ROOT || process.cwd();
 
-console.log('🌉 Task Runner CLI - PNA Bypass Mode');
+// User-specified paths for tools
+const TOOL_PATHS = [
+  'C:\\Windows\\System32\\WindowsPowerShell\\v1.0',
+  'C:\\Users\\Destiny\\AppData\\Roaming\\npm',
+  'C:\\Users\\Destiny'
+];
+
+// Update PATH
+process.env.PATH = `${TOOL_PATHS.join(';')};${process.env.PATH}`;
+
+// Pick of Gods Credentials
+process.env.NEXT_PUBLIC_INSTANT_APP_ID = '13f19b79-d6e2-49b2-b26a-630243051890';
+process.env.INSTANT_APP_ADMIN_TOKEN = '4166e2a0488ae84843a78a96830974d8e36be2a760ee9315965943554a19b816ed13';
+
+console.log('🌉 Task Runner CLI - PNA Bypass Mode (PowerShell Enabled)');
 console.log(`📡 Worker URL: ${WORKER_URL}`);
 console.log(`📁 Workspace: ${WORKSPACE}`);
 console.log(`⏱️  Poll Interval: ${POLL_INTERVAL}ms\n`);
@@ -85,7 +99,11 @@ const handlers = {
     }
 
     return new Promise((resolve, reject) => {
-      exec(payload.command, { cwd: currentDir, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      exec(payload.command, {
+        cwd: currentDir,
+        maxBuffer: 10 * 1024 * 1024,
+        shell: 'powershell.exe'
+      }, (err, stdout, stderr) => {
         if (err) {
           resolve({ error: stderr || err.message, exitCode: err.code });
         } else {
