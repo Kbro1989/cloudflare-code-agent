@@ -12,14 +12,14 @@
     "dependencies": {
         "@cloudflare/ai": "^1.2.2",
         "@cloudflare/ai-utils": "^1.0.1",
-        "agents": "^0.2.32",
+        "agents": "^0.3.10",
         "ai": "^5.0.115",
         "cloudflare": "^5.2.0",
-        "diff": "^5.2.0"
+        "diff": "^5.2.2"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "^4.20241205.0",
         "@types/diff": "^7.0.2",
-        "wrangler": "^4.55.0"
+        "wrangler": "^4.59.1"
     }
 }
