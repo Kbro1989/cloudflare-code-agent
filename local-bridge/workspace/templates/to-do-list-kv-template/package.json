@@ -26,7 +26,7 @@
 		"react-dom": "^18.0.0"
 	},
 	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "0.8.44",
+		"@cloudflare/vitest-pool-workers": "0.12.19",
 		"@cloudflare/workers-types": "^4.20250425.0",
 		"@remix-run/dev": "2.16.5",
 		"@types/react": "^18.0.0",
@@ -41,7 +41,7 @@
 		"vite": "5.4.14",
 		"vite-tsconfig-paths": "5.1.4",
 		"vitest": "3.2.4",
-		"wrangler": "^3.114.4"
+		"wrangler": "^3.114.17"
 	},
 	"engines": {
 		"node": ">=20.0.0"
